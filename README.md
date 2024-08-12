@@ -139,16 +139,17 @@ financial_bot_instructions = """
 
 `vectara-agentic` is using environment variables for a few global configuration 
 - `VECTARA_AGENTIC_AGENT_TYPE`: type of agent - `REACT` or `OPENAI` (default `OPENAI`)
-- `VECTARA_AGENTIC_MAIN_LLM_PROVIDER`: agent LLM provider `OPENAI` or `ANTHROPIC` or `TOGETHER` or `FIREWORKS` (default `OPENAI`)
+- `VECTARA_AGENTIC_MAIN_LLM_PROVIDER`: agent LLM provider `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, or `FIREWORKS` (default `OPENAI`)
 - `VECTARA_AGENTIC_MAIN_MODEL_NAME`: agent model name (default depends on provider)
-- `VECTARA_AGENTIC_TOOL_LLM_PROVIDER`: tool LLM provider `OPENAI` or `ANTHROPIC` or `TOGETHER` or `FIREWORKS` (default `OPENAI`)
+- `VECTARA_AGENTIC_TOOL_LLM_PROVIDER`: tool LLM provider `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, or `FIREWORKS` (default `OPENAI`)
 - `VECTARA_AGENTIC_TOOL_MODEL_NAME`: tool model name (default depends on provider)
 
 ## Examples
 
 We have created a few example AI assistants that you can look at for inspiration and code examples:
-- [Financial advisor agent](https://huggingface.co/spaces/vectara/finance-chat).
-- [Justice Harvard](https://huggingface.co/spaces/vectara/Justice-Harvard).
+- [Financial Assistant](https://huggingface.co/spaces/vectara/finance-chat).
+- [Justice Harvard Teaching Assistant](https://huggingface.co/spaces/vectara/Justice-Harvard).
+- [Legal Assistant](https://huggingface.co/spaces/vectara/legal-agent).
 
 ## Author
 
