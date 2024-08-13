@@ -99,21 +99,25 @@ class VectaraToolFactory:
         """
         Creates a RAG (Retrieve and Generate) tool.
 
-        Parameters:
-        - tool_name (str): The name of the tool.
-        - tool_description (str): The description of the tool.
-        - tool_args_schema (BaseModel): The schema for the tool arguments.
-        - vectara_summarizer (str): The Vectara summarizer to use.
-        - summary_num_results (int): The number of summary results.
-        - summary_response_lang (str): The response language for the summary.
-        - n_sentences_before (int): Number of sentences before the summary.
-        - n_sentences_after (int): Number of sentences after the summary.
-        - lambda_val (float): Lambda value for the Vectara query.
-        - reranker (str): The reranker mode.
-        - rerank_k (int): Number of top-k documents for reranking.
-        - mmr_diversity_bias (float): MMR diversity bias.
-        - include_citations (bool): Whether to include citations in the response.
-        If True, uses MARKDOWN vectara citations that requires the Vectara scale plan.
+        Args:
+
+            tool_name (str): The name of the tool.
+            tool_description (str): The description of the tool.
+            tool_args_schema (BaseModel): The schema for the tool arguments.
+            vectara_summarizer (str): The Vectara summarizer to use.
+            summary_num_results (int): The number of summary results.
+            summary_response_lang (str): The response language for the summary.
+            n_sentences_before (int): Number of sentences before the summary.
+            n_sentences_after (int): Number of sentences after the summary.
+            lambda_val (float): Lambda value for the Vectara query.
+            reranker (str): The reranker mode.
+            rerank_k (int): Number of top-k documents for reranking.
+            mmr_diversity_bias (float): MMR diversity bias.
+            include_citations (bool): Whether to include citations in the response.
+                If True, uses MARKDOWN vectara citations that requires the Vectara scale plan.
+
+        Returns:
+            VectaraTool: A VectaraTool object.
         """
         vectara = VectaraIndex(
             vectara_api_key=self.vectara_api_key,
@@ -258,9 +262,12 @@ class ToolsFactory:
         """
         Create a tool from a function.
 
-        Parameters:
-        - function (Callable): a function to convert into a tool.
-        - tool_type (ToolType): the type of tool.
+        Args:
+            function (Callable): a function to convert into a tool.
+            tool_type (ToolType): the type of tool.
+
+        Returns:
+            list[FunctionTool]: a list of FunctionTool objects.
         """
         return VectaraTool(FunctionTool.from_defaults(function), tool_type)
 
@@ -275,10 +282,13 @@ class ToolsFactory:
         Get a tool from the llama_index hub.
 
         Parameters:
-        - tool_package_name (str): The name of the tool package.
-        - tool_spec_name (str): The name of the tool spec.
-        - tool_name_prefix (str): The prefix to add to the tool names (added to every tool in the spec).
-        - kwargs (dict): The keyword arguments to pass to the tool constructor (see Hub for tool specific details).
+            tool_package_name (str): The name of the tool package.
+            tool_spec_name (str): The name of the tool spec.
+            tool_name_prefix (str): The prefix to add to the tool names (added to every tool in the spec).
+            kwargs (dict): The keyword arguments to pass to the tool constructor (see Hub for tool specific details).
+
+        Returns:
+            list[FunctionTool]: a list of FunctionTool objects
         """
         # Dynamically install and import the module
         if tool_package_name not in LI_packages.keys():
@@ -369,18 +379,23 @@ class ToolsFactory:
         dbname: str = "postgres",
     ) -> List[FunctionTool]:
         """
-        returns a list of database tools.
+        Returns a list of database tools.
+
         Args:
-        - tool_name_prefix (str, optional): The prefix to add to the tool names. Defaults to "".
-        - content_description (str, optional): The content description for the database. Defaults to None.
-        - sql_database (SQLDatabase, optional): The SQLDatabase object. Defaults to None.
-        - scheme (str, optional): The database scheme. Defaults to None.
-        - host (str, optional): The database host. Defaults to "localhost".
-        - port (str, optional): The database port. Defaults to "5432".
-        - user (str, optional): The database user. Defaults to "postgres".
-        - password (str, optional): The database password. Defaults to "Password".
-        - dbname (str, optional): The database name. Defaults to "postgres".
-        You must specify either the sql_database object or the scheme, host, port, user, password, and dbname.
+
+            tool_name_prefix (str, optional): The prefix to add to the tool names. Defaults to "".
+            content_description (str, optional): The content description for the database. Defaults to None.
+            sql_database (SQLDatabase, optional): The SQLDatabase object. Defaults to None.
+            scheme (str, optional): The database scheme. Defaults to None.
+            host (str, optional): The database host. Defaults to "localhost".
+            port (str, optional): The database port. Defaults to "5432".
+            user (str, optional): The database user. Defaults to "postgres".
+            password (str, optional): The database password. Defaults to "Password".
+            dbname (str, optional): The database name. Defaults to "postgres".
+               You must specify either the sql_database object or the scheme, host, port, user, password, and dbname.
+
+        Returns:
+            List[FunctionTool]: A list of FunctionTool objects
         """
         if sql_database:
             tools = self.get_llama_index_tools(
