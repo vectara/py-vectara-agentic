@@ -11,7 +11,7 @@ setup(
     version="0.1.0",
     author="Ofer Mendelevitch",
     author_email="ofer@vectara.com",
-    description="A Python package for creating Agent-based AI assistants with Vectara",
+    description="A Python package for creating AI Assistants and AI Agents with Vectara",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     url="https://github.com/vectara/py-vectara-agentic",
