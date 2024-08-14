@@ -11,13 +11,15 @@ from .types import AgentStatusType
 
 
 class AgentCallbackHandler(BaseCallbackHandler):
-    """Callback handler to track agent status
+    """
+    Callback handler to track agent status
 
     This handler simply keeps track of event starts/ends, separated by event types.
     You can use this callback handler to keep track of agent progress.
 
     Args:
-    - fn: callable function agent will call back to report on agent progress
+    
+        fn: callable function agent will call back to report on agent progress
     """
 
     def __init__(self, fn: Callable = None) -> None:

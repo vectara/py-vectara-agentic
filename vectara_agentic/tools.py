@@ -51,7 +51,7 @@ LI_packages = {
 
 class VectaraTool:
     """
-    A wrapper of FunctionTOol class for Vectara tools, adding the tool_type attribute.
+    A wrapper of FunctionTool class for Vectara tools, adding the tool_type attribute.
     """
 
     def __init__(self, function_tool: FunctionTool, tool_type: ToolType) -> None:
@@ -137,7 +137,9 @@ class VectaraToolFactory:
 
         # Dynamically generate the RAG function
         def rag_function(*args, **kwargs) -> dict[str, Any]:
-            """Dynamically generated function for RAG query with Vectara"""
+            """
+            Dynamically generated function for RAG query with Vectara.
+            """
             # Convert args to kwargs using the function signature
             sig = inspect.signature(rag_function)
             bound_args = sig.bind_partial(*args, **kwargs)
@@ -253,7 +255,7 @@ class VectaraToolFactory:
 
 class ToolsFactory:
     """
-    A factory class for creating agent tools
+    A factory class for creating agent tools.
     """
 
     def create_tool(
@@ -267,7 +269,7 @@ class ToolsFactory:
             tool_type (ToolType): the type of tool.
 
         Returns:
-            list[FunctionTool]: a list of FunctionTool objects.
+            List[FunctionTool]: A list of FunctionTool objects.
         """
         return VectaraTool(FunctionTool.from_defaults(function), tool_type)
 
@@ -288,7 +290,7 @@ class ToolsFactory:
             kwargs (dict): The keyword arguments to pass to the tool constructor (see Hub for tool specific details).
 
         Returns:
-            list[FunctionTool]: a list of FunctionTool objects
+            list[FunctionTool]: A list of FunctionTool objects.
         """
         # Dynamically install and import the module
         if tool_package_name not in LI_packages.keys():
@@ -351,7 +353,7 @@ class ToolsFactory:
             text: str = Field(description="the original text."),
         ) -> str:
             """
-            critique the legal document.
+            Critique the legal document.
             """
             return critique_text(
                 text,
@@ -395,7 +397,7 @@ class ToolsFactory:
                You must specify either the sql_database object or the scheme, host, port, user, password, and dbname.
 
         Returns:
-            List[FunctionTool]: A list of FunctionTool objects
+            List[FunctionTool]: A list of FunctionTool objects.
         """
         if sql_database:
             tools = self.get_llama_index_tools(
