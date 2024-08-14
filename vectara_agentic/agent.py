@@ -26,9 +26,11 @@ load_dotenv(override=True)
 
 
 def get_prompt(prompt_template: str, topic: str, custom_instructions: str):
-    """Generate a prompt by replacing placeholders with topic and date.
+    """
+    Generate a prompt by replacing placeholders with topic and date.
 
     Args:
+
         prompt_template (str): The template for the prompt.
         topic (str): The topic to be included in the prompt.
 
@@ -50,7 +52,9 @@ def retry_if_exception(exception):
 
 
 class Agent:
-    """Agent class for handling different types of agents and their interactions."""
+    """
+    Agent class for handling different types of agents and their interactions.
+    """
 
     def __init__(
         self,
@@ -59,13 +63,15 @@ class Agent:
         custom_instructions: str = "",
         update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
     ):
-        """Initialize the agent with the specified type, tools, topic, and system message.
+        """
+        Initialize the agent with the specified type, tools, topic, and system message.
 
         Args:
-        - tools (list[FunctionTool]): A list of tools to be used by the agent.
-        - topic (str, optional): The topic for the agent. Defaults to 'general'.
-        - custom_instructions (str, optional): custom instructions for the agent. Defaults to ''.
-        - update_func (Callable): a callback function the code calls on any agent updates
+
+            tools (list[FunctionTool]): A list of tools to be used by the agent.
+            topic (str, optional): The topic for the agent. Defaults to 'general'.
+            custom_instructions (str, optional): custom instructions for the agent. Defaults to ''.
+            update_func (Callable): a callback function the code calls on any agent updates.
         """
         self.agent_type = AgentType(os.getenv("VECTARA_AGENTIC_AGENT_TYPE", "OPENAI"))
         self.tools = tools
@@ -110,21 +116,24 @@ class Agent:
         custom_instructions: str = "",
         update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
     ) -> "Agent":
-        """Create an agent from tools, agent type, and language model.
+        """
+        Create an agent from tools, agent type, and language model.
 
         Args:
-        - tools (list[FunctionTool]): A list of tools to be used by the agent.
-        - topic (str, optional): The topic for the agent. Defaults to 'general'.
-        - custom_instructions (str, optional): custom instructions for the agent. Defaults to ''.
-        - llm (LLM): The language model to be used by the agent.
+
+            tools (list[FunctionTool]): A list of tools to be used by the agent.
+            topic (str, optional): The topic for the agent. Defaults to 'general'.
+            custom_instructions (str, optional): custom instructions for the agent. Defaults to ''.
+            llm (LLM): The language model to be used by the agent.
 
         Returns:
-        - Agent: An instance of the Agent class.
+            Agent: An instance of the Agent class.
         """
         return cls(tools, topic, custom_instructions, update_func)
 
     def report(self) -> str:
-        """Get a report from the agent.
+        """
+        Get a report from the agent.
 
         Returns:
             str: The report from the agent.
@@ -144,7 +153,8 @@ class Agent:
         wait_fixed=2000,
     )
     def chat(self, prompt: str) -> str:
-        """Interact with the agent using a chat prompt.
+        """
+        Interact with the agent using a chat prompt.
 
         Args:
             prompt (str): The chat prompt.
