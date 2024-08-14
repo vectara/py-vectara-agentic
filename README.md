@@ -7,7 +7,7 @@
 [![Discord](https://img.shields.io/badge/Discord-Join%20Us-blue?style=social&logo=discord)](https://discord.com/invite/GFb8gMz6UH)
 
 
-The idea of LLM-based agents it to use the LLM for building sophisticated AI assistants:
+The idea of LLM-based agents is to use the LLM for building sophisticated AI assistants:
 - The LLM is used for reasoning and coming up with a game-plan for how to respond to the user query.
 - There are 1 or more "tools" provided to the agent. These tools can be used by the LLM to execute its plan.
 
@@ -26,7 +26,7 @@ The idea of LLM-based agents it to use the LLM for building sophisticated AI ass
 
 ### Install vectara-agentic
 
-- `python -m pip install vectara-agentic`
+- `pip install vectara-agentic`
 
 ### Create your AI assistant
 
@@ -41,7 +41,7 @@ vec_factory = VectaraToolFactory(vectara_api_key=os.environ['VECTARA_API_KEY'],
                                  vectara_customer_id=os.environ['VECTARA_CUSTOMER_ID'], 
                                  vectara_corpus_id=os.environ['VECTARA_CORPUS_ID'])
 ```
-The tools factory has a useful helper function called `create_rag_tool` which automates the creation of a 
+The Vectara tool factory has a useful helper function called `create_rag_tool` which automates the creation of a 
 tool to query Vectara RAG. 
 
 For example if my Vectara corpus includes financial information from company 
@@ -71,8 +71,7 @@ this tool in the most effective way.
 The `tool_filter_template` provides the template filtering expression the tool should use when calling Vectara.
 
 You can of course create more than one Vectara tool; tools may point at different corpora or may have different parameters for search
-or generation. Remember though to think about your tools wisely and from the agent point of view - at the end of the day they are just tools
-in the service of the agent, so should be differentiated.
+or generation. 
 
 #### Step 2: Create Other Tools, as needed
 
