@@ -104,21 +104,20 @@ mult_tool = ToolsFactory().create_tool(mult_func)
 
 ```python
 agent = Agent(
-    agent_type = agent_type,
     tools = tools,
     topic = topic_of_expertise
     custom_instructions = financial_bot_instructions,
     update_func = update_func
 )
 ```
-
-- `agent_type` is one of `AgentType.REACT` or `AgentTypeOpenAI`
 - `tools` is the list of tools you want to provide to the agent
 - `topic` is a string that defines the expertise you want the agent to specialize in.
 - `custom_instructions` is an optional string that defines special instructions to the agent
 - `update_func` is a callback function that will be called by the agent as it performs its task
   The inputs to this function you provide are `status_type` of type AgentStatusType and 
   `msg` which is a string.
+
+Note that the Agent type (`OPENAI` or `REACT`) is defined as an environment variables `VECTARA_AGENTIC_AGENT_TYPE`.
 
 For example, for a financial agent we can use:
 
