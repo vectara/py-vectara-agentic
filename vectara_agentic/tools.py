@@ -329,6 +329,9 @@ class ToolsFactory:
         return [self.create_tool(tool) for tool in [summarize_text, rephrase_text]]
 
     def guardrail_tools(self) -> List[FunctionTool]:
+        """
+        Create a list of guardrail tools to avoid controversial topics.
+        """
         return [
             self.create_tool(tool)
             for tool in [guardrails_no_politics, guardrails_be_polite]
@@ -341,6 +344,9 @@ class ToolsFactory:
         return self.get_llama_index_tools("yahoo_finance", "YahooFinanceToolSpec")
 
     def legal_tools(self) -> List[FunctionTool]:
+        """
+        Create a list of legal tools.
+        """
         def summarize_legal_text(
             text: str = Field(description="the original text."),
         ) -> str:
