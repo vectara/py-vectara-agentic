@@ -44,7 +44,7 @@ def get_prompt(prompt_template: str, topic: str, custom_instructions: str):
     )
 
 
-def retry_if_exception(exception):
+def _retry_if_exception(exception):
     # Define the condition to retry on certain exceptions
     return isinstance(
         exception, (TimeoutError)
@@ -148,7 +148,7 @@ class Agent:
         print(f"Tool LLM = {get_llm(LLMRole.TOOL).model}")
 
     @retry(
-        retry_on_exception=retry_if_exception,
+        retry_on_exception=_retry_if_exception,
         stop_max_attempt_number=3,
         wait_fixed=2000,
     )
