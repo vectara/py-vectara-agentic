@@ -8,7 +8,8 @@ def read_requirements():
 
 setup(
     name="vectara_agentic",
-    version="0.1.1",
+    version="0.1.3",
+    license="Apache-2.0",
     author="Ofer Mendelevitch",
     author_email="ofer@vectara.com",
     description="A Python package for creating AI Assistants and AI Agents with Vectara",
@@ -19,8 +20,15 @@ setup(
     install_requires=read_requirements(),
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
+        "Development Status :: 4 - Beta",
+        "Topic :: Scientific/Engineering :: Artificial Intelligence",
+        "Topic :: Software Development :: Libraries :: Python Modules",
     ],
+    keywords = ["LLM", "NLP", "RAG", "Agentic-RAG"],
+    project_urls={
+        "Documentation": "https://vectara.github.io/vectara-agentic-docs/",
+    },
     python_requires=">=3.10",
 )

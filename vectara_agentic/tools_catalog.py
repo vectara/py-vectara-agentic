@@ -22,7 +22,6 @@ get_headers = {
 #
 # Standard Tools
 #
-
 def summarize_text(
     text: str = Field(description="the original text."),
     expertise: str = Field(
@@ -30,9 +29,16 @@ def summarize_text(
     ),
 ) -> str:
     """
-    This is a helper tool. It does not provide new information.
-    Use this tool to summarize text with no more than summary_max_length 
-    characters.
+    This is a helper tool. 
+    Use this tool to summarize text using a given expertise
+    with no more than summary_max_length characters.
+
+    Args:
+        text (str): The original text.
+        expertise (str): The expertise to apply to the summarization.
+    
+    Returns:
+        str: The summarized text.
     """
     expertise = "general" if len(expertise) < 3 else expertise.lower()
     prompt = f"As an expert in {expertise}, summarize the provided text"
@@ -50,9 +56,16 @@ def rephrase_text(
     ),
 ) -> str:
     """
-    This is a helper tool. It does not provide new information.
+    This is a helper tool. 
     Use this tool to rephrase the text according to the provided instructions.
     For example, instructions could be "as a 5 year old would say it."
+
+    Args:
+        text (str): The original text.
+        instructions (str): The specific instructions for how to rephrase the text.
+
+    Returns:    
+        str: The rephrased text.
     """
     prompt = f"""
     Rephrase the provided text according to the following instructions: {instructions}.
@@ -75,8 +88,16 @@ def critique_text(
     ),
 ) -> str:
     """
-    This is a helper tool. It does not provide new information.
+    This is a helper tool. 
     Critique the text from the specified point of view.
+
+    Args:
+        text (str): The original text.
+        role (str): The role of the person providing critique.
+        point_of_view (str): The point of view with which to provide critique.
+
+    Returns:
+        str: The critique of the text.
     """
     if role:
         prompt = f"As a {role}, critique the provided text from the point of view of {point_of_view}."
@@ -94,12 +115,16 @@ def critique_text(
 #
 # Guardrails tools
 #
-
-
 def guardrails_no_politics(text: str = Field(description="the original text.")) -> str:
     """
     A guardrails tool.
-    Can be used to rephrase text so that it does not have political content.
+    Given the input text, rephrases the text to ensure that the response avoids any specific political content.
+
+    Args:
+        text (str): The original text.
+
+    Returns:
+        str: The rephrased text.
     """
     return rephrase_text(text, "avoid any specific political content.")
 
@@ -107,6 +132,12 @@ def guardrails_no_politics(text: str = Field(description="the original text.")) 
 def guardrails_be_polite(text: str = Field(description="the original text.")) -> str:
     """
     A guardrails tool.
-    Can be used to rephrase the text so that the response is in a polite tone.
+    Given the input text, rephrases the text to ensure that the response is polite.
+
+    Args:
+        text (str): The original text.
+
+    Returns:
+        str: The rephrased text.
     """
     return rephrase_text(text, "Ensure the response is super polite.")
