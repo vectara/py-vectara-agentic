@@ -19,3 +19,4 @@ pylint==3.2.6
 flake8==7.1.0
 pymongo==4.6.1
 python-dotenv==1.0.1
+tiktoken==0.7.0

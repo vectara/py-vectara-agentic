@@ -1,7 +1,7 @@
 import unittest
 from datetime import date
 
-from vectara_agentic.agent import get_prompt, Agent, AgentType, FunctionTool
+from vectara_agentic.agent import _get_prompt, Agent, AgentType, FunctionTool
 
 
 class TestAgentPackage(unittest.TestCase):
@@ -15,7 +15,7 @@ class TestAgentPackage(unittest.TestCase):
             + " with Always do as your mother tells you!"
         )
         self.assertEqual(
-            get_prompt(prompt_template, topic, custom_instructions), expected_output
+            _get_prompt(prompt_template, topic, custom_instructions), expected_output
         )
 
     def test_agent_init(self):

@@ -98,6 +98,13 @@ class VectaraToolFactory:
         vectara_corpus_id: str,
         vectara_api_key: str,
     ) -> None:
+        """
+        Initialize the VectaraToolFactory
+        Args:
+            vectara_customer_id (str): The Vectara customer ID.
+            vectara_corpus_id (str): The Vectara corpus ID.
+            vectara_api_key (str): The Vectara API key.
+        """
         self.vectara_customer_id = vectara_customer_id
         self.vectara_corpus_id = vectara_corpus_id
         self.vectara_api_key = vectara_api_key
@@ -250,7 +257,6 @@ class VectaraToolFactory:
         tool = FunctionTool.from_defaults(
             fn=rag_function,
             name=tool_name,
-#            description=tool_description,
             fn_schema=tool_args_schema,
         )
         return VectaraTool(tool, ToolType.QUERY)

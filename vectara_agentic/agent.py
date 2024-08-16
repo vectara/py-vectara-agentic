@@ -8,24 +8,28 @@ from datetime import date
 
 from retrying import retry
 
+from pydantic import Field, create_model
+
+
 from llama_index.core.tools import FunctionTool
 from llama_index.core.agent import ReActAgent
 from llama_index.core.agent.react.formatter import ReActChatFormatter
-from llama_index.core.callbacks import CallbackManager
+from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.agent.openai import OpenAIAgent
 from llama_index.core.memory import ChatMemoryBuffer
 
 from dotenv import load_dotenv
 
 from .types import AgentType, AgentStatusType, LLMRole
-from .utils import get_llm
+from .utils import get_llm, get_tokenizer_for_model
 from ._prompts import REACT_PROMPT_TEMPLATE, GENERAL_PROMPT_TEMPLATE
 from ._callback import AgentCallbackHandler
+from .tools import VectaraToolFactory
 
 load_dotenv(override=True)
 
 
-def get_prompt(prompt_template: str, topic: str, custom_instructions: str):
+def _get_prompt(prompt_template: str, topic: str, custom_instructions: str):
     """
     Generate a prompt by replacing placeholders with topic and date.
 
@@ -79,12 +83,22 @@ class Agent:
         self._custom_instructions = custom_instructions
         self._topic = topic
 
-        callback_manager = CallbackManager([AgentCallbackHandler(update_func)])  # type: ignore
+        main_tok = get_tokenizer_for_model(role=LLMRole.MAIN)
+        self.main_token_counter = TokenCountingHandler(tokenizer = main_tok) if main_tok else None
+        tool_tok = get_tokenizer_for_model(role=LLMRole.TOOL)
+        self.tool_token_counter = TokenCountingHandler(tokenizer = tool_tok) if tool_tok else None
+        
+        callbacks = [AgentCallbackHandler(update_func)]
+        if self.main_token_counter:
+            callbacks.append(self.main_token_counter)
+        if self.tool_token_counter:
+            callbacks.append(self.tool_token_counter)
+        callback_manager = CallbackManager(callbacks)   # type: ignore
         self.llm.callback_manager = callback_manager
 
         memory = ChatMemoryBuffer.from_defaults(token_limit=128000)
         if self.agent_type == AgentType.REACT:
-            prompt = get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
+            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
             self.agent = ReActAgent.from_tools(
                 tools=tools,
                 llm=self.llm,
@@ -95,7 +109,7 @@ class Agent:
                 callable_manager=callback_manager,
             )
         elif self.agent_type == AgentType.OPENAI:
-            prompt = get_prompt(GENERAL_PROMPT_TEMPLATE, topic, custom_instructions)
+            prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, topic, custom_instructions)
             self.agent = OpenAIAgent.from_tools(
                 tools=tools,
                 llm=self.llm,
@@ -131,6 +145,84 @@ class Agent:
         """
         return cls(tools, topic, custom_instructions, update_func)
 
+
+    @classmethod
+    def from_corpus(
+        cls,
+        vectara_customer_id: str,
+        vectara_corpus_id: str,
+        vectara_api_key: str,
+        data_description: str,
+        assistant_specialty: str,
+        vectara_filter_fields: List[str] = [],
+        vectara_lambda_val: float = 0.005,
+        vectara_reranker: str = "mmr",
+        vectara_rerank_k: int = 50,
+        vectara_n_sentences_before: int = 2,
+        vectara_n_sentences_after: int = 2,
+        vectara_summary_num_results: int = 10,
+        vectara_summarizer: str = "vectara-summary-ext-24-05-sml",
+    ) -> "Agent":
+        """
+        Create an agent from a single Vectara corpus
+
+        Args:
+            name (str): The name .
+            vectara_customer_id (str): The Vectara customer ID.
+            vectara_corpus_id (str): The Vectara corpus ID.
+            vectara_api_key (str): The Vectara API key.
+            data_description (str): The description of the data.
+            assistant_specialty (str): The specialty of the assistant.
+            vectara_filter_fields (List[Field]): The filterable attributes to use with their pydantic descriptions.
+            vectara_lambda_val (float): The lambda value for Vectara hybrid search.
+            vectara_reranker (str): The Vectara reranker name (default "mmr")
+            vectara_rerank_k (int): The number of results to use with reranking.
+            vectara_n_sentences_before (int): The number of sentences before the matching text
+            vectara_n_sentences_after (int): The number of sentences after the matching text.
+            vectara_summary_num_results (int): The number of results to use in summarization.
+            vectara_summarizer (str): The Vectara summarizer name.
+
+        Returns:
+            Agent: An instance of the Agent class.
+        """
+        vec_factory = VectaraToolFactory(vectara_api_key=vectara_api_key, 
+                                         vectara_customer_id=vectara_customer_id,
+                                         vectara_corpus_id=vectara_corpus_id)        
+        QueryArgs = create_model(
+            "QueryArgs",
+            query=(str, Field(description="The user query")),
+            **{f"filter_{i}": (field.type_, field) for i, field in enumerate(vectara_filter_fields)}
+        )
+
+        vectara_tool = vec_factory.create_rag_tool(
+            tool_name = f"vectara_{vectara_corpus_id}",
+            tool_description = f"""
+            Given a user query,
+            returns a response (str) to a user question about {data_description}.
+            """,
+            tool_args_schema = QueryArgs,
+            reranker = vectara_reranker, rerank_k = vectara_rerank_k, 
+            n_sentences_before = vectara_n_sentences_before, 
+            n_sentences_after = vectara_n_sentences_after, 
+            lambda_val = vectara_lambda_val,
+            summary_num_results = vectara_summary_num_results,
+            vectara_summarizer = vectara_summarizer,
+            include_citations = False,
+        )
+
+        assistant_instructions = f"""
+        - You are a helpful {assistant_specialty} assistant.
+        - You can answer questions about {data_description}.
+        - Never discuss politics, and always respond politely.
+        """
+
+        return cls(
+            tools=[vectara_tool], 
+            topic=assistant_specialty, 
+            custom_instructions=assistant_instructions, 
+            update_func=None
+        )
+
     def report(self) -> str:
         """
         Get a report from the agent.
@@ -146,6 +238,18 @@ class Agent:
             print(f"- {tool._metadata.name}")
         print(f"Agent LLM = {get_llm(LLMRole.MAIN).model}")
         print(f"Tool LLM = {get_llm(LLMRole.TOOL).model}")
+
+    def token_counts(self) -> dict:
+        """
+        Get the token counts for the agent and tools.
+
+        Returns:
+            dict: The token counts for the agent and tools.
+        """
+        return {
+            "main token count": self.main_token_counter.total_llm_token_count if self.main_token_counter else -1,
+            "tool token count": self.tool_token_counter.total_llm_token_count if self.tool_token_counter else -1,
+        }
 
     @retry(
         retry_on_exception=_retry_if_exception,

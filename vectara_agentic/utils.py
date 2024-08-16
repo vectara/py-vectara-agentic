@@ -10,6 +10,7 @@ from llama_index.llms.anthropic import Anthropic
 from llama_index.llms.together import TogetherLLM
 from llama_index.llms.groq import Groq
 from llama_index.llms.fireworks import Fireworks
+import tiktoken
 
 from .types import LLMRole, AgentType, ModelProvider
 
@@ -23,10 +24,8 @@ provider_to_default_model_name = {
 
 DEFAULT_MODEL_PROVIDER = ModelProvider.OPENAI
 
-
-def get_llm(role: LLMRole) -> LLM:
-    """Get the LLM for the specified role."""
-    agent_type = AgentType(os.getenv("VECTARA_AGENTIC_AGENT_TYPE", AgentType.OPENAI))
+def _get_llm_params_for_role(role: LLMRole) -> tuple[str, str]:
+    """Get the model provider and model name for the specified role."""
     if role == LLMRole.TOOL:
         model_provider = ModelProvider(
             os.getenv("VECTARA_AGENTIC_TOOL_LLM_PROVIDER", DEFAULT_MODEL_PROVIDER)
@@ -44,6 +43,7 @@ def get_llm(role: LLMRole) -> LLM:
             provider_to_default_model_name.get(model_provider),
         )
 
+    agent_type = AgentType(os.getenv("VECTARA_AGENTIC_AGENT_TYPE", AgentType.OPENAI))
     if (
         role == LLMRole.MAIN
         and agent_type == AgentType.OPENAI
@@ -52,6 +52,22 @@ def get_llm(role: LLMRole) -> LLM:
         raise ValueError(
             "OpenAI agent requested but main model provider is not OpenAI."
         )
+
+    return model_provider, model_name
+
+def get_tokenizer_for_model(role: LLMRole) -> str:
+    """Get the tokenizer for the specified model."""
+    model_provider, model_name = _get_llm_params_for_role(role)
+    if model_provider == ModelProvider.OPENAI:
+        return tiktoken.encoding_for_model(model_name).encode
+    elif model_provider == ModelProvider.ANTHROPIC:
+        return Anthropic().tokenizer
+    else:
+        return None
+
+def get_llm(role: LLMRole) -> LLM:
+    """Get the LLM for the specified role."""
+    model_provider, model_name = _get_llm_params_for_role(role)
 
     if model_provider == ModelProvider.OPENAI:
         llm = OpenAI(model=model_name, temperature=0)
