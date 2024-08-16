@@ -162,7 +162,7 @@ We have created a few example AI assistants that you can look at for inspiration
 ## 🤝 Contributing
 
 Contributions, issues and feature requests are welcome and appreciated!<br />
-Feel free to check [issues page](https://github.com/vectara/py-vectara-agentic/issues). You can also take a look at the [contributing guide](https://github.com/vectara/py-vectara-agentic/blob/master/CONTRIBUTING.md).
+Feel free to check [issues page](https://github.com/vectara/py-vectara-agentic/issues). You can also take a look at the [contributing guide](https://github.com/vectara/py-vectara-agentic/blob/main/CONTRIBUTING.md).
 
 ## Show your support
 

@@ -13,6 +13,8 @@ from llama_index.core.tools import FunctionTool
 from llama_index.core.base.response.schema import Response
 from llama_index.indices.managed.vectara import VectaraIndex
 from llama_index.core.utilities.sql_wrapper import SQLDatabase
+from llama_index.core.tools.types import AsyncBaseTool, ToolMetadata
+
 
 from .types import ToolType
 from .tools_catalog import (
@@ -49,7 +51,7 @@ LI_packages = {
 }
 
 
-class VectaraTool:
+class VectaraTool(AsyncBaseTool):
     """
     A wrapper of FunctionTool class for Vectara tools, adding the tool_type attribute.
     """
@@ -63,6 +65,26 @@ class VectaraTool:
 
     def __call__(self, *args, **kwargs):
         return self.function_tool(*args, **kwargs)
+        
+    def call(self, *args, **kwargs):
+        return self.function_tool.call(*args, **kwargs)
+    
+    def acall(self, *args, **kwargs):
+        return self.function_tool.acall(*args, **kwargs)
+    
+    @property
+    def metadata(self) -> ToolMetadata:
+        """Metadata."""
+        return self.function_tool.metadata
+
+    def __repr__(self):
+        repr_str = f"""
+            Name: {self.function_tool._metadata.name}
+            Tool Type: {self.tool_type}
+            Description: {self.function_tool._metadata.description}
+            Schema: {inspect.signature(self.function_tool._metadata.fn_schema)}
+        """
+        return repr_str
 
 
 class VectaraToolFactory:
@@ -100,7 +122,6 @@ class VectaraToolFactory:
         Creates a RAG (Retrieve and Generate) tool.
 
         Args:
-
             tool_name (str): The name of the tool.
             tool_description (str): The description of the tool.
             tool_args_schema (BaseModel): The schema for the tool arguments.
@@ -189,65 +210,27 @@ class VectaraToolFactory:
             }
             return res
 
-        # Create signature for rag_function based on tool_args_schema
-        parameters = []
-        for name, param in tool_args_schema.__fields__.items():
-            default = inspect.Parameter.empty
-            if param.default is not None:
-                default = param.default
-            elif param.default_factory is not None:
-                default = param.default_factory()
-
-            parameters.append(
-                inspect.Parameter(
-                    name,
-                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                    default=default,
-                    annotation=param.type_ if param.required else Optional[param.type_],
-                )
+        fields = tool_args_schema.__fields__
+        params = [
+            inspect.Parameter(
+                name=field_name,
+                kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                default=field_info.field_info,
+                annotation=field_info.outer_type_,
             )
-        if (
-            "query" not in tool_args_schema.__fields__
-        ):  # Add 'query' parameter if it's not already in the schema
-            parameters.append(
-                inspect.Parameter(
-                    "query", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=str
-                )
-            )
-        new_signature = inspect.Signature(parameters, return_annotation=dict[str, Any])
-        setattr(rag_function, "__signature__", new_signature)
+            for field_name, field_info in fields.items()
+        ]
 
-        # Set the function name and docstring
-        doc_string = f"{tool_description}\n\n"
-        doc_string += "Parameters:\n"
-        for field_name, field in tool_args_schema.__fields__.items():
-            type_name = field.type_.__name__
-            if field.allow_none:
-                type_name = f"Optional[{type_name}]"
-
-            default_info = ""
-            if field.default is not None:
-                default_info = f" (default: {field.default})"
-            elif field.default_factory is not None:
-                default_info = " (default: set by factory)"
-
-            doc_string += f"- {field_name} ({type_name}): {field.field_info.description}{default_info}\n"
-
-        doc_string += "\nReturns: a dict[str, Any] with the following:\n"
-        doc_string += (
-            "- response: The response string in markdown format with citations.\n"
-        )
-        doc_string += "- citation_metadata: a dictionary of metadata for each citation included in the response string.\n"
-        doc_string += "- response_factual_consistency: a value representing confidence in the response being factually correct (1.0=high, 0.0=low).\n"
-
-        rag_function.__name__ = "_" + re.sub(r"[^A-Za-z0-9_]", "_", tool_name)
-        rag_function.__doc__ = doc_string
+        # Create a new signature using the extracted parameters
+        sig = inspect.Signature(params)
+        rag_function.__signature__ = sig
+        rag_function.__annotations__['return'] = dict[str, Any]
 
         # Create the tool
         tool = FunctionTool.from_defaults(
             fn=rag_function,
             name=tool_name,
-            description=doc_string,
+            description=tool_description,
             fn_schema=tool_args_schema,
         )
         return VectaraTool(tool, ToolType.QUERY)
@@ -283,7 +266,7 @@ class ToolsFactory:
         """
         Get a tool from the llama_index hub.
 
-        Parameters:
+        Args:
             tool_package_name (str): The name of the tool package.
             tool_spec_name (str): The name of the tool spec.
             tool_name_prefix (str): The prefix to add to the tool names (added to every tool in the spec).
