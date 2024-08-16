@@ -146,7 +146,7 @@ class VectaraToolFactory:
             vectara_corpus_id=self.vectara_corpus_id,
         )
 
-        def build_filter_string(kwargs):
+        def _build_filter_string(kwargs):
             filter_parts = []
             for key, value in kwargs.items():
                 if value:
@@ -168,7 +168,7 @@ class VectaraToolFactory:
             kwargs = bound_args.arguments
 
             query = kwargs.pop("query")
-            filter_string = build_filter_string(kwargs)
+            filter_string = _build_filter_string(kwargs)
 
             vectara_query_engine = vectara.as_query_engine(
                 summary_enabled=True,
@@ -215,8 +215,8 @@ class VectaraToolFactory:
             inspect.Parameter(
                 name=field_name,
                 kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                default=field_info.field_info,
-                annotation=field_info.outer_type_,
+                default=field_info.default,
+                annotation=field_info.field_info,
             )
             for field_name, field_info in fields.items()
         ]
@@ -226,11 +226,31 @@ class VectaraToolFactory:
         rag_function.__signature__ = sig
         rag_function.__annotations__['return'] = dict[str, Any]
 
+        doc_string = f"{tool_description}\n\n"
+        doc_string += "Args:\n"
+        for field_name, field in tool_args_schema.__fields__.items():
+            type_name = field.type_.__name__
+            if field.allow_none:
+                type_name = f"Optional[{type_name}]"
+            default_info = ""
+            if field.default is not None:
+                default_info = f" (default: {field.default})"
+            doc_string += f"    - {field_name} ({type_name}): {field.field_info.description}{default_info}\n"
+
+        doc_string += "\nReturns:\n"
+        doc_string += "    dict[str, Any]: A dictionary containing the following keys:\n"
+        doc_string += "    - response (str): The response string in markdown format with citations.\n"
+        doc_string += "    - citation_metadata (dict): Metadata for each citation included in the response string.\n"
+        doc_string += "    - response_factual_consistency (float): A value between 0.0 and 1.0 representing confidence in the factual accuracy of the response (1.0 = high confidence).\n\n"
+
+        rag_function.__name__ = "_" + re.sub(r"[^A-Za-z0-9_]", "_", tool_name)
+        rag_function.__doc__ = doc_string
+
         # Create the tool
         tool = FunctionTool.from_defaults(
             fn=rag_function,
             name=tool_name,
-            description=tool_description,
+#            description=tool_description,
             fn_schema=tool_args_schema,
         )
         return VectaraTool(tool, ToolType.QUERY)

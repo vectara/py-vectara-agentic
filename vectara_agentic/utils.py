@@ -17,7 +17,7 @@ provider_to_default_model_name = {
     ModelProvider.OPENAI: "gpt-4o",
     ModelProvider.ANTHROPIC: "claude-3-5-sonnet-20240620",
     ModelProvider.TOGETHER: "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
-    ModelProvider.GROQ: "mixtral-8x7b-32768",
+    ModelProvider.GROQ: "llama3-groq-70b-8192-tool-use-preview",
     ModelProvider.FIREWORKS: "accounts/fireworks/models/firefunction-v2",
 }
 
