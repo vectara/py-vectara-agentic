@@ -7,7 +7,6 @@ import os
 from datetime import date
 
 from retrying import retry
-
 from pydantic import Field, create_model
 
 
@@ -65,6 +64,7 @@ class Agent:
         tools: list[FunctionTool],
         topic: str = "general",
         custom_instructions: str = "",
+        verbose: bool = True,
         update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
     ):
         """
@@ -103,7 +103,7 @@ class Agent:
                 tools=tools,
                 llm=self.llm,
                 memory=memory,
-                verbose=True,
+                verbose=verbose,
                 react_chat_formatter=ReActChatFormatter(system_header=prompt),
                 max_iterations=20,
                 callable_manager=callback_manager,
@@ -114,7 +114,7 @@ class Agent:
                 tools=tools,
                 llm=self.llm,
                 memory=memory,
-                verbose=True,
+                verbose=verbose,
                 callable_manager=callback_manager,
                 max_function_calls=10,
                 system_prompt=prompt,
@@ -128,6 +128,7 @@ class Agent:
         tools: List[FunctionTool],
         topic: str = "general",
         custom_instructions: str = "",
+        verbose: bool = True,
         update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
     ) -> "Agent":
         """
@@ -143,7 +144,7 @@ class Agent:
         Returns:
             Agent: An instance of the Agent class.
         """
-        return cls(tools, topic, custom_instructions, update_func)
+        return cls(tools, topic, custom_instructions, verbose, update_func)
 
 
     @classmethod
@@ -154,7 +155,8 @@ class Agent:
         vectara_api_key: str,
         data_description: str,
         assistant_specialty: str,
-        vectara_filter_fields: List[str] = [],
+        verbose: bool = False,
+        vectara_filter_fields: list[dict] = [],
         vectara_lambda_val: float = 0.005,
         vectara_reranker: str = "mmr",
         vectara_rerank_k: int = 50,
@@ -173,7 +175,8 @@ class Agent:
             vectara_api_key (str): The Vectara API key.
             data_description (str): The description of the data.
             assistant_specialty (str): The specialty of the assistant.
-            vectara_filter_fields (List[Field]): The filterable attributes to use with their pydantic descriptions.
+            verbose (bool): Whether to print verbose output.
+            vectara_filter_fields (List[dict]): The filterable attributes (each dict includes name, type, and description).
             vectara_lambda_val (float): The lambda value for Vectara hybrid search.
             vectara_reranker (str): The Vectara reranker name (default "mmr")
             vectara_rerank_k (int): The number of results to use with reranking.
@@ -191,7 +194,10 @@ class Agent:
         QueryArgs = create_model(
             "QueryArgs",
             query=(str, Field(description="The user query")),
-            **{f"filter_{i}": (field.type_, field) for i, field in enumerate(vectara_filter_fields)}
+            **{
+                field['name']: (field['type'], Field(description=field['description'], default=None))
+                for field in vectara_filter_fields
+            }
         )
 
         vectara_tool = vec_factory.create_rag_tool(
@@ -220,6 +226,7 @@ class Agent:
             tools=[vectara_tool], 
             topic=assistant_specialty, 
             custom_instructions=assistant_instructions, 
+            verbose=verbose,
             update_func=None
         )
 
