@@ -7,9 +7,9 @@
 [![Discord](https://img.shields.io/badge/Discord-Join%20Us-blue?style=social&logo=discord)](https://discord.com/invite/GFb8gMz6UH)
 
 
-The idea of LLM-based agents is to use the LLM for building sophisticated AI assistants:
+The idea of LLM-based agents is to use the LLM for building AI assistants:
 - The LLM is used for reasoning and coming up with a game-plan for how to respond to the user query.
-- There are 1 or more "tools" provided to the agent. These tools can be used by the LLM to execute its plan.
+- There are 1 or more "tools" provided to the AI assistant. These tools can be used by the LLM to execute its plan.
 
 `vectara-agentic` is a Python library that let's you develop powerful AI assistants with Vectara, using Agentic-RAG:
 * Based on LlamaIndex Agent framework, customized for use with Vectara.
@@ -22,7 +22,9 @@ The idea of LLM-based agents is to use the LLM for building sophisticated AI ass
 * A [Vectara account](https://console.vectara.com/signup)
 * A Vectara corpus with an [API key](https://docs.vectara.com/docs/api-keys)
 * [Python 3.10 (or higher)](https://www.python.org/downloads/)
-* An OpenAI API key specified in your environment as `OPENAI_API_KEY`
+* An OpenAI API key specified in your environment as `OPENAI_API_KEY`. 
+  Alternatively you can use `Anthropic`, `TOGETHER.AI`, `Fireworks AI` or `GROQ` to power the assistant
+  In those cases you need to similarly specify your API keys (see below)
 
 ### Install vectara-agentic
 
@@ -80,13 +82,22 @@ that call other APIs to get more information, and much more.
 
 `vectara-agentic` provides a few tools out of the box:
 1. Standard tools: 
-- `get_current_date`: allows the agent to figure out which date it is.
 - `summarize_text`: a tool to summarize a long text into a shorter summary (uses LLM)
 - `rephrase_text`: a tool to rephrase a given text, given a set of rephrase instructions (uses LLM)
   
-2. Financial tools: a set of tools for financial analysis of public company data:
-- `get_company_name`: get company name given its ticker (uses Yahoo Finance)
-- `calculate_return_on_equity`, `calculate_return_on_assets`, `calculate_debt_to_equity_ratio` and `calculate_ebitda`
+2. Legal tools: a set of tools for the legal vertical, such as:
+- `summarize_legal_text`: summarize legal text with a certain point of view
+- `critique_as_judge`: critique a legal text as a judge, providing their perspective
+
+1. Financial tools: based on tools from Yahoo Finance:
+- tools to understand the financials of a public company like: `balance_sheet`, `income_statement`, `cash_flow`
+- `stock_news`: provides news about a company
+- `stock_analyst_recommendations`: provides stock analyst recommendations for a company.
+
+2. database_tools: providing a few tools to inspect and query a database
+- `list_tables`: list all tables in the database
+- `describe_tables`: describe the schema of tables in the database
+- `load_data`: returns data based on a SQL query
 
 You can create your own tool directly from a Python function using the `create_tool()` method:
 
@@ -97,7 +108,7 @@ def mult_func(x, y):
 mult_tool = ToolsFactory().create_tool(mult_func)
 ```
 
-3. More tools to be coming soon
+1. More tools to be coming soon
  
 #### Step 3: Create your agent
 
