@@ -16,6 +16,10 @@ The idea of LLM-based agents is to use the LLM for building AI assistants:
 * Supports the `ReAct` or `OpenAIAgent` agent types.
 * Includes many tools out of the box (e.g. for finance, legal and other verticals).
 
+## Important Links
+
+Documentation: https://vectara.github.io/vectara-agentic-docs/ 
+
 ## Getting Started
 
 ### Prerequisites
