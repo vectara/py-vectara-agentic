@@ -15,7 +15,7 @@ import tiktoken
 from .types import LLMRole, AgentType, ModelProvider
 
 provider_to_default_model_name = {
-    ModelProvider.OPENAI: "gpt-4o",
+    ModelProvider.OPENAI: "gpt-4o-2024-08-06",
     ModelProvider.ANTHROPIC: "claude-3-5-sonnet-20240620",
     ModelProvider.TOGETHER: "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
     ModelProvider.GROQ: "llama3-groq-70b-8192-tool-use-preview",
