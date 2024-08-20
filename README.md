@@ -93,12 +93,12 @@ that call other APIs to get more information, and much more.
 - `summarize_legal_text`: summarize legal text with a certain point of view
 - `critique_as_judge`: critique a legal text as a judge, providing their perspective
 
-1. Financial tools: based on tools from Yahoo Finance:
+3. Financial tools: based on tools from Yahoo Finance:
 - tools to understand the financials of a public company like: `balance_sheet`, `income_statement`, `cash_flow`
 - `stock_news`: provides news about a company
 - `stock_analyst_recommendations`: provides stock analyst recommendations for a company.
 
-2. database_tools: providing a few tools to inspect and query a database
+4. database_tools: providing a few tools to inspect and query a database
 - `list_tables`: list all tables in the database
 - `describe_tables`: describe the schema of tables in the database
 - `load_data`: returns data based on a SQL query
