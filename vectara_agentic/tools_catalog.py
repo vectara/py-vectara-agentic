@@ -19,6 +19,7 @@ get_headers = {
     "Connection": "keep-alive",
 }
 
+
 #
 # Standard Tools
 #
@@ -29,14 +30,14 @@ def summarize_text(
     ),
 ) -> str:
     """
-    This is a helper tool. 
+    This is a helper tool.
     Use this tool to summarize text using a given expertise
     with no more than summary_max_length characters.
 
     Args:
         text (str): The original text.
         expertise (str): The expertise to apply to the summarization.
-    
+
     Returns:
         str: The summarized text.
     """
@@ -56,7 +57,7 @@ def rephrase_text(
     ),
 ) -> str:
     """
-    This is a helper tool. 
+    This is a helper tool.
     Use this tool to rephrase the text according to the provided instructions.
     For example, instructions could be "as a 5 year old would say it."
 
@@ -64,7 +65,7 @@ def rephrase_text(
         text (str): The original text.
         instructions (str): The specific instructions for how to rephrase the text.
 
-    Returns:    
+    Returns:
         str: The rephrased text.
     """
     prompt = f"""
@@ -88,7 +89,7 @@ def critique_text(
     ),
 ) -> str:
     """
-    This is a helper tool. 
+    This is a helper tool.
     Critique the text from the specified point of view.
 
     Args:

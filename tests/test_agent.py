@@ -35,13 +35,26 @@ class TestAgentPackage(unittest.TestCase):
         self.assertEqual(agent._topic, topic)
         self.assertEqual(agent._custom_instructions, custom_instructions)
 
-        # Only run this assert statement if you have an OPENAI_API_KEY in your environment
+        # To run this test, you must have OPENAI_API_KEY in your environment
         self.assertEqual(
             agent.chat(
                 "What is 5 times 10. Only give the answer, nothing else"
             ).replace("$", "\\$"),
             "50",
         )
+
+    def test_from_corpus(self):
+        agent = Agent.from_corpus(
+            tool_name="RAG Tool",
+            vectara_customer_id="4584783",
+            vectara_corpus_id="4",
+            vectara_api_key="api_key",
+            data_description="information",
+            assistant_specialty="question answering",
+        )
+
+        self.assertIsInstance(agent, Agent)
+        self.assertEqual(agent._topic, "question answering")
 
 
 if __name__ == "__main__":
