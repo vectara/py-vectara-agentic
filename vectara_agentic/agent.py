@@ -150,6 +150,7 @@ class Agent:
     @classmethod
     def from_corpus(
         cls,
+        tool_name: str,
         vectara_customer_id: str,
         vectara_corpus_id: str,
         vectara_api_key: str,
@@ -169,7 +170,7 @@ class Agent:
         Create an agent from a single Vectara corpus
 
         Args:
-            name (str): The name .
+            tool_name (str): The name of Vectara tool used by the agent
             vectara_customer_id (str): The Vectara customer ID.
             vectara_corpus_id (str): The Vectara corpus ID.
             vectara_api_key (str): The Vectara API key.
@@ -201,7 +202,7 @@ class Agent:
         )
 
         vectara_tool = vec_factory.create_rag_tool(
-            tool_name = f"vectara_{vectara_corpus_id}",
+            tool_name = tool_name or f"vectara_{vectara_corpus_id}",
             tool_description = f"""
             Given a user query,
             returns a response (str) to a user question about {data_description}.
