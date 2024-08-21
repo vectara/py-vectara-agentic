@@ -18,7 +18,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
     You can use this callback handler to keep track of agent progress.
 
     Args:
-    
+
         fn: callable function agent will call back to report on agent progress
     """
 

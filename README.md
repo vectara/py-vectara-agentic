@@ -59,6 +59,7 @@ class QueryFinancialReportsArgs(BaseModel):
     query: str = Field(..., description="The user query. Must be a question about the company's financials, and should not include the company name, ticker or year.")
     year: int = Field(..., description=f"The year. an integer.")
     ticker: str = Field(..., description=f"The company ticker. Must be a valid ticket symbol.")
+
 query_financial_reports = vec_factory.create_rag_tool(
     tool_name = "query_financial_reports",
     tool_description = """
@@ -119,7 +120,7 @@ More tools coming soon!
 ```python
 agent = Agent(
     tools = tools,
-    topic = topic_of_expertise
+    topic = topic_of_expertise,
     custom_instructions = financial_bot_instructions,
     update_func = update_func
 )

@@ -4,6 +4,7 @@ This module contains the types used in the Vectara Agentic.
 
 from enum import Enum
 
+
 class AgentType(Enum):
     """Enumeration for different types of agents."""
 
@@ -37,5 +38,6 @@ class LLMRole(Enum):
 
 
 class ToolType(Enum):
+    """Enumeration for different types of tools."""
     QUERY = "query"
     ACTION = "action"

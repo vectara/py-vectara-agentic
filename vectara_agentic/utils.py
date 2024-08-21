@@ -24,6 +24,7 @@ provider_to_default_model_name = {
 
 DEFAULT_MODEL_PROVIDER = ModelProvider.OPENAI
 
+
 def _get_llm_params_for_role(role: LLMRole) -> tuple[str, str]:
     """Get the model provider and model name for the specified role."""
     if role == LLMRole.TOOL:
@@ -55,6 +56,7 @@ def _get_llm_params_for_role(role: LLMRole) -> tuple[str, str]:
 
     return model_provider, model_name
 
+
 def get_tokenizer_for_model(role: LLMRole) -> str:
     """Get the tokenizer for the specified model."""
     model_provider, model_name = _get_llm_params_for_role(role)
@@ -64,6 +66,7 @@ def get_tokenizer_for_model(role: LLMRole) -> str:
         return Anthropic().tokenizer
     else:
         return None
+
 
 def get_llm(role: LLMRole) -> LLM:
     """Get the LLM for the specified role."""

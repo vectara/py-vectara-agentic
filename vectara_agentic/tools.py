@@ -65,13 +65,13 @@ class VectaraTool(AsyncBaseTool):
 
     def __call__(self, *args, **kwargs):
         return self.function_tool(*args, **kwargs)
-        
+
     def call(self, *args, **kwargs):
         return self.function_tool.call(*args, **kwargs)
-    
+
     def acall(self, *args, **kwargs):
         return self.function_tool.acall(*args, **kwargs)
-    
+
     @property
     def metadata(self) -> ToolMetadata:
         """Metadata."""
@@ -132,17 +132,17 @@ class VectaraToolFactory:
             tool_name (str): The name of the tool.
             tool_description (str): The description of the tool.
             tool_args_schema (BaseModel): The schema for the tool arguments.
-            vectara_summarizer (str): The Vectara summarizer to use.
-            summary_num_results (int): The number of summary results.
-            summary_response_lang (str): The response language for the summary.
-            n_sentences_before (int): Number of sentences before the summary.
-            n_sentences_after (int): Number of sentences after the summary.
-            lambda_val (float): Lambda value for the Vectara query.
-            reranker (str): The reranker mode.
-            rerank_k (int): Number of top-k documents for reranking.
-            mmr_diversity_bias (float): MMR diversity bias.
-            include_citations (bool): Whether to include citations in the response.
-                If True, uses MARKDOWN vectara citations that requires the Vectara scale plan.
+            vectara_summarizer (str, optional): The Vectara summarizer to use.
+            summary_num_results (int, optional): The number of summary results.
+            summary_response_lang (str, optional): The response language for the summary.
+            n_sentences_before (int, optional): Number of sentences before the summary.
+            n_sentences_after (int, optional): Number of sentences after the summary.
+            lambda_val (float, optional): Lambda value for the Vectara query.
+            reranker (str, optional): The reranker mode.
+            rerank_k (int, optional): Number of top-k documents for reranking.
+            mmr_diversity_bias (float, optional): MMR diversity bias.
+            include_citations (bool, optional): Whether to include citations in the response.
+                If True, uses markdown vectara citations that requires the Vectara scale plan.
 
         Returns:
             VectaraTool: A VectaraTool object.
@@ -251,7 +251,7 @@ class ToolsFactory:
 
     def create_tool(
         self, function: Callable, tool_type: ToolType = ToolType.QUERY
-    ) -> List[FunctionTool]:
+    ) -> VectaraTool:
         """
         Create a tool from a function.
 
@@ -260,7 +260,7 @@ class ToolsFactory:
             tool_type (ToolType): the type of tool.
 
         Returns:
-            List[FunctionTool]: A list of FunctionTool objects.
+            VectaraTool: A VectaraTool object.
         """
         return VectaraTool(FunctionTool.from_defaults(function), tool_type)
 
@@ -270,18 +270,18 @@ class ToolsFactory:
         tool_spec_name: str,
         tool_name_prefix: str = "",
         **kwargs: dict,
-    ) -> List[FunctionTool]:
+    ) -> List[VectaraTool]:
         """
         Get a tool from the llama_index hub.
 
         Args:
             tool_package_name (str): The name of the tool package.
             tool_spec_name (str): The name of the tool spec.
-            tool_name_prefix (str): The prefix to add to the tool names (added to every tool in the spec).
+            tool_name_prefix (str, optional): The prefix to add to the tool names (added to every tool in the spec).
             kwargs (dict): The keyword arguments to pass to the tool constructor (see Hub for tool specific details).
 
         Returns:
-            list[FunctionTool]: A list of FunctionTool objects.
+            List[Vectaratool]: A list of VectaraTool objects.
         """
         # Dynamically install and import the module
         if tool_package_name not in LI_packages.keys():
@@ -376,7 +376,7 @@ class ToolsFactory:
         user: str = "postgres",
         password: str = "Password",
         dbname: str = "postgres",
-    ) -> List[FunctionTool]:
+    ) -> List[VectaraTool]:
         """
         Returns a list of database tools.
 
@@ -394,7 +394,7 @@ class ToolsFactory:
                You must specify either the sql_database object or the scheme, host, port, user, password, and dbname.
 
         Returns:
-            List[FunctionTool]: A list of FunctionTool objects.
+            List[VectaraTool]: A list of VectaraTool objects.
         """
         if sql_database:
             tools = self.get_llama_index_tools(
