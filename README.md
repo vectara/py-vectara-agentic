@@ -112,7 +112,7 @@ def mult_func(x, y):
 mult_tool = ToolsFactory().create_tool(mult_func)
 ```
 
-1. More tools to be coming soon
+More tools coming soon!
  
 #### Step 3: Create your agent
 
