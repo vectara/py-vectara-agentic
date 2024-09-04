@@ -327,8 +327,13 @@ class ToolsFactory:
                 tool_type = func_type[tool_spec_name]
             else:
                 tool_type = func_type
-            vtools.append(VectaraTool(tool, tool_type))
-
+            vtool = VectaraTool(
+                tool_type=tool_type,
+                fn=tool.fn,
+                metadata=tool.metadata,
+                async_fn=tool.async_fn
+            )
+            vtools.append(vtool)
         return vtools
 
     def standard_tools(self) -> List[FunctionTool]:
