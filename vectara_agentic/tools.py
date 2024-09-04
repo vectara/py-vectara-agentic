@@ -220,15 +220,6 @@ class VectaraToolFactory:
                 {res['references_metadata']}
             """
 
-            ### TEMp
-            fcs = res['factual_consistency_score']
-            if fcs < 0.4:
-                print(f"DEBUG: response = {res['response']}")
-                for inx, doc in enumerate(response.source_nodes):
-                    print(f"DEBUG doc ({inx}) = {doc.node}")
-
-            ### TEMP
-
             out = ToolOutput(
                 tool_name = inspect.currentframe().f_code.co_name,
                 content = tool_output,

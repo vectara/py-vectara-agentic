@@ -11,7 +11,7 @@ from pydantic import Field, create_model
 
 
 from llama_index.core.tools import FunctionTool
-from llama_index.core.agent import ReActAgent, AgentRunner
+from llama_index.core.agent import ReActAgent
 from llama_index.core.agent.react.formatter import ReActChatFormatter
 from llama_index.agent.llm_compiler import LLMCompilerAgentWorker
 from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
@@ -122,13 +122,12 @@ class Agent:
                 system_prompt=prompt,
             )
         elif self.agent_type == AgentType.LLMCOMPILER:
-            agent_worker = LLMCompilerAgentWorker.from_tools(
+            self.agent = LLMCompilerAgentWorker.from_tools(
                 tools=tools,
                 llm=self.llm,
                 verbose=verbose,
                 callable_manager=callback_manager
-            )
-            self.agent = AgentRunner(agent_worker, callback_manager=callback_manager)
+            ).as_agent()
         else:
             raise ValueError(f"Unknown agent type: {self.agent_type}")
 
