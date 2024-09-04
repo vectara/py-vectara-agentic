@@ -219,8 +219,6 @@ class VectaraToolFactory:
                 "references_metadata": citation_metadata,
             }
 
-            print(f"DEBUG res={res}")
-
             tool_output = f"""
                 Response: '''{res['response']}'''
                 This response includes references, each with the following metadata:
