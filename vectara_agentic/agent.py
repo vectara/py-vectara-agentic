@@ -28,6 +28,7 @@ from .tools import VectaraToolFactory
 
 load_dotenv(override=True)
 
+
 def _get_prompt(prompt_template: str, topic: str, custom_instructions: str):
     """
     Generate a prompt by replacing placeholders with topic and date.
@@ -150,7 +151,7 @@ class Agent:
             custom_instructions (str, optional): custom instructions for the agent. Defaults to ''.
             verbose (bool, optional): Whether the agent should print its steps. Defaults to True.
             update_func (Callable): A callback function the code calls on any agent updates.
-            
+
 
         Returns:
             Agent: An instance of the Agent class.
@@ -212,19 +213,19 @@ class Agent:
         )
 
         vectara_tool = vec_factory.create_rag_tool(
-            tool_name = tool_name or f"vectara_{vectara_corpus_id}",
-            tool_description = f"""
+            tool_name=tool_name or f"vectara_{vectara_corpus_id}",
+            tool_description=f"""
             Given a user query,
             returns a response (str) to a user question about {data_description}.
             """,
-            tool_args_schema = QueryArgs,
-            reranker = vectara_reranker, rerank_k = vectara_rerank_k,
-            n_sentences_before = vectara_n_sentences_before,
-            n_sentences_after = vectara_n_sentences_after,
-            lambda_val = vectara_lambda_val,
-            summary_num_results = vectara_summary_num_results,
-            vectara_summarizer = vectara_summarizer,
-            include_citations = False,
+            tool_args_schema=QueryArgs,
+            reranker=vectara_reranker, rerank_k=vectara_rerank_k,
+            n_sentences_before=vectara_n_sentences_before,
+            n_sentences_after=vectara_n_sentences_after,
+            lambda_val=vectara_lambda_val,
+            summary_num_results=vectara_summary_num_results,
+            vectara_summarizer=vectara_summarizer,
+            include_citations=False,
         )
 
         assistant_instructions = f"""

@@ -52,7 +52,7 @@ class TestToolsPackage(unittest.TestCase):
         )
 
         arxiv_tool = llama_tools[0]
-        
+
         self.assertIsInstance(arxiv_tool, VectaraTool)
         self.assertIsInstance(arxiv_tool, FunctionTool)
         self.assertEqual(arxiv_tool.tool_type, ToolType.QUERY)
