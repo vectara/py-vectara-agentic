@@ -145,7 +145,7 @@ class VectaraToolFactory:
             include_citations (bool, optional): Whether to include citations in the response.
                 If True, uses markdown vectara citations that requires the Vectara scale plan.
             fcs_threshold (float, optional): a threshold for factual consistency. 
-                Tool notifies caller it cannot respond if FCS it too high
+                Tool notifies caller it cannot respond if FCS it too low
 
         Returns:
             VectaraTool: A VectaraTool object.
