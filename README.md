@@ -13,7 +13,7 @@ The idea of LLM-based agents is to use the LLM for building AI assistants:
 
 `vectara-agentic` is a Python library that let's you develop powerful AI assistants with Vectara, using Agentic-RAG:
 * Based on LlamaIndex Agent framework, customized for use with Vectara.
-* Supports the `ReAct` or `OpenAIAgent` agent types.
+* Supports the `ReAct`, `LLMCompiler` or `OpenAIAgent` agent types.
 * Includes many tools out of the box (e.g. for finance, legal and other verticals).
 
 ## Important Links
@@ -132,7 +132,7 @@ agent = Agent(
   The inputs to this function you provide are `status_type` of type AgentStatusType and 
   `msg` which is a string.
 
-Note that the Agent type (`OPENAI` or `REACT`) is defined as an environment variables `VECTARA_AGENTIC_AGENT_TYPE`.
+Note that the Agent type (`OPENAI`, `REACT` or `LLMCOMPILER`) is defined as an environment variables `VECTARA_AGENTIC_AGENT_TYPE`.
 
 For example, for a financial agent we can use:
 
@@ -152,7 +152,7 @@ financial_bot_instructions = """
 ## Configuration
 
 `vectara-agentic` is using environment variables for a few global configuration 
-- `VECTARA_AGENTIC_AGENT_TYPE`: type of agent - `REACT` or `OPENAI` (default `OPENAI`)
+- `VECTARA_AGENTIC_AGENT_TYPE`: type of agent - `REACT`, `OPENAI` or `LLMCOMPILER` (default `OPENAI`)
 - `VECTARA_AGENTIC_MAIN_LLM_PROVIDER`: agent LLM provider `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, or `FIREWORKS` (default `OPENAI`)
 - `VECTARA_AGENTIC_MAIN_MODEL_NAME`: agent model name (default depends on provider)
 - `VECTARA_AGENTIC_TOOL_LLM_PROVIDER`: tool LLM provider `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, or `FIREWORKS` (default `OPENAI`)

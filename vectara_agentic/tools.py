@@ -6,14 +6,15 @@ import inspect
 import re
 import importlib
 
-from typing import Callable, List, Any, Optional
+from typing import Callable, List, Any, Optional, Type
 from pydantic import BaseModel, Field
 
 from llama_index.core.tools import FunctionTool
+from llama_index.core.tools.function_tool import AsyncCallable
 from llama_index.core.base.response.schema import Response
 from llama_index.indices.managed.vectara import VectaraIndex
 from llama_index.core.utilities.sql_wrapper import SQLDatabase
-from llama_index.core.tools.types import AsyncBaseTool, ToolMetadata
+from llama_index.core.tools.types import ToolMetadata, ToolOutput
 
 
 from .types import ToolType
@@ -51,41 +52,40 @@ LI_packages = {
 }
 
 
-class VectaraTool(AsyncBaseTool):
+class VectaraTool(FunctionTool):
     """
-    A wrapper of FunctionTool class for Vectara tools, adding the tool_type attribute.
+    A subclass of FunctionTool adding the tool_type attribute.
     """
-
-    def __init__(self, function_tool: FunctionTool, tool_type: ToolType) -> None:
-        self.function_tool = function_tool
+    def __init__(
+        self,
+        tool_type: ToolType,
+        fn: Optional[Callable[..., Any]] = None,
+        metadata: Optional[ToolMetadata] = None,
+        async_fn: Optional[AsyncCallable] = None,
+    ) -> None:
         self.tool_type = tool_type
+        super().__init__(fn, metadata, async_fn)
 
-    def __getattr__(self, name):
-        return getattr(self.function_tool, name)
-
-    def __call__(self, *args, **kwargs):
-        return self.function_tool(*args, **kwargs)
-
-    def call(self, *args, **kwargs):
-        return self.function_tool.call(*args, **kwargs)
-
-    def acall(self, *args, **kwargs):
-        return self.function_tool.acall(*args, **kwargs)
-
-    @property
-    def metadata(self) -> ToolMetadata:
-        """Metadata."""
-        return self.function_tool.metadata
-
-    def __repr__(self):
-        repr_str = f"""
-            Name: {self.function_tool._metadata.name}
-            Tool Type: {self.tool_type}
-            Description: {self.function_tool._metadata.description}
-            Schema: {inspect.signature(self.function_tool._metadata.fn_schema)}
-        """
-        return repr_str
-
+    @classmethod
+    def from_defaults(
+        cls,
+        tool_type: ToolType,
+        fn: Optional[Callable[..., Any]] = None,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        return_direct: bool = False,
+        fn_schema: Optional[Type[BaseModel]] = None,
+        async_fn: Optional[AsyncCallable] = None,
+        tool_metadata: Optional[ToolMetadata] = None,
+    ) -> "VectaraTool":
+        tool = FunctionTool.from_defaults(fn, name, description, return_direct, fn_schema, async_fn, tool_metadata)
+        vectara_tool = cls(
+            tool_type=tool_type,
+            fn=tool.fn,
+            metadata=tool.metadata,
+            async_fn=tool.async_fn
+        )
+        return vectara_tool
 
 class VectaraToolFactory:
     """
@@ -182,7 +182,7 @@ class VectaraToolFactory:
                 summary_num_results=summary_num_results,
                 summary_response_lang=summary_response_lang,
                 summary_prompt_name=vectara_summarizer,
-                vectara_query_mode=reranker,
+                reranker=reranker,
                 rerank_k=rerank_k,
                 mmr_diversity_bias=mmr_diversity_bias,
                 n_sentence_before=n_sentences_before,
@@ -199,23 +199,43 @@ class VectaraToolFactory:
                 )
 
             # Extract citation metadata
-            pattern = r"\[\[(\d+)\]" if include_citations else r"\[(\d+)\]"
+            pattern = r"\[(\d+)\]"
             matches = re.findall(pattern, response.response)
-            citation_numbers = [int(match) for match in matches]
-            citation_metadata: dict = {
-                f"metadata for citation {citation_number}": response.source_nodes[
-                    citation_number - 1
-                ].metadata
-                for citation_number in citation_numbers
-            }
+            citation_numbers = sorted(set([int(match) for match in matches]))
+            citation_metadata = ""
+            keys_to_ignore = ["lang", "offset", "len"]
+            for citation_number in citation_numbers:
+                metadata = response.source_nodes[citation_number - 1].metadata
+                citation_metadata += f"""reference [{citation_number}] metadata: {", ".join([f"{k}='{v}'" for k,v in metadata.items() if k not in keys_to_ignore])}.\n"""
             res = {
                 "response": response.response,
-                "citation_metadata": citation_metadata,
-                "factual_consistency": (
+                "references_metadata": citation_metadata,
+                "factual_consistency_score": (
                     response.metadata["fcs"] if "fcs" in response.metadata else 0.0
                 ),
             }
-            return res
+            tool_output = f"""
+                response: '''{res['response']}'''
+                This response has a factual consistency score of {res['factual_consistency_score']}
+                {res['references_metadata']}
+            """
+
+            ### TEMp
+            fcs = res['factual_consistency_score']
+            if fcs < 0.4:
+                print(f"DEBUG: response = {res['response']}")
+                for inx, doc in enumerate(response.source_nodes):
+                    print(f"DEBUG doc ({inx}) = {doc.node}")
+
+            ### TEMP
+
+            out = ToolOutput(
+                tool_name = inspect.currentframe().f_code.co_name,
+                content = tool_output,
+                raw_input = {"args": args, "kwargs": kwargs},
+                raw_output = res,
+            )
+            return out
 
         fields = tool_args_schema.__fields__
         params = [
@@ -223,7 +243,7 @@ class VectaraToolFactory:
                 name=field_name,
                 kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
                 default=field_info.default,
-                annotation=field_info.field_info,
+                annotation=field_info,
             )
             for field_name, field_info in fields.items()
         ]
@@ -235,13 +255,14 @@ class VectaraToolFactory:
         rag_function.__name__ = "_" + re.sub(r"[^A-Za-z0-9_]", "_", tool_name)
 
         # Create the tool
-        tool = FunctionTool.from_defaults(
+        tool = VectaraTool.from_defaults(
+            tool_type=ToolType.QUERY,
             fn=rag_function,
             name=tool_name,
             description=tool_description,
             fn_schema=tool_args_schema,
         )
-        return VectaraTool(tool, ToolType.QUERY)
+        return tool
 
 
 class ToolsFactory:
@@ -262,7 +283,7 @@ class ToolsFactory:
         Returns:
             VectaraTool: A VectaraTool object.
         """
-        return VectaraTool(FunctionTool.from_defaults(function), tool_type)
+        return VectaraTool.from_defaults(tool_type, function)
 
     def get_llama_index_tools(
         self,

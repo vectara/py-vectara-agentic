@@ -10,6 +10,7 @@ class AgentType(Enum):
 
     REACT = "REACT"
     OPENAI = "OPENAI"
+    LLMCOMPILER = "LLMCOMPILER"
 
 
 class ModelProvider(Enum):

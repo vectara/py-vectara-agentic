@@ -11,8 +11,9 @@ from pydantic import Field, create_model
 
 
 from llama_index.core.tools import FunctionTool
-from llama_index.core.agent import ReActAgent
+from llama_index.core.agent import ReActAgent, AgentRunner
 from llama_index.core.agent.react.formatter import ReActChatFormatter
+from llama_index.agent.llm_compiler import LLMCompilerAgentWorker
 from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.agent.openai import OpenAIAgent
 from llama_index.core.memory import ChatMemoryBuffer
@@ -26,7 +27,6 @@ from ._callback import AgentCallbackHandler
 from .tools import VectaraToolFactory
 
 load_dotenv(override=True)
-
 
 def _get_prompt(prompt_template: str, topic: str, custom_instructions: str):
     """
@@ -121,6 +121,14 @@ class Agent:
                 max_function_calls=10,
                 system_prompt=prompt,
             )
+        elif self.agent_type == AgentType.LLMCOMPILER:
+            agent_worker = LLMCompilerAgentWorker.from_tools(
+                tools=tools,
+                llm=self.llm,
+                verbose=verbose,
+                callable_manager=callback_manager
+            )
+            self.agent = AgentRunner(agent_worker, callback_manager=callback_manager)
         else:
             raise ValueError(f"Unknown agent type: {self.agent_type}")
 
@@ -283,5 +291,4 @@ class Agent:
             return agent_response.response
         except Exception as e:
             import traceback
-
             return f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()}), and can't respond."
