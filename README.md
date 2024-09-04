@@ -18,7 +18,6 @@
 ## Important Links
 
 - Documentation: [https://vectara.github.io/vectara-agentic-docs/](https://vectara.github.io/vectara-agentic-docs/)
-- GitHub Repository: [https://github.com/vectara/py-vectara-agentic](https://github.com/vectara/py-vectara-agentic)
 
 ## Prerequisites
 
@@ -78,7 +77,7 @@ agent = Agent(
 For example, for a financial agent we might use:
 
 ```python
-topic = "10-K financial reports",
+topic_of_expertise = "10-K financial reports",
 
 financial_bot_instructions = """
     - You are a helpful financial assistant in conversation with a user. Use your financial expertise when crafting a query to the tool, to ensure you get the most accurate information.
@@ -108,16 +107,16 @@ Configure `vectara-agentic` using environment variables:
 - `summarize_text`: a tool to summarize a long text into a shorter summary (uses LLM)
 - `rephrase_text`: a tool to rephrase a given text, given a set of rephrase instructions (uses LLM)
   
-1. Legal tools: a set of tools for the legal vertical, such as:
+2. Legal tools: a set of tools for the legal vertical, such as:
 - `summarize_legal_text`: summarize legal text with a certain point of view
 - `critique_as_judge`: critique a legal text as a judge, providing their perspective
 
-1. Financial tools: based on tools from Yahoo Finance:
+3. Financial tools: based on tools from Yahoo Finance:
 - tools to understand the financials of a public company like: `balance_sheet`, `income_statement`, `cash_flow`
 - `stock_news`: provides news about a company
 - `stock_analyst_recommendations`: provides stock analyst recommendations for a company.
 
-1. database_tools: providing a few tools to inspect and query a database
+4. database_tools: providing a few tools to inspect and query a database
 - `list_tables`: list all tables in the database
 - `describe_tables`: describe the schema of tables in the database
 - `load_data`: returns data based on a SQL query
