@@ -124,6 +124,7 @@ class VectaraToolFactory:
         rerank_k: int = 50,
         mmr_diversity_bias: float = 0.2,
         include_citations: bool = True,
+        fcs_threshold: float = 0.4
     ) -> VectaraTool:
         """
         Creates a RAG (Retrieve and Generate) tool.
@@ -143,6 +144,8 @@ class VectaraToolFactory:
             mmr_diversity_bias (float, optional): MMR diversity bias.
             include_citations (bool, optional): Whether to include citations in the response.
                 If True, uses markdown vectara citations that requires the Vectara scale plan.
+            fcs_threshold (float, optional): a threshold for factual consistency. 
+                Tool notifies caller it cannot respond if FCS it too high
 
         Returns:
             VectaraTool: A VectaraTool object.
@@ -207,19 +210,22 @@ class VectaraToolFactory:
             for citation_number in citation_numbers:
                 metadata = response.source_nodes[citation_number - 1].metadata
                 citation_metadata += f"""reference [{citation_number}] metadata: {", ".join([f"{k}='{v}'" for k,v in metadata.items() if k not in keys_to_ignore])}.\n"""
+            fcs = response.metadata["fcs"] if "fcs" in response.metadata else 0.0
+            if fcs < fcs_threshold:
+                return f"Could not answer the query due to suspected hallucination (fcs={fcs})."
+
             res = {
                 "response": response.response,
                 "references_metadata": citation_metadata,
-                "factual_consistency_score": (
-                    response.metadata["fcs"] if "fcs" in response.metadata else 0.0
-                ),
             }
+
+            print(f"DEBUG res={res}")
+
             tool_output = f"""
-                response: '''{res['response']}'''
-                This response has a factual consistency score of {res['factual_consistency_score']}
+                Response: '''{res['response']}'''
+                This response includes references, each with the following metadata:
                 {res['references_metadata']}
             """
-
             out = ToolOutput(
                 tool_name = inspect.currentframe().f_code.co_name,
                 content = tool_output,
