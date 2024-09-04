@@ -2,7 +2,7 @@ import unittest
 
 from vectara_agentic.tools import VectaraTool, VectaraToolFactory, ToolsFactory, ToolType
 from pydantic import Field, BaseModel
-from llama_index.core.tools.types import BaseTool
+from llama_index.core.tools import FunctionTool
 
 
 class TestToolsPackage(unittest.TestCase):
@@ -30,7 +30,7 @@ class TestToolsPackage(unittest.TestCase):
         )
 
         self.assertIsInstance(query_tool, VectaraTool)
-        self.assertIsInstance(query_tool, BaseTool)
+        self.assertIsInstance(query_tool, FunctionTool)
         self.assertEqual(query_tool.tool_type, ToolType.QUERY)
 
     def test_tool_factory(self):
@@ -40,7 +40,7 @@ class TestToolsPackage(unittest.TestCase):
         tools_factory = ToolsFactory()
         other_tool = tools_factory.create_tool(mult)
         self.assertIsInstance(other_tool, VectaraTool)
-        self.assertIsInstance(other_tool, BaseTool)
+        self.assertIsInstance(other_tool, FunctionTool)
         self.assertEqual(other_tool.tool_type, ToolType.QUERY)
 
     def test_llama_index_tools(self):
@@ -52,9 +52,9 @@ class TestToolsPackage(unittest.TestCase):
         )
 
         arxiv_tool = llama_tools[0]
-
+        
         self.assertIsInstance(arxiv_tool, VectaraTool)
-        self.assertIsInstance(arxiv_tool, BaseTool)
+        self.assertIsInstance(arxiv_tool, FunctionTool)
         self.assertEqual(arxiv_tool.tool_type, ToolType.QUERY)
 
 
