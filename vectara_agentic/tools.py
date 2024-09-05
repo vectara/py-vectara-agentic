@@ -125,7 +125,7 @@ class VectaraToolFactory:
         rerank_k: int = 50,
         mmr_diversity_bias: float = 0.2,
         include_citations: bool = True,
-        fcs_threshold: float = 0.3
+        fcs_threshold: float = 0.0
     ) -> VectaraTool:
         """
         Creates a RAG (Retrieve and Generate) tool.
@@ -146,7 +146,7 @@ class VectaraToolFactory:
             include_citations (bool, optional): Whether to include citations in the response.
                 If True, uses markdown vectara citations that requires the Vectara scale plan.
             fcs_threshold (float, optional): a threshold for factual consistency.
-                Tool notifies caller it cannot respond if FCS is too low
+                If set above 0, the tool notifies the calling agent that it "cannot respond" if FCS is too low
 
         Returns:
             VectaraTool: A VectaraTool object.
