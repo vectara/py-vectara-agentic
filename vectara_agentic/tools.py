@@ -210,7 +210,7 @@ class VectaraToolFactory:
             keys_to_ignore = ["lang", "offset", "len"]
             for citation_number in citation_numbers:
                 metadata = response.source_nodes[citation_number - 1].metadata
-                citation_metadata += f"""reference [{citation_number}] metadata: {", ".join([f"{k}='{v}'" for k,v in metadata.items() if k not in keys_to_ignore])}.\n"""
+                citation_metadata += f"""[{citation_number}]: {"; ".join([f"{k}='{v}'" for k,v in metadata.items() if k not in keys_to_ignore])}.\n"""
             fcs = response.metadata["fcs"] if "fcs" in response.metadata else 0.0
             if fcs < fcs_threshold:
                 return f"Could not answer the query due to suspected hallucination (fcs={fcs})."
@@ -222,11 +222,11 @@ class VectaraToolFactory:
 
             tool_output = f"""
                 Response: '''{res['response']}'''
-                This response includes references, each with the following metadata:
+                References:
                 {res['references_metadata']}
             """
             out = ToolOutput(
-                tool_name=inspect.currentframe().f_code.co_name,
+                tool_name=rag_function.__name__,
                 content=tool_output,
                 raw_input={"args": args, "kwargs": kwargs},
                 raw_output=res,
@@ -258,6 +258,7 @@ class VectaraToolFactory:
             description=tool_description,
             fn_schema=tool_args_schema,
         )
+
         return tool
 
 
