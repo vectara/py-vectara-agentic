@@ -124,7 +124,7 @@ class VectaraToolFactory:
         rerank_k: int = 50,
         mmr_diversity_bias: float = 0.2,
         include_citations: bool = True,
-        fcs_threshold: float = 0.4
+        fcs_threshold: float = 0.3
     ) -> VectaraTool:
         """
         Creates a RAG (Retrieve and Generate) tool.
