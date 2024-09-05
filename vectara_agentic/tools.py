@@ -87,6 +87,7 @@ class VectaraTool(FunctionTool):
         )
         return vectara_tool
 
+
 class VectaraToolFactory:
     """
     A factory class for creating Vectara RAG tools.
@@ -144,8 +145,8 @@ class VectaraToolFactory:
             mmr_diversity_bias (float, optional): MMR diversity bias.
             include_citations (bool, optional): Whether to include citations in the response.
                 If True, uses markdown vectara citations that requires the Vectara scale plan.
-            fcs_threshold (float, optional): a threshold for factual consistency. 
-                Tool notifies caller it cannot respond if FCS it too low
+            fcs_threshold (float, optional): a threshold for factual consistency.
+                Tool notifies caller it cannot respond if FCS is too low
 
         Returns:
             VectaraTool: A VectaraTool object.
@@ -225,10 +226,10 @@ class VectaraToolFactory:
                 {res['references_metadata']}
             """
             out = ToolOutput(
-                tool_name = inspect.currentframe().f_code.co_name,
-                content = tool_output,
-                raw_input = {"args": args, "kwargs": kwargs},
-                raw_output = res,
+                tool_name=inspect.currentframe().f_code.co_name,
+                content=tool_output,
+                raw_input={"args": args, "kwargs": kwargs},
+                raw_output=res,
             )
             return out
 
@@ -297,7 +298,7 @@ class ToolsFactory:
             kwargs (dict): The keyword arguments to pass to the tool constructor (see Hub for tool specific details).
 
         Returns:
-            List[Vectaratool]: A list of VectaraTool objects.
+            List[VectaraTool]: A list of VectaraTool objects.
         """
         # Dynamically install and import the module
         if tool_package_name not in LI_packages.keys():
