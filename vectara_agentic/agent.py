@@ -2,7 +2,7 @@
 This module contains the Agent class for handling different types of agents and their interactions.
 """
 
-from typing import List, Callable, Optional
+from typing import List, Callable, Optional, Tuple
 import os
 from datetime import date
 
@@ -14,7 +14,7 @@ from llama_index.core.tools import FunctionTool
 from llama_index.core.agent import ReActAgent
 from llama_index.core.agent.react.formatter import ReActChatFormatter
 from llama_index.agent.llm_compiler import LLMCompilerAgentWorker
-from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
+from llama_index.core.callbacks import CallbackManager, TokenCountingHandler, BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
 from llama_index.core.memory import ChatMemoryBuffer
 
@@ -91,7 +91,7 @@ class Agent:
         tool_tok = get_tokenizer_for_model(role=LLMRole.TOOL)
         self.tool_token_counter = TokenCountingHandler(tokenizer=tool_tok) if tool_tok else None
 
-        callbacks = [AgentCallbackHandler(update_func)]
+        callbacks: list[BaseCallbackHandler] = [AgentCallbackHandler(update_func)]
         if self.main_token_counter:
             callbacks.append(self.main_token_counter)
         if self.tool_token_counter:
@@ -203,13 +203,13 @@ class Agent:
         vec_factory = VectaraToolFactory(vectara_api_key=vectara_api_key,
                                          vectara_customer_id=vectara_customer_id,
                                          vectara_corpus_id=vectara_corpus_id)
-        QueryArgs = create_model(
+        field_definitions = {}
+        field_definitions['query'] = (str, Field(description="The user query"))
+        for field in vectara_filter_fields:
+            field_definitions[field['name']] = (eval(field['type']), Field(description=field['description'], default=None))  # type: ignore
+        QueryArgs = create_model(   # type: ignore
             "QueryArgs",
-            query=(str, Field(description="The user query")),
-            **{
-                field['name']: (field['type'], Field(description=field['description'], default=None))
-                for field in vectara_filter_fields
-            }
+            **field_definitions
         )
 
         vectara_tool = vec_factory.create_rag_tool(
@@ -242,7 +242,7 @@ class Agent:
             update_func=None
         )
 
-    def report(self) -> str:
+    def report(self) -> None:
         """
         Get a report from the agent.
 
@@ -255,8 +255,8 @@ class Agent:
         print("Tools:")
         for tool in self.tools:
             print(f"- {tool._metadata.name}")
-        print(f"Agent LLM = {get_llm(LLMRole.MAIN).model}")
-        print(f"Tool LLM = {get_llm(LLMRole.TOOL).model}")
+        print(f"Agent LLM = {get_llm(LLMRole.MAIN).metadata.model_name}")
+        print(f"Tool LLM = {get_llm(LLMRole.TOOL).metadata.model_name}")
 
     def token_counts(self) -> dict:
         """

@@ -168,7 +168,7 @@ class VectaraToolFactory:
             return " AND ".join(filter_parts)
 
         # Dynamically generate the RAG function
-        def rag_function(*args, **kwargs) -> dict[str, Any]:
+        def rag_function(*args, **kwargs) -> ToolOutput:
             """
             Dynamically generated function for RAG query with Vectara.
             """
@@ -198,9 +198,22 @@ class VectaraToolFactory:
             response = vectara_query_engine.query(query)
 
             if str(response) == "None":
-                return Response(
-                    response="Tool failed to generate a response.", source_nodes=[]
+                msg = "Tool failed to generate a response due to internal error."
+                return ToolOutput(
+                    tool_name=rag_function.__name__,
+                    content=msg,
+                    raw_input={"args": args, "kwargs": kwargs},
+                    raw_output={'response': msg}
                 )
+            if len(response.source_nodes) == 0:
+                msg = "Tool failed to generate a response since no matches were found."
+                return ToolOutput(
+                    tool_name=rag_function.__name__,
+                    content=msg,
+                    raw_input={"args": args, "kwargs": kwargs},
+                    raw_output={'response': msg}
+                )
+
 
             # Extract citation metadata
             pattern = r"\[(\d+)\]"
@@ -213,7 +226,14 @@ class VectaraToolFactory:
                 citation_metadata += f"""[{citation_number}]: {"; ".join([f"{k}='{v}'" for k,v in metadata.items() if k not in keys_to_ignore])}.\n"""
             fcs = response.metadata["fcs"] if "fcs" in response.metadata else 0.0
             if fcs < fcs_threshold:
-                return f"Could not answer the query due to suspected hallucination (fcs={fcs})."
+                msg = f"Could not answer the query due to suspected hallucination (fcs={fcs})."
+                return ToolOutput(
+                    tool_name=rag_function.__name__,
+                    content=msg,
+                    raw_input={"args": args, "kwargs": kwargs},
+                    raw_output={'response': msg}
+                )
+                
 
             res = {
                 "response": response.response,
@@ -258,7 +278,6 @@ class VectaraToolFactory:
             description=tool_description,
             fn_schema=tool_args_schema,
         )
-
         return tool
 
 
@@ -355,7 +374,10 @@ class ToolsFactory:
         """
         Create a list of financial tools.
         """
-        return self.get_llama_index_tools("yahoo_finance", "YahooFinanceToolSpec")
+        return self.get_llama_index_tools(
+            tool_package_name="yahoo_finance", 
+            tool_spec_name="YahooFinanceToolSpec"
+        )
 
     def legal_tools(self) -> List[FunctionTool]:
         """
@@ -421,16 +443,16 @@ class ToolsFactory:
         """
         if sql_database:
             tools = self.get_llama_index_tools(
-                "database",
-                "DatabaseToolSpec",
+                tool_package_name="database",
+                tool_spec_name="DatabaseToolSpec",
                 tool_name_prefix=tool_name_prefix,
                 sql_database=sql_database,
             )
         else:
             if scheme in ["postgresql", "mysql", "sqlite", "mssql", "oracle"]:
                 tools = self.get_llama_index_tools(
-                    "database",
-                    "DatabaseToolSpec",
+                    tool_package_name="database",
+                    tool_spec_name="DatabaseToolSpec",
                     tool_name_prefix=tool_name_prefix,
                     scheme=scheme,
                     host=host,
@@ -440,7 +462,7 @@ class ToolsFactory:
                     dbname=dbname,
                 )
             else:
-                raise "Please provide a SqlDatabase option or a valid DB scheme type (postgresql, mysql, sqlite, mssql, oracle)."
+                raise Exception("Please provide a SqlDatabase option or a valid DB scheme type (postgresql, mysql, sqlite, mssql, oracle).")
 
         # Update tools with description
         for tool in tools:

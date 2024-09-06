@@ -22,7 +22,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
         fn: callable function agent will call back to report on agent progress
     """
 
-    def __init__(self, fn: Callable = None) -> None:
+    def __init__(self, fn: Optional[Callable] = None) -> None:
         super().__init__(event_starts_to_ignore=[], event_ends_to_ignore=[])
         self.fn = fn
 
@@ -41,7 +41,8 @@ class AgentCallbackHandler(BaseCallbackHandler):
         if EventPayload.MESSAGES in payload:
             response = str(payload.get(EventPayload.RESPONSE))
             if response and response != "None" and response != "assistant: None":
-                self.fn(AgentStatusType.AGENT_UPDATE, response)
+                if self.fn:
+                    self.fn(AgentStatusType.AGENT_UPDATE, response)
         else:
             print("No messages or prompt found in payload")
 
@@ -52,13 +53,15 @@ class AgentCallbackHandler(BaseCallbackHandler):
             tool = payload.get(EventPayload.TOOL)
             if tool:
                 tool_name = tool.name
-                self.fn(
-                    AgentStatusType.TOOL_CALL,
-                    f"Executing '{tool_name}' with arguments: {fcall}",
-                )
+                if self.fn:
+                    self.fn(
+                        AgentStatusType.TOOL_CALL,
+                        f"Executing '{tool_name}' with arguments: {fcall}",
+                    )
         elif EventPayload.FUNCTION_OUTPUT in payload:
             response = str(payload.get(EventPayload.FUNCTION_OUTPUT))
-            self.fn(AgentStatusType.TOOL_OUTPUT, response)
+            if self.fn:
+                self.fn(AgentStatusType.TOOL_OUTPUT, response)
         else:
             print("No function call or output found in payload")
 
