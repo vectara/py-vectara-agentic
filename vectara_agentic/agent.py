@@ -14,7 +14,8 @@ from llama_index.core.tools import FunctionTool
 from llama_index.core.agent import ReActAgent
 from llama_index.core.agent.react.formatter import ReActChatFormatter
 from llama_index.agent.llm_compiler import LLMCompilerAgentWorker
-from llama_index.core.callbacks import CallbackManager, TokenCountingHandler, BaseCallbackHandler
+from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
+from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
 from llama_index.core.memory import ChatMemoryBuffer
 
