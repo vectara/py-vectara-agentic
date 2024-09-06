@@ -6,14 +6,15 @@ import inspect
 import re
 import importlib
 
-from typing import Callable, List, Any, Optional
+from typing import Callable, List, Any, Optional, Type
 from pydantic import BaseModel, Field
 
 from llama_index.core.tools import FunctionTool
+from llama_index.core.tools.function_tool import AsyncCallable
 from llama_index.core.base.response.schema import Response
 from llama_index.indices.managed.vectara import VectaraIndex
 from llama_index.core.utilities.sql_wrapper import SQLDatabase
-from llama_index.core.tools.types import AsyncBaseTool, ToolMetadata
+from llama_index.core.tools.types import ToolMetadata, ToolOutput
 
 
 from .types import ToolType
@@ -51,40 +52,40 @@ LI_packages = {
 }
 
 
-class VectaraTool(AsyncBaseTool):
+class VectaraTool(FunctionTool):
     """
-    A wrapper of FunctionTool class for Vectara tools, adding the tool_type attribute.
+    A subclass of FunctionTool adding the tool_type attribute.
     """
-
-    def __init__(self, function_tool: FunctionTool, tool_type: ToolType) -> None:
-        self.function_tool = function_tool
+    def __init__(
+        self,
+        tool_type: ToolType,
+        fn: Optional[Callable[..., Any]] = None,
+        metadata: Optional[ToolMetadata] = None,
+        async_fn: Optional[AsyncCallable] = None,
+    ) -> None:
         self.tool_type = tool_type
+        super().__init__(fn, metadata, async_fn)
 
-    def __getattr__(self, name):
-        return getattr(self.function_tool, name)
-
-    def __call__(self, *args, **kwargs):
-        return self.function_tool(*args, **kwargs)
-
-    def call(self, *args, **kwargs):
-        return self.function_tool.call(*args, **kwargs)
-
-    def acall(self, *args, **kwargs):
-        return self.function_tool.acall(*args, **kwargs)
-
-    @property
-    def metadata(self) -> ToolMetadata:
-        """Metadata."""
-        return self.function_tool.metadata
-
-    def __repr__(self):
-        repr_str = f"""
-            Name: {self.function_tool._metadata.name}
-            Tool Type: {self.tool_type}
-            Description: {self.function_tool._metadata.description}
-            Schema: {inspect.signature(self.function_tool._metadata.fn_schema)}
-        """
-        return repr_str
+    @classmethod
+    def from_defaults(
+        cls,
+        tool_type: ToolType,
+        fn: Optional[Callable[..., Any]] = None,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        return_direct: bool = False,
+        fn_schema: Optional[Type[BaseModel]] = None,
+        async_fn: Optional[AsyncCallable] = None,
+        tool_metadata: Optional[ToolMetadata] = None,
+    ) -> "VectaraTool":
+        tool = FunctionTool.from_defaults(fn, name, description, return_direct, fn_schema, async_fn, tool_metadata)
+        vectara_tool = cls(
+            tool_type=tool_type,
+            fn=tool.fn,
+            metadata=tool.metadata,
+            async_fn=tool.async_fn
+        )
+        return vectara_tool
 
 
 class VectaraToolFactory:
@@ -124,6 +125,7 @@ class VectaraToolFactory:
         rerank_k: int = 50,
         mmr_diversity_bias: float = 0.2,
         include_citations: bool = True,
+        fcs_threshold: float = 0.0
     ) -> VectaraTool:
         """
         Creates a RAG (Retrieve and Generate) tool.
@@ -143,6 +145,8 @@ class VectaraToolFactory:
             mmr_diversity_bias (float, optional): MMR diversity bias.
             include_citations (bool, optional): Whether to include citations in the response.
                 If True, uses markdown vectara citations that requires the Vectara scale plan.
+            fcs_threshold (float, optional): a threshold for factual consistency.
+                If set above 0, the tool notifies the calling agent that it "cannot respond" if FCS is too low
 
         Returns:
             VectaraTool: A VectaraTool object.
@@ -164,7 +168,7 @@ class VectaraToolFactory:
             return " AND ".join(filter_parts)
 
         # Dynamically generate the RAG function
-        def rag_function(*args, **kwargs) -> dict[str, Any]:
+        def rag_function(*args, **kwargs) -> ToolOutput:
             """
             Dynamically generated function for RAG query with Vectara.
             """
@@ -182,7 +186,7 @@ class VectaraToolFactory:
                 summary_num_results=summary_num_results,
                 summary_response_lang=summary_response_lang,
                 summary_prompt_name=vectara_summarizer,
-                vectara_query_mode=reranker,
+                reranker=reranker,
                 rerank_k=rerank_k,
                 mmr_diversity_bias=mmr_diversity_bias,
                 n_sentence_before=n_sentences_before,
@@ -194,28 +198,60 @@ class VectaraToolFactory:
             response = vectara_query_engine.query(query)
 
             if str(response) == "None":
-                return Response(
-                    response="Tool failed to generate a response.", source_nodes=[]
+                msg = "Tool failed to generate a response due to internal error."
+                return ToolOutput(
+                    tool_name=rag_function.__name__,
+                    content=msg,
+                    raw_input={"args": args, "kwargs": kwargs},
+                    raw_output={'response': msg}
+                )
+            if len(response.source_nodes) == 0:
+                msg = "Tool failed to generate a response since no matches were found."
+                return ToolOutput(
+                    tool_name=rag_function.__name__,
+                    content=msg,
+                    raw_input={"args": args, "kwargs": kwargs},
+                    raw_output={'response': msg}
                 )
 
+
             # Extract citation metadata
-            pattern = r"\[\[(\d+)\]" if include_citations else r"\[(\d+)\]"
+            pattern = r"\[(\d+)\]"
             matches = re.findall(pattern, response.response)
-            citation_numbers = [int(match) for match in matches]
-            citation_metadata: dict = {
-                f"metadata for citation {citation_number}": response.source_nodes[
-                    citation_number - 1
-                ].metadata
-                for citation_number in citation_numbers
-            }
+            citation_numbers = sorted(set([int(match) for match in matches]))
+            citation_metadata = ""
+            keys_to_ignore = ["lang", "offset", "len"]
+            for citation_number in citation_numbers:
+                metadata = response.source_nodes[citation_number - 1].metadata
+                citation_metadata += f"""[{citation_number}]: {"; ".join([f"{k}='{v}'" for k,v in metadata.items() if k not in keys_to_ignore])}.\n"""
+            fcs = response.metadata["fcs"] if "fcs" in response.metadata else 0.0
+            if fcs < fcs_threshold:
+                msg = f"Could not answer the query due to suspected hallucination (fcs={fcs})."
+                return ToolOutput(
+                    tool_name=rag_function.__name__,
+                    content=msg,
+                    raw_input={"args": args, "kwargs": kwargs},
+                    raw_output={'response': msg}
+                )
+                
+
             res = {
                 "response": response.response,
-                "citation_metadata": citation_metadata,
-                "factual_consistency": (
-                    response.metadata["fcs"] if "fcs" in response.metadata else 0.0
-                ),
+                "references_metadata": citation_metadata,
             }
-            return res
+
+            tool_output = f"""
+                Response: '''{res['response']}'''
+                References:
+                {res['references_metadata']}
+            """
+            out = ToolOutput(
+                tool_name=rag_function.__name__,
+                content=tool_output,
+                raw_input={"args": args, "kwargs": kwargs},
+                raw_output=res,
+            )
+            return out
 
         fields = tool_args_schema.__fields__
         params = [
@@ -223,7 +259,7 @@ class VectaraToolFactory:
                 name=field_name,
                 kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
                 default=field_info.default,
-                annotation=field_info.field_info,
+                annotation=field_info,
             )
             for field_name, field_info in fields.items()
         ]
@@ -235,13 +271,14 @@ class VectaraToolFactory:
         rag_function.__name__ = "_" + re.sub(r"[^A-Za-z0-9_]", "_", tool_name)
 
         # Create the tool
-        tool = FunctionTool.from_defaults(
+        tool = VectaraTool.from_defaults(
+            tool_type=ToolType.QUERY,
             fn=rag_function,
             name=tool_name,
             description=tool_description,
             fn_schema=tool_args_schema,
         )
-        return VectaraTool(tool, ToolType.QUERY)
+        return tool
 
 
 class ToolsFactory:
@@ -262,7 +299,7 @@ class ToolsFactory:
         Returns:
             VectaraTool: A VectaraTool object.
         """
-        return VectaraTool(FunctionTool.from_defaults(function), tool_type)
+        return VectaraTool.from_defaults(tool_type, function)
 
     def get_llama_index_tools(
         self,
@@ -281,7 +318,7 @@ class ToolsFactory:
             kwargs (dict): The keyword arguments to pass to the tool constructor (see Hub for tool specific details).
 
         Returns:
-            List[Vectaratool]: A list of VectaraTool objects.
+            List[VectaraTool]: A list of VectaraTool objects.
         """
         # Dynamically install and import the module
         if tool_package_name not in LI_packages.keys():
@@ -309,8 +346,13 @@ class ToolsFactory:
                 tool_type = func_type[tool_spec_name]
             else:
                 tool_type = func_type
-            vtools.append(VectaraTool(tool, tool_type))
-
+            vtool = VectaraTool(
+                tool_type=tool_type,
+                fn=tool.fn,
+                metadata=tool.metadata,
+                async_fn=tool.async_fn
+            )
+            vtools.append(vtool)
         return vtools
 
     def standard_tools(self) -> List[FunctionTool]:
@@ -332,7 +374,10 @@ class ToolsFactory:
         """
         Create a list of financial tools.
         """
-        return self.get_llama_index_tools("yahoo_finance", "YahooFinanceToolSpec")
+        return self.get_llama_index_tools(
+            tool_package_name="yahoo_finance", 
+            tool_spec_name="YahooFinanceToolSpec"
+        )
 
     def legal_tools(self) -> List[FunctionTool]:
         """
@@ -398,16 +443,16 @@ class ToolsFactory:
         """
         if sql_database:
             tools = self.get_llama_index_tools(
-                "database",
-                "DatabaseToolSpec",
+                tool_package_name="database",
+                tool_spec_name="DatabaseToolSpec",
                 tool_name_prefix=tool_name_prefix,
                 sql_database=sql_database,
             )
         else:
             if scheme in ["postgresql", "mysql", "sqlite", "mssql", "oracle"]:
                 tools = self.get_llama_index_tools(
-                    "database",
-                    "DatabaseToolSpec",
+                    tool_package_name="database",
+                    tool_spec_name="DatabaseToolSpec",
                     tool_name_prefix=tool_name_prefix,
                     scheme=scheme,
                     host=host,
@@ -417,7 +462,7 @@ class ToolsFactory:
                     dbname=dbname,
                 )
             else:
-                raise "Please provide a SqlDatabase option or a valid DB scheme type (postgresql, mysql, sqlite, mssql, oracle)."
+                raise Exception("Please provide a SqlDatabase option or a valid DB scheme type (postgresql, mysql, sqlite, mssql, oracle).")
 
         # Update tools with description
         for tool in tools:

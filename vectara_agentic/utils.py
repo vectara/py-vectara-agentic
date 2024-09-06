@@ -11,6 +11,7 @@ from llama_index.llms.together import TogetherLLM
 from llama_index.llms.groq import Groq
 from llama_index.llms.fireworks import Fireworks
 import tiktoken
+from typing import Tuple, Callable, Optional
 
 from .types import LLMRole, AgentType, ModelProvider
 
@@ -25,7 +26,7 @@ provider_to_default_model_name = {
 DEFAULT_MODEL_PROVIDER = ModelProvider.OPENAI
 
 
-def _get_llm_params_for_role(role: LLMRole) -> tuple[str, str]:
+def _get_llm_params_for_role(role: LLMRole) -> Tuple[ModelProvider, str]:
     """Get the model provider and model name for the specified role."""
     if role == LLMRole.TOOL:
         model_provider = ModelProvider(
@@ -57,7 +58,7 @@ def _get_llm_params_for_role(role: LLMRole) -> tuple[str, str]:
     return model_provider, model_name
 
 
-def get_tokenizer_for_model(role: LLMRole) -> str:
+def get_tokenizer_for_model(role: LLMRole) -> Optional[Callable]:
     """Get the tokenizer for the specified model."""
     model_provider, model_name = _get_llm_params_for_role(role)
     if model_provider == ModelProvider.OPENAI:

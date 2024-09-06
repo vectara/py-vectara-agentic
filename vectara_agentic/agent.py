@@ -2,7 +2,7 @@
 This module contains the Agent class for handling different types of agents and their interactions.
 """
 
-from typing import List, Callable, Optional
+from typing import List, Callable, Optional, Tuple
 import os
 from datetime import date
 
@@ -13,7 +13,9 @@ from pydantic import Field, create_model
 from llama_index.core.tools import FunctionTool
 from llama_index.core.agent import ReActAgent
 from llama_index.core.agent.react.formatter import ReActChatFormatter
+from llama_index.agent.llm_compiler import LLMCompilerAgentWorker
 from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
+from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
 from llama_index.core.memory import ChatMemoryBuffer
 
@@ -90,7 +92,7 @@ class Agent:
         tool_tok = get_tokenizer_for_model(role=LLMRole.TOOL)
         self.tool_token_counter = TokenCountingHandler(tokenizer=tool_tok) if tool_tok else None
 
-        callbacks = [AgentCallbackHandler(update_func)]
+        callbacks: list[BaseCallbackHandler] = [AgentCallbackHandler(update_func)]
         if self.main_token_counter:
             callbacks.append(self.main_token_counter)
         if self.tool_token_counter:
@@ -121,6 +123,13 @@ class Agent:
                 max_function_calls=10,
                 system_prompt=prompt,
             )
+        elif self.agent_type == AgentType.LLMCOMPILER:
+            self.agent = LLMCompilerAgentWorker.from_tools(
+                tools=tools,
+                llm=self.llm,
+                verbose=verbose,
+                callable_manager=callback_manager
+            ).as_agent()
         else:
             raise ValueError(f"Unknown agent type: {self.agent_type}")
 
@@ -143,7 +152,7 @@ class Agent:
             custom_instructions (str, optional): custom instructions for the agent. Defaults to ''.
             verbose (bool, optional): Whether the agent should print its steps. Defaults to True.
             update_func (Callable): A callback function the code calls on any agent updates.
-            
+
 
         Returns:
             Agent: An instance of the Agent class.
@@ -195,29 +204,29 @@ class Agent:
         vec_factory = VectaraToolFactory(vectara_api_key=vectara_api_key,
                                          vectara_customer_id=vectara_customer_id,
                                          vectara_corpus_id=vectara_corpus_id)
-        QueryArgs = create_model(
+        field_definitions = {}
+        field_definitions['query'] = (str, Field(description="The user query"))
+        for field in vectara_filter_fields:
+            field_definitions[field['name']] = (eval(field['type']), Field(description=field['description'], default=None))  # type: ignore
+        QueryArgs = create_model(   # type: ignore
             "QueryArgs",
-            query=(str, Field(description="The user query")),
-            **{
-                field['name']: (field['type'], Field(description=field['description'], default=None))
-                for field in vectara_filter_fields
-            }
+            **field_definitions
         )
 
         vectara_tool = vec_factory.create_rag_tool(
-            tool_name = tool_name or f"vectara_{vectara_corpus_id}",
-            tool_description = f"""
+            tool_name=tool_name or f"vectara_{vectara_corpus_id}",
+            tool_description=f"""
             Given a user query,
             returns a response (str) to a user question about {data_description}.
             """,
-            tool_args_schema = QueryArgs,
-            reranker = vectara_reranker, rerank_k = vectara_rerank_k,
-            n_sentences_before = vectara_n_sentences_before,
-            n_sentences_after = vectara_n_sentences_after,
-            lambda_val = vectara_lambda_val,
-            summary_num_results = vectara_summary_num_results,
-            vectara_summarizer = vectara_summarizer,
-            include_citations = False,
+            tool_args_schema=QueryArgs,
+            reranker=vectara_reranker, rerank_k=vectara_rerank_k,
+            n_sentences_before=vectara_n_sentences_before,
+            n_sentences_after=vectara_n_sentences_after,
+            lambda_val=vectara_lambda_val,
+            summary_num_results=vectara_summary_num_results,
+            vectara_summarizer=vectara_summarizer,
+            include_citations=False,
         )
 
         assistant_instructions = f"""
@@ -234,7 +243,7 @@ class Agent:
             update_func=None
         )
 
-    def report(self) -> str:
+    def report(self) -> None:
         """
         Get a report from the agent.
 
@@ -247,8 +256,8 @@ class Agent:
         print("Tools:")
         for tool in self.tools:
             print(f"- {tool._metadata.name}")
-        print(f"Agent LLM = {get_llm(LLMRole.MAIN).model}")
-        print(f"Tool LLM = {get_llm(LLMRole.TOOL).model}")
+        print(f"Agent LLM = {get_llm(LLMRole.MAIN).metadata.model_name}")
+        print(f"Tool LLM = {get_llm(LLMRole.TOOL).metadata.model_name}")
 
     def token_counts(self) -> dict:
         """
@@ -283,5 +292,4 @@ class Agent:
             return agent_response.response
         except Exception as e:
             import traceback
-
             return f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()}), and can't respond."

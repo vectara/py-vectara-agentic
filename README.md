@@ -140,6 +140,7 @@ Check out our example AI assistants:
 - [Justice Harvard Teaching Assistant](https://huggingface.co/spaces/vectara/Justice-Harvard)
 - [Legal Assistant](https://huggingface.co/spaces/vectara/legal-agent)
 
+
 ## Contributing
 
 We welcome contributions! Please see our [contributing guide](https://github.com/vectara/py-vectara-agentic/blob/main/CONTRIBUTING.md) for more information.
