@@ -21,7 +21,7 @@
 
 ## Prerequisites
 
-- [Vectara account](https://console.vectara.com/signup/?utm_source=tool&utm_medium=vectara-agentic&utm_term=sign-up&utm_content=sign-up-in-vectara-agentic&utm_campaign=tool-vectara-agentic-sign-up-sign-up-in-vectara-agentic)
+- [Vectara account](https://console.vectara.com/signup/?utm_source=github&utm_medium=code&utm_term=DevRel&utm_content=vectara-agentic&utm_campaign=github-code-DevRel-vectara-agentic)
 - A Vectara corpus with an [API key](https://docs.vectara.com/docs/api-keys)
 - [Python 3.10 or higher](https://www.python.org/downloads/)
 - OpenAI API key (or API keys for Anthropic, TOGETHER.AI, Fireworks AI, or GROQ)
@@ -46,11 +46,15 @@ vec_factory = VectaraToolFactory(
     vectara_corpus_id=os.environ['VECTARA_CORPUS_ID']
 )
 
+class QueryFinancialReportsArgs(BaseModel):
+        query: str = Field(..., description="The user query.")
+        year: int = Field(..., description=f"The year. An integer between {min(years)} and {max(years)}.")
+        ticker: str = Field(..., description=f"The company ticker. Must be a valid ticket symbol from the list {tickers.keys()}.")
+
 query_financial_reports = vec_factory.create_rag_tool(
     tool_name="query_financial_reports",
     tool_description="Query financial reports for a company and year",
     tool_args_schema=QueryFinancialReportsArgs,
-    tool_filter_template="doc.year = {year} and doc.ticker = '{ticker}'"
 )
 ```
 
