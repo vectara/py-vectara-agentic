@@ -136,6 +136,12 @@ def mult_func(x, y):
 mult_tool = ToolsFactory().create_tool(mult_func)
 ```
 
+## Agent Diagnostics
+
+The `Agent` class defines a few helpful methods to help you understand the internals of your application. 
+* The `report()` method prints out the agent object’s type, the tools, and the LLMs used for the main agent and tool calling.
+* The `token_counts()` method tells you how many tokens you have used in the current session for both the main agent and tool calling LLMs. This can be helpful if you want to track spend by token.
+
 ## Examples
 
 Check out our example AI assistants:

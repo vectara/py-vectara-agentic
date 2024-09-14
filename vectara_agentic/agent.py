@@ -2,7 +2,7 @@
 This module contains the Agent class for handling different types of agents and their interactions.
 """
 
-from typing import List, Callable, Optional, Tuple
+from typing import List, Callable, Optional
 import os
 from datetime import date
 
