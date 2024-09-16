@@ -24,7 +24,7 @@
 - [Vectara account](https://console.vectara.com/signup/?utm_source=github&utm_medium=code&utm_term=DevRel&utm_content=vectara-agentic&utm_campaign=github-code-DevRel-vectara-agentic)
 - A Vectara corpus with an [API key](https://docs.vectara.com/docs/api-keys)
 - [Python 3.10 or higher](https://www.python.org/downloads/)
-- OpenAI API key (or API keys for Anthropic, TOGETHER.AI, Fireworks AI, or GROQ)
+- OpenAI API key (or API keys for Anthropic, TOGETHER.AI, Fireworks AI, Cohere, or GROQ)
 
 ## Installation
 
@@ -98,8 +98,8 @@ financial_bot_instructions = """
 
 Configure `vectara-agentic` using environment variables:
 
-- `VECTARA_AGENTIC_AGENT_TYPE`: valid values are `REACT` or `OPENAI` (default: `OPENAI`)
-- `VECTARA_AGENTIC_MAIN_LLM_PROVIDER`: valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, or `FIREWORKS` (default: `OPENAI`)
+- `VECTARA_AGENTIC_AGENT_TYPE`: valid values are `REACT`, `LLMCOMPILER` or `OPENAI` (default: `OPENAI`)
+- `VECTARA_AGENTIC_MAIN_LLM_PROVIDER`: valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE` or `FIREWORKS` (default: `OPENAI`)
 - `VECTARA_AGENTIC_MAIN_MODEL_NAME`: agent model name (default depends on provider)
 - `VECTARA_AGENTIC_TOOL_LLM_PROVIDER`: tool LLM provider (default: `OPENAI`)
 - `VECTARA_AGENTIC_TOOL_MODEL_NAME`: tool model name (default depends on provider)

@@ -3,7 +3,7 @@ vectara_agentic package.
 """
 
 # Define the package version
-__version__ = "0.1.7"
+__version__ = "0.1.8"
 
 # Import classes and functions from modules
 # from .module1 import Class1, function1
@@ -12,7 +12,7 @@ __version__ = "0.1.7"
 
 # Any initialization code
 def initialize_package():
-    print("Initializing vectara-agentic package...")
+    print(f"Initializing vectara-agentic version {__version__}...")
 
 
 initialize_package()

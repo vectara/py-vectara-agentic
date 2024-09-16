@@ -214,9 +214,6 @@ class VectaraToolFactory:
                     raw_output={'response': msg}
                 )
 
-
-            print(f"DEBUG response: {response.response}")
-
             # Extract citation metadata
             pattern = r"\[(\d+)\]"
             matches = re.findall(pattern, response.response)
