@@ -12,6 +12,12 @@ class AgentType(Enum):
     OPENAI = "OPENAI"
     LLMCOMPILER = "LLMCOMPILER"
 
+class ObserverType(Enum):
+    """Enumeration for different types of observability integrations."""
+
+    NO_OBSERVER = "NO_OBSERVER"
+    ARIZE_PHOENIX = "ARIZE_PHOENIX"
+
 
 class ModelProvider(Enum):
     """Enumeration for different types of model providers."""
@@ -21,6 +27,7 @@ class ModelProvider(Enum):
     TOGETHER = "TOGETHER"
     GROQ = "GROQ"
     FIREWORKS = "FIREWORKS"
+    COHERE = "COHERE"
 
 
 class AgentStatusType(Enum):

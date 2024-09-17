@@ -21,10 +21,10 @@
 
 ## Prerequisites
 
-- [Vectara account](https://console.vectara.com/signup/?utm_source=tool&utm_medium=vectara-agentic&utm_term=sign-up&utm_content=sign-up-in-vectara-agentic&utm_campaign=tool-vectara-agentic-sign-up-sign-up-in-vectara-agentic)
+- [Vectara account](https://console.vectara.com/signup/?utm_source=github&utm_medium=code&utm_term=DevRel&utm_content=vectara-agentic&utm_campaign=github-code-DevRel-vectara-agentic)
 - A Vectara corpus with an [API key](https://docs.vectara.com/docs/api-keys)
 - [Python 3.10 or higher](https://www.python.org/downloads/)
-- OpenAI API key (or API keys for Anthropic, TOGETHER.AI, Fireworks AI, or GROQ)
+- OpenAI API key (or API keys for Anthropic, TOGETHER.AI, Fireworks AI, Cohere, or GROQ)
 
 ## Installation
 
@@ -46,11 +46,15 @@ vec_factory = VectaraToolFactory(
     vectara_corpus_id=os.environ['VECTARA_CORPUS_ID']
 )
 
+class QueryFinancialReportsArgs(BaseModel):
+        query: str = Field(..., description="The user query.")
+        year: int = Field(..., description=f"The year. An integer between {min(years)} and {max(years)}.")
+        ticker: str = Field(..., description=f"The company ticker. Must be a valid ticket symbol from the list {tickers.keys()}.")
+
 query_financial_reports = vec_factory.create_rag_tool(
     tool_name="query_financial_reports",
     tool_description="Query financial reports for a company and year",
     tool_args_schema=QueryFinancialReportsArgs,
-    tool_filter_template="doc.year = {year} and doc.ticker = '{ticker}'"
 )
 ```
 
@@ -94,8 +98,8 @@ financial_bot_instructions = """
 
 Configure `vectara-agentic` using environment variables:
 
-- `VECTARA_AGENTIC_AGENT_TYPE`: valid values are `REACT` or `OPENAI` (default: `OPENAI`)
-- `VECTARA_AGENTIC_MAIN_LLM_PROVIDER`: valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, or `FIREWORKS` (default: `OPENAI`)
+- `VECTARA_AGENTIC_AGENT_TYPE`: valid values are `REACT`, `LLMCOMPILER` or `OPENAI` (default: `OPENAI`)
+- `VECTARA_AGENTIC_MAIN_LLM_PROVIDER`: valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE` or `FIREWORKS` (default: `OPENAI`)
 - `VECTARA_AGENTIC_MAIN_MODEL_NAME`: agent model name (default depends on provider)
 - `VECTARA_AGENTIC_TOOL_LLM_PROVIDER`: tool LLM provider (default: `OPENAI`)
 - `VECTARA_AGENTIC_TOOL_MODEL_NAME`: tool model name (default depends on provider)
@@ -131,6 +135,12 @@ def mult_func(x, y):
 
 mult_tool = ToolsFactory().create_tool(mult_func)
 ```
+
+## Agent Diagnostics
+
+The `Agent` class defines a few helpful methods to help you understand the internals of your application. 
+* The `report()` method prints out the agent object’s type, the tools, and the LLMs used for the main agent and tool calling.
+* The `token_counts()` method tells you how many tokens you have used in the current session for both the main agent and tool calling LLMs. This can be helpful if you want to track spend by token.
 
 ## Examples
 

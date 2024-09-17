@@ -11,7 +11,6 @@ from pydantic import BaseModel, Field
 
 from llama_index.core.tools import FunctionTool
 from llama_index.core.tools.function_tool import AsyncCallable
-from llama_index.core.base.response.schema import Response
 from llama_index.indices.managed.vectara import VectaraIndex
 from llama_index.core.utilities.sql_wrapper import SQLDatabase
 from llama_index.core.tools.types import ToolMetadata, ToolOutput
@@ -193,6 +192,7 @@ class VectaraToolFactory:
                 n_sentence_after=n_sentences_after,
                 lambda_val=lambda_val,
                 filter=filter_string,
+                citations_style="MARKDOWN" if include_citations else None,
                 citations_url_pattern="{doc.url}" if include_citations else None,
             )
             response = vectara_query_engine.query(query)
@@ -213,7 +213,6 @@ class VectaraToolFactory:
                     raw_input={"args": args, "kwargs": kwargs},
                     raw_output={'response': msg}
                 )
-
 
             # Extract citation metadata
             pattern = r"\[(\d+)\]"

@@ -10,6 +10,8 @@ from llama_index.llms.anthropic import Anthropic
 from llama_index.llms.together import TogetherLLM
 from llama_index.llms.groq import Groq
 from llama_index.llms.fireworks import Fireworks
+from llama_index.llms.cohere import Cohere
+
 import tiktoken
 from typing import Tuple, Callable, Optional
 
@@ -19,8 +21,9 @@ provider_to_default_model_name = {
     ModelProvider.OPENAI: "gpt-4o-2024-08-06",
     ModelProvider.ANTHROPIC: "claude-3-5-sonnet-20240620",
     ModelProvider.TOGETHER: "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
-    ModelProvider.GROQ: "llama3-groq-70b-8192-tool-use-preview",
+    ModelProvider.GROQ: "llama-3.1-70b-versatile",
     ModelProvider.FIREWORKS: "accounts/fireworks/models/firefunction-v2",
+    ModelProvider.COHERE: "command-r-plus",
 }
 
 DEFAULT_MODEL_PROVIDER = ModelProvider.OPENAI
@@ -83,6 +86,8 @@ def get_llm(role: LLMRole) -> LLM:
         llm = Groq(model=model_name, temperature=0)
     elif model_provider == ModelProvider.FIREWORKS:
         llm = Fireworks(model=model_name, temperature=0)
+    elif model_provider == ModelProvider.COHERE:
+        llm = Cohere(model=model_name, temperature=0)
     else:
         raise ValueError(f"Unknown LLM provider: {model_provider}")
 
