@@ -154,6 +154,7 @@ class VectaraToolFactory:
             vectara_api_key=self.vectara_api_key,
             vectara_customer_id=self.vectara_customer_id,
             vectara_corpus_id=self.vectara_corpus_id,
+            x_source_str="vectara-agentic"
         )
 
         def _build_filter_string(kwargs):
