@@ -18,10 +18,12 @@ from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
 from llama_index.core.memory import ChatMemoryBuffer
+from llama_index.core import set_global_handler
+
 
 from dotenv import load_dotenv
 
-from .types import AgentType, AgentStatusType, LLMRole
+from .types import AgentType, AgentStatusType, LLMRole, ObserverType
 from .utils import get_llm, get_tokenizer_for_model
 from ._prompts import REACT_PROMPT_TEMPLATE, GENERAL_PROMPT_TEMPLATE
 from ._callback import AgentCallbackHandler
@@ -132,6 +134,12 @@ class Agent:
             ).as_agent()
         else:
             raise ValueError(f"Unknown agent type: {self.agent_type}")
+
+        observer = ObserverType(os.getenv("VECTARA_AGENTIC_OBSERVER_TYPE", "ARIZE_PHOENIX"))
+        if observer == ObserverType.ARIZE_PHOENIX:
+            set_global_handler("arize_phoenix", endpoint="https://llamatrace.com/v1/traces")
+        else:
+            raise ValueError(f"Unknown observer type: {observer}")
 
     @classmethod
     def from_tools(

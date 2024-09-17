@@ -41,6 +41,10 @@ def summarize_text(
     Returns:
         str: The summarized text.
     """
+    if not isinstance(expertise, str):
+        return "Please provide a valid string for expertise."
+    if not isinstance(text, str):
+        return "Please provide a valid string for text."
     expertise = "general" if len(expertise) < 3 else expertise.lower()
     prompt = f"As an expert in {expertise}, summarize the provided text"
     prompt += " into a concise summary."

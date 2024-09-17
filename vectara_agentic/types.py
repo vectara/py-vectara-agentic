@@ -12,6 +12,11 @@ class AgentType(Enum):
     OPENAI = "OPENAI"
     LLMCOMPILER = "LLMCOMPILER"
 
+class ObserverType(Enum):
+    """Enumeration for different types of observability integrations."""
+
+    ARIZE_PHOENIX = "ARIZE_PHOENIX"
+
 
 class ModelProvider(Enum):
     """Enumeration for different types of model providers."""
