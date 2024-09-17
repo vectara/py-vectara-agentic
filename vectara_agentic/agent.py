@@ -5,6 +5,7 @@ This module contains the Agent class for handling different types of agents and 
 from typing import List, Callable, Optional
 import os
 from datetime import date
+import time
 
 from retrying import retry
 from pydantic import Field, create_model
@@ -101,6 +102,7 @@ class Agent:
             callbacks.append(self.tool_token_counter)
         callback_manager = CallbackManager(callbacks)   # type: ignore
         self.llm.callback_manager = callback_manager
+        self.verbose = verbose
 
         memory = ChatMemoryBuffer.from_defaults(token_limit=128000)
         if self.agent_type == AgentType.REACT:
@@ -135,11 +137,12 @@ class Agent:
         else:
             raise ValueError(f"Unknown agent type: {self.agent_type}")
 
-        observer = ObserverType(os.getenv("VECTARA_AGENTIC_OBSERVER_TYPE", "ARIZE_PHOENIX"))
+        observer = ObserverType(os.getenv("VECTARA_AGENTIC_OBSERVER_TYPE", "NO_OBSERVER"))
         if observer == ObserverType.ARIZE_PHOENIX:
             set_global_handler("arize_phoenix", endpoint="https://llamatrace.com/v1/traces")
+            print("Arize Phoenix observer set.")
         else:
-            raise ValueError(f"Unknown observer type: {observer}")
+            print("No observer set.")
 
     @classmethod
     def from_tools(
@@ -296,7 +299,10 @@ class Agent:
         """
 
         try:
+            st = time.time()
             agent_response = self.agent.chat(prompt)
+            if self.verbose:
+                print(f"Time taken: {time.time() - st}")
             return agent_response.response
         except Exception as e:
             import traceback

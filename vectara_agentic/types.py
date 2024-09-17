@@ -15,6 +15,7 @@ class AgentType(Enum):
 class ObserverType(Enum):
     """Enumeration for different types of observability integrations."""
 
+    NO_OBSERVER = "NO_OBSERVER"
     ARIZE_PHOENIX = "ARIZE_PHOENIX"
 
 
