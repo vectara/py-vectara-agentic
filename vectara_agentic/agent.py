@@ -113,7 +113,7 @@ class Agent:
                 memory=memory,
                 verbose=verbose,
                 react_chat_formatter=ReActChatFormatter(system_header=prompt),
-                max_iterations=20,
+                max_iterations=30,
                 callable_manager=callback_manager,
             )
         elif self.agent_type == AgentType.OPENAI:
@@ -124,7 +124,7 @@ class Agent:
                 memory=memory,
                 verbose=verbose,
                 callable_manager=callback_manager,
-                max_function_calls=10,
+                max_function_calls=20,
                 system_prompt=prompt,
             )
         elif self.agent_type == AgentType.LLMCOMPILER:
