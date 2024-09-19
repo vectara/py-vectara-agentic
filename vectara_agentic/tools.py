@@ -95,9 +95,9 @@ class VectaraToolFactory:
 
     def __init__(
         self,
-        vectara_customer_id: str = os.environ.get("VECTARA_CUSTOMER_ID", ""),
-        vectara_corpus_id: str = os.environ.get("VECTARA_CORPUS_ID", ""),
-        vectara_api_key: str = os.environ.get("VECTARA_API_KEY", ""),
+        vectara_customer_id: str = str(os.environ.get("VECTARA_CUSTOMER_ID", "")),
+        vectara_corpus_id: str = str(os.environ.get("VECTARA_CORPUS_ID", "")),
+        vectara_api_key: str = str(os.environ.get("VECTARA_API_KEY", "")),
     ) -> None:
         """
         Initialize the VectaraToolFactory
