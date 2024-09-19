@@ -144,7 +144,7 @@ The `Agent` class defines a few helpful methods to help you understand the inter
 
 ## Observability
 
-vectara-agentic supports observability via the existing integration of LlamaIndex and Arize Pheonix.
+vectara-agentic supports observability via the existing integration of LlamaIndex and Arize Phoenix.
 To enable tracing of your vectara-agentic assistant, follow these steps (adapted from [here](https://docs.llamaindex.ai/en/stable/module_guides/observability/)):
 1. Go to `https://llamatrace.com/login` an create an account, then create an API key and put it in the `PHOENIX_API_KEY` variable
 2. `os["VECTARA_AGENTIC_OBSERVER_TYPE"] = "ARIZE_PHOENIX"`: to enable Arize Phoenix observability
