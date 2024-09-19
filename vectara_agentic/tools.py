@@ -235,17 +235,18 @@ class VectaraToolFactory:
                     raw_output={'response': msg}
                 )
                 
-
             res = {
                 "response": response.response,
                 "references_metadata": citation_metadata,
             }
-
-            tool_output = f"""
-                Response: '''{res['response']}'''
-                References:
-                {res['references_metadata']}
-            """
+            if len(citation_metadata) > 0:
+                tool_output = f"""
+                    Response: '''{res['response']}'''
+                    References:
+                    {res['references_metadata']}
+                """
+            else:
+                tool_output = f"Response: '''{res['response']}'''"
             out = ToolOutput(
                 tool_name=rag_function.__name__,
                 content=tool_output,
