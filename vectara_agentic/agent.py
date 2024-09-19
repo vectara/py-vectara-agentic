@@ -1,15 +1,17 @@
 """
 This module contains the Agent class for handling different types of agents and their interactions.
 """
-
 from typing import List, Callable, Optional
 import os
 from datetime import date
 import time
 
+import logging
+logger = logging.getLogger('opentelemetry.exporter.otlp.proto.http.trace_exporter')
+logger.setLevel(logging.CRITICAL)
+
 from retrying import retry
 from pydantic import Field, create_model
-
 
 from llama_index.core.tools import FunctionTool
 from llama_index.core.agent import ReActAgent
@@ -21,6 +23,7 @@ from llama_index.agent.openai import OpenAIAgent
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core import set_global_handler
 
+import phoenix as px
 
 from dotenv import load_dotenv
 
@@ -139,8 +142,13 @@ class Agent:
 
         observer = ObserverType(os.getenv("VECTARA_AGENTIC_OBSERVER_TYPE", "NO_OBSERVER"))
         if observer == ObserverType.ARIZE_PHOENIX:
-            set_global_handler("arize_phoenix", endpoint="https://llamatrace.com/v1/traces")
-            print("Arize Phoenix observer set.")
+            if os.environ.get("OTEL_EXPORTER_OTLP_HEADERS", None):
+                set_global_handler("arize_phoenix", endpoint="https://llamatrace.com/v1/traces")
+                print("Arize Phoenix observer set. https://llamatrace.com")
+            else:
+                px.launch_app()
+                set_global_handler("arize_phoenix", endpoint="http://localhost:6006/v1/traces")
+                print("Arize Phoenix observer set. http://localhost:6006/.")
         else:
             print("No observer set.")
 
