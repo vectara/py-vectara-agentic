@@ -93,12 +93,12 @@ At that point, you MUST respond in the one of the following two formats (and do 
 
 ```
 Thought: I can answer without using any more tools. I'll use the user's language to answer
-Answer: [your answer here (In the same language as the user's question)]
+Answer: [your answer here (In the same language as the user's question, and maintain any references/citations)]
 ```
 
 ```
 Thought: I cannot answer the question with the provided tools.
-Answer: [your answer here (In the same language as the user's question)]
+Answer: [your answer here (In the same language as the user's question, and maintain any references/citations)]
 ```
 
 ## Current Conversation

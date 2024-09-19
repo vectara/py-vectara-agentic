@@ -5,6 +5,7 @@ This module contains the ToolsFactory class for creating agent tools.
 import inspect
 import re
 import importlib
+import os
 
 from typing import Callable, List, Any, Optional, Type
 from pydantic import BaseModel, Field
@@ -94,9 +95,9 @@ class VectaraToolFactory:
 
     def __init__(
         self,
-        vectara_customer_id: str,
-        vectara_corpus_id: str,
-        vectara_api_key: str,
+        vectara_customer_id: str = os.environ.get("VECTARA_CUSTOMER_ID", ""),
+        vectara_corpus_id: str = os.environ.get("VECTARA_CORPUS_ID", ""),
+        vectara_api_key: str = os.environ.get("VECTARA_API_KEY", ""),
     ) -> None:
         """
         Initialize the VectaraToolFactory

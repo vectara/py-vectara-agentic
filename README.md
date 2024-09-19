@@ -24,7 +24,7 @@
 - [Vectara account](https://console.vectara.com/signup/?utm_source=github&utm_medium=code&utm_term=DevRel&utm_content=vectara-agentic&utm_campaign=github-code-DevRel-vectara-agentic)
 - A Vectara corpus with an [API key](https://docs.vectara.com/docs/api-keys)
 - [Python 3.10 or higher](https://www.python.org/downloads/)
-- OpenAI API key (or API keys for Anthropic, TOGETHER.AI, Fireworks AI, Cohere, or GROQ)
+- OpenAI API key (or API keys for Anthropic, TOGETHER.AI, Fireworks AI, Cohere or GROQ)
 
 ## Installation
 
