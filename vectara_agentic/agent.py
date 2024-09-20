@@ -5,6 +5,7 @@ from typing import List, Callable, Optional
 import os
 from datetime import date
 import time
+import dill
 
 import logging
 logger = logging.getLogger('opentelemetry.exporter.otlp.proto.http.trace_exporter')
@@ -289,6 +290,13 @@ class Agent:
             "main token count": self.main_token_counter.total_llm_token_count if self.main_token_counter else -1,
             "tool token count": self.tool_token_counter.total_llm_token_count if self.tool_token_counter else -1,
         }
+
+    def dumps(self) -> bytes:
+        return dill.dumps(self)
+
+    def loads(self, data: bytes) -> None:
+        agent = dill.loads(data)
+        self.__dict__.update(agent.__dict__)
 
     @retry(
         retry_on_exception=_retry_if_exception,

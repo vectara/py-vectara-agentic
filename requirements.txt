@@ -19,3 +19,4 @@ retrying==1.3.4
 pymongo==4.6.1
 python-dotenv==1.0.1
 tiktoken==0.7.0
+dill==0.3.8
