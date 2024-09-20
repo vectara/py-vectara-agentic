@@ -153,6 +153,13 @@ To enable tracing of your vectara-agentic assistant, follow these steps (adapted
 Now when you run your agent, all metrics are sent to LlamaTrace and recorded. You can view them at `https://llamatrace.com`.
 If you do not include the `OTEL_EXPORTER_OTLP_HEADERS` a local instance of Arize Phoenix will be setup instead and you can view it at `http://localhost:6006`
 
+## About Custom Instructions
+
+The custom instructions you provide to the agent guide its behavior.
+Here are some guidelines when creating your instructions:
+- Write precise and clear instructions, without overcomplicating.
+- Consider edge cases and unusual or atypical scenarios.
+- Be cautious to not over-specify behavior based on your primary use-case, as it may limit the agent's ability to behave properly in others.
 
 ## Examples
 
