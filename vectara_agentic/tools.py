@@ -5,6 +5,7 @@ This module contains the ToolsFactory class for creating agent tools.
 import inspect
 import re
 import importlib
+import os
 
 from typing import Callable, List, Any, Optional, Type
 from pydantic import BaseModel, Field
@@ -94,9 +95,9 @@ class VectaraToolFactory:
 
     def __init__(
         self,
-        vectara_customer_id: str,
-        vectara_corpus_id: str,
-        vectara_api_key: str,
+        vectara_customer_id: str = str(os.environ.get("VECTARA_CUSTOMER_ID", "")),
+        vectara_corpus_id: str = str(os.environ.get("VECTARA_CORPUS_ID", "")),
+        vectara_api_key: str = str(os.environ.get("VECTARA_API_KEY", "")),
     ) -> None:
         """
         Initialize the VectaraToolFactory
@@ -234,17 +235,18 @@ class VectaraToolFactory:
                     raw_output={'response': msg}
                 )
                 
-
             res = {
                 "response": response.response,
                 "references_metadata": citation_metadata,
             }
-
-            tool_output = f"""
-                Response: '''{res['response']}'''
-                References:
-                {res['references_metadata']}
-            """
+            if len(citation_metadata) > 0:
+                tool_output = f"""
+                    Response: '''{res['response']}'''
+                    References:
+                    {res['references_metadata']}
+                """
+            else:
+                tool_output = f"Response: '''{res['response']}'''"
             out = ToolOutput(
                 tool_name=rag_function.__name__,
                 content=tool_output,

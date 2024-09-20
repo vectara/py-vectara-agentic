@@ -1,15 +1,17 @@
 """
 This module contains the Agent class for handling different types of agents and their interactions.
 """
-
 from typing import List, Callable, Optional
 import os
 from datetime import date
 import time
 
+import logging
+logger = logging.getLogger('opentelemetry.exporter.otlp.proto.http.trace_exporter')
+logger.setLevel(logging.CRITICAL)
+
 from retrying import retry
 from pydantic import Field, create_model
-
 
 from llama_index.core.tools import FunctionTool
 from llama_index.core.agent import ReActAgent
@@ -21,6 +23,7 @@ from llama_index.agent.openai import OpenAIAgent
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core import set_global_handler
 
+import phoenix as px
 
 from dotenv import load_dotenv
 
@@ -113,7 +116,7 @@ class Agent:
                 memory=memory,
                 verbose=verbose,
                 react_chat_formatter=ReActChatFormatter(system_header=prompt),
-                max_iterations=20,
+                max_iterations=30,
                 callable_manager=callback_manager,
             )
         elif self.agent_type == AgentType.OPENAI:
@@ -124,7 +127,7 @@ class Agent:
                 memory=memory,
                 verbose=verbose,
                 callable_manager=callback_manager,
-                max_function_calls=10,
+                max_function_calls=20,
                 system_prompt=prompt,
             )
         elif self.agent_type == AgentType.LLMCOMPILER:
@@ -139,8 +142,13 @@ class Agent:
 
         observer = ObserverType(os.getenv("VECTARA_AGENTIC_OBSERVER_TYPE", "NO_OBSERVER"))
         if observer == ObserverType.ARIZE_PHOENIX:
-            set_global_handler("arize_phoenix", endpoint="https://llamatrace.com/v1/traces")
-            print("Arize Phoenix observer set.")
+            if os.environ.get("OTEL_EXPORTER_OTLP_HEADERS", None):
+                set_global_handler("arize_phoenix", endpoint="https://llamatrace.com/v1/traces")
+                print("Arize Phoenix observer set. https://llamatrace.com")
+            else:
+                px.launch_app()
+                set_global_handler("arize_phoenix", endpoint="http://localhost:6006/v1/traces")
+                print("Arize Phoenix observer set. http://localhost:6006/.")
         else:
             print("No observer set.")
 
@@ -174,11 +182,11 @@ class Agent:
     def from_corpus(
         cls,
         tool_name: str,
-        vectara_customer_id: str,
-        vectara_corpus_id: str,
-        vectara_api_key: str,
         data_description: str,
         assistant_specialty: str,
+        vectara_customer_id: str = str(os.environ.get("VECTARA_CUSTOMER_ID", "")),
+        vectara_corpus_id: str = str(os.environ.get("VECTARA_CORPUS_ID", "")),
+        vectara_api_key: str = str(os.environ.get("VECTARA_API_KEY", "")),
         verbose: bool = False,
         vectara_filter_fields: list[dict] = [],
         vectara_lambda_val: float = 0.005,

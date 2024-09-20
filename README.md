@@ -24,7 +24,7 @@
 - [Vectara account](https://console.vectara.com/signup/?utm_source=github&utm_medium=code&utm_term=DevRel&utm_content=vectara-agentic&utm_campaign=github-code-DevRel-vectara-agentic)
 - A Vectara corpus with an [API key](https://docs.vectara.com/docs/api-keys)
 - [Python 3.10 or higher](https://www.python.org/downloads/)
-- OpenAI API key (or API keys for Anthropic, TOGETHER.AI, Fireworks AI, Cohere, or GROQ)
+- OpenAI API key (or API keys for Anthropic, TOGETHER.AI, Fireworks AI, Cohere or GROQ)
 
 ## Installation
 
@@ -141,6 +141,25 @@ mult_tool = ToolsFactory().create_tool(mult_func)
 The `Agent` class defines a few helpful methods to help you understand the internals of your application. 
 * The `report()` method prints out the agent object’s type, the tools, and the LLMs used for the main agent and tool calling.
 * The `token_counts()` method tells you how many tokens you have used in the current session for both the main agent and tool calling LLMs. This can be helpful if you want to track spend by token.
+
+## Observability
+
+vectara-agentic supports observability via the existing integration of LlamaIndex and Arize Phoenix.
+To enable tracing of your vectara-agentic assistant, follow these steps (adapted from [here](https://docs.llamaindex.ai/en/stable/module_guides/observability/)):
+1. Go to `https://llamatrace.com/login` an create an account, then create an API key and put it in the `PHOENIX_API_KEY` variable
+2. `os["VECTARA_AGENTIC_OBSERVER_TYPE"] = "ARIZE_PHOENIX"`: to enable Arize Phoenix observability
+3. `os.environ["OTEL_EXPORTER_OTLP_HEADERS"] = f"api_key={PHOENIX_API_KEY}"`
+
+Now when you run your agent, all metrics are sent to LlamaTrace and recorded. You can view them at `https://llamatrace.com`.
+If you do not include the `OTEL_EXPORTER_OTLP_HEADERS` a local instance of Arize Phoenix will be setup instead and you can view it at `http://localhost:6006`
+
+## About Custom Instructions
+
+The custom instructions you provide to the agent guide its behavior.
+Here are some guidelines when creating your instructions:
+- Write precise and clear instructions, without overcomplicating.
+- Consider edge cases and unusual or atypical scenarios.
+- Be cautious to not over-specify behavior based on your primary use-case, as it may limit the agent's ability to behave properly in others.
 
 ## Examples
 
