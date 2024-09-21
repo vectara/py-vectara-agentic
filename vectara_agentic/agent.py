@@ -1,10 +1,11 @@
 """
 This module contains the Agent class for handling different types of agents and their interactions.
 """
-from typing import List, Callable, Optional
+from typing import List, Callable, Optional, Dict, Any
 import os
 from datetime import date
 import time
+import json
 import dill
 
 import logging
@@ -23,16 +24,18 @@ from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core import set_global_handler
+from llama_index.core.tools.types import ToolMetadata
 
 import phoenix as px
 
 from dotenv import load_dotenv
 
-from .types import AgentType, AgentStatusType, LLMRole, ObserverType
+from .types import AgentType, AgentStatusType, LLMRole, ObserverType, ToolType
 from .utils import get_llm, get_tokenizer_for_model
 from ._prompts import REACT_PROMPT_TEMPLATE, GENERAL_PROMPT_TEMPLATE
 from ._callback import AgentCallbackHandler
-from .tools import VectaraToolFactory
+from .tools import VectaraToolFactory, VectaraTool
+
 
 load_dotenv(override=True)
 
@@ -68,7 +71,6 @@ class Agent:
     """
     Agent class for handling different types of agents and their interactions.
     """
-
     def __init__(
         self,
         tools: list[FunctionTool],
@@ -76,6 +78,7 @@ class Agent:
         custom_instructions: str = "",
         verbose: bool = True,
         update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
+        agent_type: AgentType = AgentType(os.getenv("VECTARA_AGENTIC_AGENT_TYPE", "OPENAI")),
     ) -> None:
         """
         Initialize the agent with the specified type, tools, topic, and system message.
@@ -88,7 +91,7 @@ class Agent:
             verbose (bool, optional): Whether the agent should print its steps. Defaults to True.
             update_func (Callable): A callback function the code calls on any agent updates.
         """
-        self.agent_type = AgentType(os.getenv("VECTARA_AGENTIC_AGENT_TYPE", "OPENAI"))
+        self.agent_type = agent_type
         self.tools = tools
         self.llm = get_llm(LLMRole.MAIN)
         self._custom_instructions = custom_instructions
@@ -152,6 +155,55 @@ class Agent:
                 print("Arize Phoenix observer set. http://localhost:6006/.")
         else:
             print("No observer set.")
+
+    def __eq__(self, other):
+        if not isinstance(other, Agent):
+            print(f"Comparison failed: other is not an instance of Agent. (self: {type(self)}, other: {type(other)})")
+            return False
+
+        # Compare agent_type
+        if self.agent_type != other.agent_type:
+            print(f"Comparison failed: agent_type differs. (self.agent_type: {self.agent_type}, other.agent_type: {other.agent_type})")
+            return False
+
+        # Compare tools
+        if self.tools != other.tools:
+            print(f"Comparison failed: tools differ. (self.tools: {self.tools}, other.tools: {other.tools})")
+            return False
+
+        # Compare topic
+        if self._topic != other._topic:
+            print(f"Comparison failed: topic differs. (self.topic: {self._topic}, other.topic: {other._topic})")
+            return False
+
+        # Compare custom_instructions
+        if self._custom_instructions != other._custom_instructions:
+            print(f"Comparison failed: custom_instructions differ. (self.custom_instructions: {self._custom_instructions}, other.custom_instructions: {other._custom_instructions})")
+            return False
+
+        # Compare verbose
+        if self.verbose != other.verbose:
+            print(f"Comparison failed: verbose differs. (self.verbose: {self.verbose}, other.verbose: {other.verbose})")
+            return False
+
+        # Compare agent
+        if self.agent.memory.chat_store != other.agent.memory.chat_store:
+            print(f"Comparison failed: agent memory differs. (self.agent: {repr(self.agent.memory.chat_store)}, other.agent: {repr(other.agent.memory.chat_store)})")
+            return False
+
+        # If all comparisons pass
+        print("All comparisons passed. Objects are equal.")
+        return True
+
+
+    # def __eq__(self, other):
+    #     print(f"self: {self.__dict__}, other: {other.__dict__}")
+    #     return (isinstance(other, Agent) and 
+    #             self.agent_type == other.agent_type and self.tools == other.tools and 
+    #             self.agent.memory.chat_store == other.agent.memory.chat_store and
+    #             self._topic == other._topic and
+    #             self._custom_instructions == other._custom_instructions and 
+    #             self.verbose == other.verbose)
 
     @classmethod
     def from_tools(
@@ -225,9 +277,10 @@ class Agent:
                                          vectara_customer_id=vectara_customer_id,
                                          vectara_corpus_id=vectara_corpus_id)
         field_definitions = {}
-        field_definitions['query'] = (str, Field(description="The user query"))
+        field_definitions['query'] = (str, Field(description="The user query"))  # type: ignore
         for field in vectara_filter_fields:
-            field_definitions[field['name']] = (eval(field['type']), Field(description=field['description'], default=None))  # type: ignore
+            field_definitions[field['name']] = (eval(field['type']), 
+                                                Field(description=field['description']))  # type: ignore
         QueryArgs = create_model(   # type: ignore
             "QueryArgs",
             **field_definitions
@@ -291,13 +344,6 @@ class Agent:
             "tool token count": self.tool_token_counter.total_llm_token_count if self.tool_token_counter else -1,
         }
 
-    def dumps(self) -> bytes:
-        return dill.dumps(self)
-
-    def loads(self, data: bytes) -> None:
-        agent = dill.loads(data)
-        self.__dict__.update(agent.__dict__)
-
     @retry(
         retry_on_exception=_retry_if_exception,
         stop_max_attempt_number=3,
@@ -323,3 +369,121 @@ class Agent:
         except Exception as e:
             import traceback
             return f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()}), and can't respond."
+
+    # Serialization methods
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize the Agent instance to a dictionary."""
+        tool_info = []
+
+        for tool in self.tools:
+            tool_dict = {
+                "tool_type": tool.tool_type.value,
+                "name": tool._metadata.name,
+                "description": tool._metadata.description,
+                "fn": dill.dumps(tool.fn).decode('latin-1') if tool.fn else None,  # Serialize fn
+                "async_fn": dill.dumps(tool.async_fn).decode('latin-1') if tool.async_fn else None,  # Serialize async_fn
+            }
+            tool_info.append(tool_dict)
+
+        return {
+            "agent_type": self.agent_type.value,
+            "tools": tool_info,
+            "topic": self._topic,
+            "custom_instructions": self._custom_instructions,
+            "verbose": self.verbose,
+        }
+
+
+    def dumps(self) -> str:
+        """Serialize the Agent instance to a JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def loads(cls, data: str) -> "Agent":
+        """Create an Agent instance from a JSON string."""
+        return cls.from_dict(json.loads(data))
+
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize the Agent instance to a dictionary."""
+        tool_info = []
+
+        for tool in self.tools:
+            # Serialize each tool's metadata, function, and dynamic model schema (QueryArgs)
+            tool_dict = {
+                "tool_type": tool.tool_type.value,
+                "name": tool._metadata.name,
+                "description": tool._metadata.description,
+                "fn": dill.dumps(tool.fn).decode('latin-1') if tool.fn else None,  # Serialize fn
+                "async_fn": dill.dumps(tool.async_fn).decode('latin-1') if tool.async_fn else None,  # Serialize async_fn
+                "fn_schema": tool._metadata.fn_schema.model_json_schema() if hasattr(tool._metadata, 'fn_schema') else None,  # Serialize schema if available
+            }
+            tool_info.append(tool_dict)
+
+        return {
+            "agent_type": self.agent_type.value,
+            "memory": dill.dumps(self.agent.memory).decode('latin-1'),
+            "tools": tool_info,
+            "topic": self._topic,
+            "custom_instructions": self._custom_instructions,
+            "verbose": self.verbose,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Agent":
+        """Create an Agent instance from a dictionary."""
+        agent_type = AgentType(data["agent_type"])
+        tools = []
+
+        JSON_TYPE_TO_PYTHON = {
+            "string": "str",
+            "integer": "int",
+            "boolean": "bool",
+            "array": "list",
+            "object": "dict",
+            "number": "float",
+        }
+    
+        for tool_data in data["tools"]:
+            # Recreate the dynamic model using the schema info
+            if tool_data.get("fn_schema"):
+                field_definitions = {}
+                for field,values in tool_data["fn_schema"]["properties"].items():
+                    if 'default' in values:
+                        field_definitions[field] = (eval(JSON_TYPE_TO_PYTHON.get(values['type'], values['type'])), 
+                                                             Field(description=values['description'], default=values['default']))  # type: ignore
+                    else:
+                        field_definitions[field] = (eval(JSON_TYPE_TO_PYTHON.get(values['type'], values['type'])), 
+                                                            Field(description=values['description']))    # type: ignore
+                query_args_model = create_model(   # type: ignore
+                    "QueryArgs",
+                    **field_definitions
+                )
+            else:
+                query_args_model = create_model("QueryArgs")
+
+            fn = dill.loads(tool_data["fn"].encode('latin-1')) if tool_data["fn"] else None
+            async_fn = dill.loads(tool_data["async_fn"].encode('latin-1')) if tool_data["async_fn"] else None
+
+            tool = VectaraTool.from_defaults(
+                tool_type=ToolType(tool_data["tool_type"]),
+                name=tool_data["name"],
+                description=tool_data["description"],
+                fn=fn,
+                async_fn=async_fn,
+                fn_schema=query_args_model  # Re-assign the recreated dynamic model
+            )
+            tools.append(tool)
+
+        agent = cls(
+            tools=tools,
+            agent_type=agent_type,
+            topic=data["topic"],
+            custom_instructions=data["custom_instructions"],
+            verbose=data["verbose"],
+        )
+        memory = dill.loads(data["memory"].encode('latin-1')) if data.get("memory") else None
+        if memory:
+            agent.agent.memory = memory
+        return agent
