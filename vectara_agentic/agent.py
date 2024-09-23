@@ -203,7 +203,7 @@ class Agent:
         Args:
             tool_name (str): The name of Vectara tool used by the agent
             vectara_customer_id (str): The Vectara customer ID.
-            vectara_corpus_id (str): The Vectara corpus ID.
+            vectara_corpus_id (str): The Vectara corpus ID (or comma separated list of IDs).
             vectara_api_key (str): The Vectara API key.
             data_description (str): The description of the data.
             assistant_specialty (str): The specialty of the assistant.

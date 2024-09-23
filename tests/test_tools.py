@@ -1,6 +1,7 @@
 import unittest
 
 from vectara_agentic.tools import VectaraTool, VectaraToolFactory, ToolsFactory, ToolType
+from vectara_agentic.agent import Agent
 from pydantic import Field, BaseModel
 from llama_index.core.tools import FunctionTool
 
@@ -57,6 +58,25 @@ class TestToolsPackage(unittest.TestCase):
         self.assertIsInstance(arxiv_tool, FunctionTool)
         self.assertEqual(arxiv_tool.tool_type, ToolType.QUERY)
 
+    def test_public_repo(self):
+        vectara_customer_id = "1366999410"
+        vectara_corpus_id = "1"
+        vectara_api_key = "zqt_UXrBcnI2UXINZkrv4g1tQPhzj02vfdtqYJIDiA"
+
+        class QueryToolArgs(BaseModel):
+            query: str = Field(description="The user query")
+
+        agent = Agent.from_corpus(
+            vectara_customer_id=vectara_customer_id,
+            vectara_corpus_id=vectara_corpus_id,
+            vectara_api_key=vectara_api_key,
+            tool_name="ask_vectara",
+            data_description="data from Vectara website",
+            assistant_specialty="RAG as a service",
+            vectara_summarizer="mockingbird-1.0-2024-07-16"
+        )
+
+        self.assertContains(agent.chat("What is Vectara?"), "Vectara is an end-to-end platform")
 
 if __name__ == "__main__":
     unittest.main()
