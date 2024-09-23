@@ -261,7 +261,7 @@ class Agent:
             data_description (str): The description of the data.
             assistant_specialty (str): The specialty of the assistant.
             verbose (bool, optional): Whether to print verbose output.
-            vectara_filter_fields (List[dict], optional): The filterable attributes (each dict includes name, type, and description).
+            vectara_filter_fields (List[dict], optional): The filterable attributes (each dict maps field name to Tuple[type, description]).
             vectara_lambda_val (float, optional): The lambda value for Vectara hybrid search.
             vectara_reranker (str, optional): The Vectara reranker name (default "mmr")
             vectara_rerank_k (int, optional): The number of results to use with reranking.
