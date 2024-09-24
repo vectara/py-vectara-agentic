@@ -1,4 +1,4 @@
-# Contributing to vectara-agemt
+# Contributing to vectara-agent
 
 Thank you for your interest in `vectara-agentic` and considering contributing to our project! 
 Whether it's a bug, a new feature updates to the documentation or anything else - we truly appreciate your time and effort.

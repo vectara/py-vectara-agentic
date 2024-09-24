@@ -81,11 +81,30 @@ class VectaraTool(FunctionTool):
         tool = FunctionTool.from_defaults(fn, name, description, return_direct, fn_schema, async_fn, tool_metadata)
         vectara_tool = cls(
             tool_type=tool_type,
-            fn=tool.fn,
-            metadata=tool.metadata,
-            async_fn=tool.async_fn
+            fn=tool._fn,
+            metadata=tool._metadata,
+            async_fn=tool._async_fn
         )
         return vectara_tool
+
+    def __eq__(self, other):
+        if self.tool_type != other.tool_type:
+            return False
+
+        # Check if fn_schema is an instance of a BaseModel or a class itself (metaclass)
+        self_schema_dict = self.metadata.fn_schema.model_fields
+        other_schema_dict = other.metadata.fn_schema.model_fields
+        is_equal = True
+        for key in self_schema_dict.keys():
+            if key not in other_schema_dict:
+                is_equal = False
+                break
+            if (self_schema_dict[key].annotation != other_schema_dict[key].annotation or
+                self_schema_dict[key].description != other_schema_dict[key].description or
+                self_schema_dict[key].is_required() != other_schema_dict[key].is_required()):
+                is_equal = False
+                break
+        return is_equal
 
 
 class VectaraToolFactory:
@@ -255,7 +274,7 @@ class VectaraToolFactory:
             )
             return out
 
-        fields = tool_args_schema.__fields__
+        fields = tool_args_schema.model_fields
         params = [
             inspect.Parameter(
                 name=field_name,

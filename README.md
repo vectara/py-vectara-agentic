@@ -142,6 +142,10 @@ The `Agent` class defines a few helpful methods to help you understand the inter
 * The `report()` method prints out the agent object’s type, the tools, and the LLMs used for the main agent and tool calling.
 * The `token_counts()` method tells you how many tokens you have used in the current session for both the main agent and tool calling LLMs. This can be helpful if you want to track spend by token.
 
+## Serialization
+
+The `Agent` class supports serialization. Use the `dumps()` to serialize and `loads()` to read back from a serialized stream.
+
 ## Observability
 
 vectara-agentic supports observability via the existing integration of LlamaIndex and Arize Phoenix.
