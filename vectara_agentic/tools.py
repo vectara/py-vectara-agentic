@@ -189,7 +189,7 @@ class VectaraToolFactory:
                 summary_response_lang=summary_response_lang,
                 summary_prompt_name=vectara_summarizer,
                 reranker=reranker,
-                rerank_k=rerank_k if rerank_k*self.num_corpora<=100 else 100/self.num_corpora,
+                rerank_k=rerank_k if rerank_k*self.num_corpora<=100 else int(100/self.num_corpora),
                 mmr_diversity_bias=mmr_diversity_bias,
                 n_sentence_before=n_sentences_before,
                 n_sentence_after=n_sentences_after,
