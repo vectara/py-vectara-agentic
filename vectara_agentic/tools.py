@@ -98,13 +98,11 @@ class VectaraTool(FunctionTool):
         for key in self_schema_dict.keys():
             if key not in other_schema_dict:
                 is_equal = False
-                print("Not Equal 1")
                 break
             if (self_schema_dict[key].annotation != other_schema_dict[key].annotation or
                 self_schema_dict[key].description != other_schema_dict[key].description or
                 self_schema_dict[key].is_required() != other_schema_dict[key].is_required()):
                 is_equal = False
-                print("Not Equal 2")
                 break
         return is_equal
 

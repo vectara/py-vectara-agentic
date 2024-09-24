@@ -195,16 +195,6 @@ class Agent:
         print("All comparisons passed. Objects are equal.")
         return True
 
-
-    # def __eq__(self, other):
-    #     print(f"self: {self.__dict__}, other: {other.__dict__}")
-    #     return (isinstance(other, Agent) and 
-    #             self.agent_type == other.agent_type and self.tools == other.tools and 
-    #             self.agent.memory.chat_store == other.agent.memory.chat_store and
-    #             self._topic == other._topic and
-    #             self._custom_instructions == other._custom_instructions and 
-    #             self.verbose == other.verbose)
-
     @classmethod
     def from_tools(
         cls,
