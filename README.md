@@ -58,6 +58,8 @@ query_financial_reports = vec_factory.create_rag_tool(
 )
 ```
 
+Note that `VECTARA_CORPUS_ID` can be a single ID or a comma-separated list of IDs.
+
 2. **Create other tools (optional)**
 
 In addition to RAG tools, you can generate a lot of other types of tools the agent can use. These could be mathematical tools, tools 

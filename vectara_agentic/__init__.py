@@ -3,7 +3,7 @@ vectara_agentic package.
 """
 
 # Define the package version
-__version__ = "0.1.9"
+__version__ = "0.1.10"
 
 # Import classes and functions from modules
 # from .module1 import Class1, function1

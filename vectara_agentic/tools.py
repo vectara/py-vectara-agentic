@@ -122,12 +122,13 @@ class VectaraToolFactory:
         Initialize the VectaraToolFactory
         Args:
             vectara_customer_id (str): The Vectara customer ID.
-            vectara_corpus_id (str): The Vectara corpus ID.
+            vectara_corpus_id (str): The Vectara corpus ID (or comma separated list of IDs).
             vectara_api_key (str): The Vectara API key.
         """
         self.vectara_customer_id = vectara_customer_id
         self.vectara_corpus_id = vectara_corpus_id
         self.vectara_api_key = vectara_api_key
+        self.num_corpora = len(vectara_corpus_id.split(","))
 
     def create_rag_tool(
         self,
@@ -207,7 +208,7 @@ class VectaraToolFactory:
                 summary_response_lang=summary_response_lang,
                 summary_prompt_name=vectara_summarizer,
                 reranker=reranker,
-                rerank_k=rerank_k,
+                rerank_k=rerank_k if rerank_k*self.num_corpora<=100 else int(100/self.num_corpora),
                 mmr_diversity_bias=mmr_diversity_bias,
                 n_sentence_before=n_sentences_before,
                 n_sentence_after=n_sentences_after,
