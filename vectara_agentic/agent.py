@@ -23,17 +23,14 @@ from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
 from llama_index.core.memory import ChatMemoryBuffer
-from llama_index.core import set_global_handler
-from llama_index.core.tools.types import ToolMetadata
-
-import phoenix as px
 
 from dotenv import load_dotenv
 
-from .types import AgentType, AgentStatusType, LLMRole, ObserverType, ToolType
+from .types import AgentType, AgentStatusType, LLMRole, ToolType
 from .utils import get_llm, get_tokenizer_for_model
 from ._prompts import REACT_PROMPT_TEMPLATE, GENERAL_PROMPT_TEMPLATE
 from ._callback import AgentCallbackHandler
+from ._observability import setup_observer, eval_fcs
 from .tools import VectaraToolFactory, VectaraTool
 
 
@@ -144,17 +141,7 @@ class Agent:
         else:
             raise ValueError(f"Unknown agent type: {self.agent_type}")
 
-        observer = ObserverType(os.getenv("VECTARA_AGENTIC_OBSERVER_TYPE", "NO_OBSERVER"))
-        if observer == ObserverType.ARIZE_PHOENIX:
-            if os.environ.get("OTEL_EXPORTER_OTLP_HEADERS", None):
-                set_global_handler("arize_phoenix", endpoint="https://llamatrace.com/v1/traces")
-                print("Arize Phoenix observer set. https://llamatrace.com")
-            else:
-                px.launch_app()
-                set_global_handler("arize_phoenix", endpoint="http://localhost:6006/v1/traces")
-                print("Arize Phoenix observer set. http://localhost:6006/.")
-        else:
-            print("No observer set.")
+        setup_observer()
 
     def __eq__(self, other):
         if not isinstance(other, Agent):
@@ -355,6 +342,7 @@ class Agent:
             agent_response = self.agent.chat(prompt)
             if self.verbose:
                 print(f"Time taken: {time.time() - st}")
+            eval_fcs()
             return agent_response.response
         except Exception as e:
             import traceback
