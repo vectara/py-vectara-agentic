@@ -13,16 +13,18 @@ from .types import ObserverType
 def setup_observer():
     observer = ObserverType(os.getenv("VECTARA_AGENTIC_OBSERVER_TYPE", "NO_OBSERVER"))
     if observer == ObserverType.ARIZE_PHOENIX:
-        phoenix_endpoint = os.getenv("PHOENIX_ENDPOINT", "http://localhost:6006/v1/traces")
-        if 'localhost' in phoenix_endpoint:
+        phoenix_endpoint = os.getenv("PHOENIX_ENDPOINT", None)
+        if not phoenix_endpoint:
             px.launch_app()
-            tracer_provider = register(project_name="vectara-agentic", endpoint=phoenix_endpoint)
-        else:
+            tracer_provider = register(endpoint='http://localhost:6006', project_name="vectara-agentic")
+        elif 'app.phoenix.arize.com' in phoenix_endpoint:   # hosted on Arizze
             phoenix_api_key = os.getenv("PHOENIX_API_KEY", None)
             if not phoenix_api_key:
                 raise Exception("Arize Phoenix API key not set. Please set PHOENIX_API_KEY environment variable.")
             os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={phoenix_api_key}"
             os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
+            tracer_provider = register(endpoint=phoenix_endpoint, project_name="vectara-agentic")
+        else:       # Self hosted Phoenix
             tracer_provider = register(endpoint=phoenix_endpoint, project_name="vectara-agentic")
         LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
     else:

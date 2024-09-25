@@ -79,19 +79,19 @@ def get_llm(role: LLMRole) -> LLM:
     model_provider, model_name = _get_llm_params_for_role(role)
 
     if model_provider == ModelProvider.OPENAI:
-        llm = OpenAI(model=model_name, temperature=0)
+        llm = OpenAI(model=model_name, temperature=0, is_function_calling_model=True)
     elif model_provider == ModelProvider.ANTHROPIC:
-        llm = Anthropic(model=model_name, temperature=0)
+        llm = Anthropic(model=model_name, temperature=0, is_function_calling_model=True)
     elif model_provider == ModelProvider.GEMINI:
-        llm = Gemini(model=model_name, temperature=0)
+        llm = Gemini(model=model_name, temperature=0, is_function_calling_model=True)
     elif model_provider == ModelProvider.TOGETHER:
         llm = TogetherLLM(model=model_name, temperature=0, is_function_calling_model=True)
     elif model_provider == ModelProvider.GROQ:
-        llm = Groq(model=model_name, temperature=0)
+        llm = Groq(model=model_name, temperature=0, is_function_calling_model=True)
     elif model_provider == ModelProvider.FIREWORKS:
-        llm = Fireworks(model=model_name, temperature=0)
+        llm = Fireworks(model=model_name, temperature=0, is_function_calling_model=True)
     elif model_provider == ModelProvider.COHERE:
-        llm = Cohere(model=model_name, temperature=0)
+        llm = Cohere(model=model_name, temperature=0, is_function_calling_model=True)
     else:
         raise ValueError(f"Unknown LLM provider: {model_provider}")
 
