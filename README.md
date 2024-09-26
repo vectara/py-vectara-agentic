@@ -24,7 +24,7 @@
 - [Vectara account](https://console.vectara.com/signup/?utm_source=github&utm_medium=code&utm_term=DevRel&utm_content=vectara-agentic&utm_campaign=github-code-DevRel-vectara-agentic)
 - A Vectara corpus with an [API key](https://docs.vectara.com/docs/api-keys)
 - [Python 3.10 or higher](https://www.python.org/downloads/)
-- OpenAI API key (or API keys for Anthropic, TOGETHER.AI, Fireworks AI, Cohere or GROQ)
+- OpenAI API key (or API keys for Anthropic, TOGETHER.AI, Fireworks AI, Cohere, GEMINI or GROQ)
 
 ## Installation
 
@@ -101,7 +101,7 @@ financial_bot_instructions = """
 Configure `vectara-agentic` using environment variables:
 
 - `VECTARA_AGENTIC_AGENT_TYPE`: valid values are `REACT`, `LLMCOMPILER` or `OPENAI` (default: `OPENAI`)
-- `VECTARA_AGENTIC_MAIN_LLM_PROVIDER`: valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE` or `FIREWORKS` (default: `OPENAI`)
+- `VECTARA_AGENTIC_MAIN_LLM_PROVIDER`: valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `GEMINI` or `FIREWORKS` (default: `OPENAI`)
 - `VECTARA_AGENTIC_MAIN_MODEL_NAME`: agent model name (default depends on provider)
 - `VECTARA_AGENTIC_TOOL_LLM_PROVIDER`: tool LLM provider (default: `OPENAI`)
 - `VECTARA_AGENTIC_TOOL_MODEL_NAME`: tool model name (default depends on provider)
@@ -151,13 +151,20 @@ The `Agent` class supports serialization. Use the `dumps()` to serialize and `lo
 ## Observability
 
 vectara-agentic supports observability via the existing integration of LlamaIndex and Arize Phoenix.
-To enable tracing of your vectara-agentic assistant, follow these steps (adapted from [here](https://docs.llamaindex.ai/en/stable/module_guides/observability/)):
-1. Go to `https://llamatrace.com/login` an create an account, then create an API key and put it in the `PHOENIX_API_KEY` variable
-2. `os["VECTARA_AGENTIC_OBSERVER_TYPE"] = "ARIZE_PHOENIX"`: to enable Arize Phoenix observability
-3. `os.environ["OTEL_EXPORTER_OTLP_HEADERS"] = f"api_key={PHOENIX_API_KEY}"`
+First, set `os["VECTARA_AGENTIC_OBSERVER_TYPE"] = "ARIZE_PHOENIX"`.
+Then you can use Arize Phoenix in three ways: 
+1. **Locally**. 
+   1. If you have a local phoenix server that you've run using e.g. `python -m phoenix.server.main serve`, vectara-agentic will send all traces to it.
+   2. If not, vectara-agentic will run a local instance during the agent's lifecycle, and will close it when finished.
+   3. In both cases, traces will be sent to the local instance, and you can see the dashboard at `http://localhost:6006`
+2. **Hosted Instance**. In this case the traces are sent to the Phoenix instances hosted on Arize.
+   1. Go to `https://app.phoenix.arize.com`, setup an account if you don't have one.
+   2. create an API key and put it in the `PHOENIX_API_KEY` variable. This variable indicates you want to use the hosted version.
+   3. To view the traces go to `https://app.phoenix.arize.com`.
 
-Now when you run your agent, all metrics are sent to LlamaTrace and recorded. You can view them at `https://llamatrace.com`.
-If you do not include the `OTEL_EXPORTER_OTLP_HEADERS` a local instance of Arize Phoenix will be setup instead and you can view it at `http://localhost:6006`
+Now when you run your agent, all call traces are sent to Phoenix and recorded. 
+In addition, vectara-agentic also records `FCS` values into Arize for every Vectara RAG call. You can see those results in the `Feedback` column of the arize UI.
+
 
 ## About Custom Instructions
 

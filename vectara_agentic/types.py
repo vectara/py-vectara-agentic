@@ -28,6 +28,7 @@ class ModelProvider(Enum):
     GROQ = "GROQ"
     FIREWORKS = "FIREWORKS"
     COHERE = "COHERE"
+    GEMINI = "GEMINI"
 
 
 class AgentStatusType(Enum):

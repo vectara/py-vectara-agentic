@@ -11,6 +11,7 @@ from llama_index.llms.together import TogetherLLM
 from llama_index.llms.groq import Groq
 from llama_index.llms.fireworks import Fireworks
 from llama_index.llms.cohere import Cohere
+from llama_index.llms.gemini import Gemini
 
 import tiktoken
 from typing import Tuple, Callable, Optional
@@ -24,6 +25,7 @@ provider_to_default_model_name = {
     ModelProvider.GROQ: "llama-3.1-70b-versatile",
     ModelProvider.FIREWORKS: "accounts/fireworks/models/firefunction-v2",
     ModelProvider.COHERE: "command-r-plus",
+    ModelProvider.GEMINI: "models/gemini-pro",
 }
 
 DEFAULT_MODEL_PROVIDER = ModelProvider.OPENAI
@@ -77,17 +79,19 @@ def get_llm(role: LLMRole) -> LLM:
     model_provider, model_name = _get_llm_params_for_role(role)
 
     if model_provider == ModelProvider.OPENAI:
-        llm = OpenAI(model=model_name, temperature=0)
+        llm = OpenAI(model=model_name, temperature=0, is_function_calling_model=True)
     elif model_provider == ModelProvider.ANTHROPIC:
-        llm = Anthropic(model=model_name, temperature=0)
+        llm = Anthropic(model=model_name, temperature=0, is_function_calling_model=True)
+    elif model_provider == ModelProvider.GEMINI:
+        llm = Gemini(model=model_name, temperature=0, is_function_calling_model=True)
     elif model_provider == ModelProvider.TOGETHER:
-        llm = TogetherLLM(model=model_name, temperature=0)
+        llm = TogetherLLM(model=model_name, temperature=0, is_function_calling_model=True)
     elif model_provider == ModelProvider.GROQ:
-        llm = Groq(model=model_name, temperature=0)
+        llm = Groq(model=model_name, temperature=0, is_function_calling_model=True)
     elif model_provider == ModelProvider.FIREWORKS:
-        llm = Fireworks(model=model_name, temperature=0)
+        llm = Fireworks(model=model_name, temperature=0, is_function_calling_model=True)
     elif model_provider == ModelProvider.COHERE:
-        llm = Cohere(model=model_name, temperature=0)
+        llm = Cohere(model=model_name, temperature=0, is_function_calling_model=True)
     else:
         raise ValueError(f"Unknown LLM provider: {model_provider}")
 
