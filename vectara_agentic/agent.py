@@ -75,7 +75,7 @@ class Agent:
         custom_instructions: str = "",
         verbose: bool = True,
         update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
-        agent_type: AgentType = AgentType(os.getenv("VECTARA_AGENTIC_AGENT_TYPE", "OPENAI")),
+        agent_type: AgentType = None,
     ) -> None:
         """
         Initialize the agent with the specified type, tools, topic, and system message.
@@ -88,7 +88,7 @@ class Agent:
             verbose (bool, optional): Whether the agent should print its steps. Defaults to True.
             update_func (Callable): A callback function the code calls on any agent updates.
         """
-        self.agent_type = agent_type
+        self.agent_type = agent_type or AgentType(os.getenv("VECTARA_AGENTIC_AGENT_TYPE", "OPENAI"))
         self.tools = tools
         self.llm = get_llm(LLMRole.MAIN)
         self._custom_instructions = custom_instructions
@@ -141,7 +141,10 @@ class Agent:
         else:
             raise ValueError(f"Unknown agent type: {self.agent_type}")
 
-        setup_observer()
+        try:
+            setup_observer()
+        except Exception as e:
+            print(f"Failed to set up observer ({e}), ignoring")
 
     def __eq__(self, other):
         if not isinstance(other, Agent):
@@ -190,6 +193,7 @@ class Agent:
         custom_instructions: str = "",
         verbose: bool = True,
         update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
+        agent_type: AgentType = None,
     ) -> "Agent":
         """
         Create an agent from tools, agent type, and language model.
@@ -206,7 +210,7 @@ class Agent:
         Returns:
             Agent: An instance of the Agent class.
         """
-        return cls(tools, topic, custom_instructions, verbose, update_func)
+        return cls(tools, topic, custom_instructions, verbose, update_func, agent_type)
 
     @classmethod
     def from_corpus(
