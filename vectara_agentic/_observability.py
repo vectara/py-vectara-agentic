@@ -16,7 +16,7 @@ def setup_observer():
         phoenix_endpoint = os.getenv("PHOENIX_ENDPOINT", None)
         if not phoenix_endpoint:
             px.launch_app()
-            tracer_provider = register(endpoint='http://localhost:6006', project_name="vectara-agentic")
+            tracer_provider = register(endpoint='http://localhost:6006/v1/traces', project_name="vectara-agentic")
         elif 'app.phoenix.arize.com' in phoenix_endpoint:   # hosted on Arizze
             phoenix_api_key = os.getenv("PHOENIX_API_KEY", None)
             if not phoenix_api_key:
@@ -64,8 +64,7 @@ def eval_fcs():
     )
     client = px.Client()
     all_spans = client.query_spans(query, project_name="vectara-agentic")
-
-    vectara_spans = all_spans[all_spans['name'] == 'VectaraQueryEngine._query']
+    vectara_spans = all_spans[all_spans['name'] == 'VectaraQueryEngine._query'].copy()
     vectara_spans['top_level_parent_id'] = vectara_spans.apply(lambda row: _find_top_level_parent_id(row, all_spans), axis=1)
     vectara_spans['score'] = vectara_spans['output.value'].apply(lambda x: _extract_fcs_value(x))
     
