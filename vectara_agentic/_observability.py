@@ -10,7 +10,7 @@ from phoenix.trace import SpanEvaluations
 
 from .types import ObserverType
 
-def setup_observer():
+def setup_observer() -> bool:
     observer = ObserverType(os.getenv("VECTARA_AGENTIC_OBSERVER_TYPE", "NO_OBSERVER"))
     if observer == ObserverType.ARIZE_PHOENIX:
         phoenix_endpoint = os.getenv("PHOENIX_ENDPOINT", None)
@@ -27,9 +27,10 @@ def setup_observer():
         else:       # Self hosted Phoenix
             tracer_provider = register(endpoint=phoenix_endpoint, project_name="vectara-agentic")
         LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
+        return True
     else:
         print("No observer set.")
-
+        return False
 
 def _extract_fcs_value(output):
     try:

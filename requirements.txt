@@ -14,8 +14,10 @@ llama-index-tools-arxiv==0.2.0
 llama-index-tools-database==0.2.0
 llama-index-tools-google==0.2.0
 llama-index-tools-tavily_research==0.2.0
+tavily-python==0.5.0
+yahoo-finance==1.4.0
 openinference-instrumentation-llama-index==3.0.2
-opentelemetry-proto==1.16.0
+arize-phoenix==4.35.1
 arize-phoenix-otel==0.5.1
 tokenizers>=0.20
 pydantic==2.9.2

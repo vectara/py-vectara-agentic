@@ -142,9 +142,10 @@ class Agent:
             raise ValueError(f"Unknown agent type: {self.agent_type}")
 
         try:
-            setup_observer()
+            self.observability_enabled = setup_observer()
         except Exception as e:
             print(f"Failed to set up observer ({e}), ignoring")
+            self.observability_enabled = False
 
     def __eq__(self, other):
         if not isinstance(other, Agent):
@@ -346,7 +347,8 @@ class Agent:
             agent_response = self.agent.chat(prompt)
             if self.verbose:
                 print(f"Time taken: {time.time() - st}")
-            eval_fcs()
+            if self.observability_enabled:
+                eval_fcs()
             return agent_response.response
         except Exception as e:
             import traceback
