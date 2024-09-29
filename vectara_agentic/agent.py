@@ -7,10 +7,7 @@ from datetime import date
 import time
 import json
 import dill
-
-import logging
-logger = logging.getLogger('opentelemetry.exporter.otlp.proto.http.trace_exporter')
-logger.setLevel(logging.CRITICAL)
+from dotenv import load_dotenv
 
 from retrying import retry
 from pydantic import Field, create_model
@@ -24,7 +21,6 @@ from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
 from llama_index.core.memory import ChatMemoryBuffer
 
-from dotenv import load_dotenv
 
 from .types import AgentType, AgentStatusType, LLMRole, ToolType
 from .utils import get_llm, get_tokenizer_for_model
@@ -32,6 +28,10 @@ from ._prompts import REACT_PROMPT_TEMPLATE, GENERAL_PROMPT_TEMPLATE
 from ._callback import AgentCallbackHandler
 from ._observability import setup_observer, eval_fcs
 from .tools import VectaraToolFactory, VectaraTool
+
+import logging
+logger = logging.getLogger('opentelemetry.exporter.otlp.proto.http.trace_exporter')
+logger.setLevel(logging.CRITICAL)
 
 
 load_dotenv(override=True)
@@ -261,7 +261,7 @@ class Agent:
         field_definitions = {}
         field_definitions['query'] = (str, Field(description="The user query"))  # type: ignore
         for field in vectara_filter_fields:
-            field_definitions[field['name']] = (eval(field['type']), 
+            field_definitions[field['name']] = (eval(field['type']),
                                                 Field(description=field['description']))  # type: ignore
         QueryArgs = create_model(   # type: ignore
             "QueryArgs",
@@ -356,29 +356,6 @@ class Agent:
 
     # Serialization methods
 
-    def to_dict(self) -> Dict[str, Any]:
-        """Serialize the Agent instance to a dictionary."""
-        tool_info = []
-
-        for tool in self.tools:
-            tool_dict = {
-                "tool_type": tool.tool_type.value,
-                "name": tool._metadata.name,
-                "description": tool._metadata.description,
-                "fn": dill.dumps(tool.fn).decode('latin-1') if tool.fn else None,  # Serialize fn
-                "async_fn": dill.dumps(tool.async_fn).decode('latin-1') if tool.async_fn else None,  # Serialize async_fn
-            }
-            tool_info.append(tool_dict)
-
-        return {
-            "agent_type": self.agent_type.value,
-            "tools": tool_info,
-            "topic": self._topic,
-            "custom_instructions": self._custom_instructions,
-            "verbose": self.verbose,
-        }
-
-
     def dumps(self) -> str:
         """Serialize the Agent instance to a JSON string."""
         return json.dumps(self.to_dict())
@@ -387,7 +364,6 @@ class Agent:
     def loads(cls, data: str) -> "Agent":
         """Create an Agent instance from a JSON string."""
         return cls.from_dict(json.loads(data))
-
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize the Agent instance to a dictionary."""
@@ -428,18 +404,18 @@ class Agent:
             "object": "dict",
             "number": "float",
         }
-    
+
         for tool_data in data["tools"]:
             # Recreate the dynamic model using the schema info
             if tool_data.get("fn_schema"):
                 field_definitions = {}
-                for field,values in tool_data["fn_schema"]["properties"].items():
+                for field, values in tool_data["fn_schema"]["properties"].items():
                     if 'default' in values:
-                        field_definitions[field] = (eval(JSON_TYPE_TO_PYTHON.get(values['type'], values['type'])), 
-                                                             Field(description=values['description'], default=values['default']))  # type: ignore
+                        field_definitions[field] = (eval(JSON_TYPE_TO_PYTHON.get(values['type'], values['type'])),
+                                                    Field(description=values['description'], default=values['default']))  # type: ignore
                     else:
-                        field_definitions[field] = (eval(JSON_TYPE_TO_PYTHON.get(values['type'], values['type'])), 
-                                                            Field(description=values['description']))    # type: ignore
+                        field_definitions[field] = (eval(JSON_TYPE_TO_PYTHON.get(values['type'], values['type'])),
+                                                    Field(description=values['description']))    # type: ignore
                 query_args_model = create_model(   # type: ignore
                     "QueryArgs",
                     **field_definitions

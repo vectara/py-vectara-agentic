@@ -101,7 +101,8 @@ class VectaraTool(FunctionTool):
                 break
             if (self_schema_dict[key].annotation != other_schema_dict[key].annotation or
                 self_schema_dict[key].description != other_schema_dict[key].description or
-                self_schema_dict[key].is_required() != other_schema_dict[key].is_required()):
+                self_schema_dict[key].is_required() != other_schema_dict[key].is_required()
+            ):
                 is_equal = False
                 break
         return is_equal
@@ -208,7 +209,7 @@ class VectaraToolFactory:
                 summary_response_lang=summary_response_lang,
                 summary_prompt_name=vectara_summarizer,
                 reranker=reranker,
-                rerank_k=rerank_k if rerank_k*self.num_corpora<=100 else int(100/self.num_corpora),
+                rerank_k=rerank_k if rerank_k * self.num_corpora <= 100 else int(100 / self.num_corpora),
                 mmr_diversity_bias=mmr_diversity_bias,
                 n_sentence_before=n_sentences_before,
                 n_sentence_after=n_sentences_after,
@@ -254,7 +255,7 @@ class VectaraToolFactory:
                     raw_input={"args": args, "kwargs": kwargs},
                     raw_output={'response': msg}
                 )
-                
+
             res = {
                 "response": response.response,
                 "references_metadata": citation_metadata,
@@ -397,7 +398,7 @@ class ToolsFactory:
         Create a list of financial tools.
         """
         return self.get_llama_index_tools(
-            tool_package_name="yahoo_finance", 
+            tool_package_name="yahoo_finance",
             tool_spec_name="YahooFinanceToolSpec"
         )
 

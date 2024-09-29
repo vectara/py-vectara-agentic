@@ -88,7 +88,7 @@ If this format is used, the user will respond in the following format:
 Observation: tool response
 ```
 
-You should keep repeating the above format till you have enough information to answer the question without using any more tools. 
+You should keep repeating the above format till you have enough information to answer the question without using any more tools.
 At that point, you MUST respond in the one of the following two formats (and do not include any Action):
 
 ```

@@ -78,5 +78,6 @@ class TestToolsPackage(unittest.TestCase):
 
         self.assertContains(agent.chat("What is Vectara?"), "Vectara is an end-to-end platform")
 
+
 if __name__ == "__main__":
     unittest.main()
