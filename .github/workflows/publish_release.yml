@@ -31,7 +31,7 @@ jobs:
 
     - name: Run tests
       run: |
-        pytest
+        pytest --disable-warnings
 
     - name: Check installation
       run: |

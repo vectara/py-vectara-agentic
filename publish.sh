@@ -8,7 +8,7 @@ rm -rf dist/
 python setup.py sdist bdist_wheel
 
 # Run tests
-pytest
+pytest --disable-warnings
 
 # Check installation
 pip install dist/*.whl

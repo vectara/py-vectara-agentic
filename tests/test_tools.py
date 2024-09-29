@@ -76,7 +76,7 @@ class TestToolsPackage(unittest.TestCase):
             vectara_summarizer="mockingbird-1.0-2024-07-16"
         )
 
-        self.assertContains(agent.chat("What is Vectara?"), "Vectara is an end-to-end platform")
+        self.assertIn("Vectara is an end-to-end platform", agent.chat("What is Vectara?"))
 
 
 if __name__ == "__main__":
