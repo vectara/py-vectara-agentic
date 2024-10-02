@@ -18,7 +18,6 @@ class AgentCallbackHandler(BaseCallbackHandler):
     You can use this callback handler to keep track of agent progress.
 
     Args:
-
         fn: callable function agent will call back to report on agent progress
     """
 
@@ -40,7 +39,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
         """Calls self.fn() with the message from the LLM."""
         if EventPayload.MESSAGES in payload:
             response = str(payload.get(EventPayload.RESPONSE))
-            if response and response != "None" and response != "assistant: None":
+            if response and response not in ["None", "assistant: None"]:
                 if self.fn:
                     self.fn(AgentStatusType.AGENT_UPDATE, response)
         else:

@@ -1,7 +1,6 @@
 """
 This module contains the types used in the Vectara Agentic.
 """
-
 from enum import Enum
 
 
@@ -11,6 +10,7 @@ class AgentType(Enum):
     REACT = "REACT"
     OPENAI = "OPENAI"
     LLMCOMPILER = "LLMCOMPILER"
+
 
 class ObserverType(Enum):
     """Enumeration for different types of observability integrations."""

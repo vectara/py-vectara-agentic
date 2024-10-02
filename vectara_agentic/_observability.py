@@ -10,7 +10,11 @@ from phoenix.trace import SpanEvaluations
 
 from .types import ObserverType
 
+
 def setup_observer() -> bool:
+    '''
+    Setup the observer.
+    '''
     observer = ObserverType(os.getenv("VECTARA_AGENTIC_OBSERVER_TYPE", "NO_OBSERVER"))
     if observer == ObserverType.ARIZE_PHOENIX:
         phoenix_endpoint = os.getenv("PHOENIX_ENDPOINT", None)
@@ -32,7 +36,11 @@ def setup_observer() -> bool:
         print("No observer set.")
         return False
 
+
 def _extract_fcs_value(output):
+    '''
+    Extract the FCS value from the output.
+    '''
     try:
         output_json = json.loads(output)
         if 'metadata' in output_json and 'fcs' in output_json['metadata']:
@@ -43,7 +51,11 @@ def _extract_fcs_value(output):
         print(f"'fcs' not found in: {output_json}")
     return None
 
+
 def _find_top_level_parent_id(row, all_spans):
+    '''
+    Find the top level parent id for the given span.
+    '''
     current_id = row['parent_id']
     while current_id is not None:
         parent_row = all_spans[all_spans.index == current_id]
@@ -57,7 +69,11 @@ def _find_top_level_parent_id(row, all_spans):
         current_id = new_parent_id
     return current_id
 
+
 def eval_fcs():
+    '''
+    Evaluate the FCS score for the VectaraQueryEngine._query span.
+    '''
     query = SpanQuery().select(
         "output.value",
         "parent_id",
@@ -68,7 +84,7 @@ def eval_fcs():
     vectara_spans = all_spans[all_spans['name'] == 'VectaraQueryEngine._query'].copy()
     vectara_spans['top_level_parent_id'] = vectara_spans.apply(lambda row: _find_top_level_parent_id(row, all_spans), axis=1)
     vectara_spans['score'] = vectara_spans['output.value'].apply(lambda x: _extract_fcs_value(x))
-    
+
     vectara_spans.reset_index(inplace=True)
     top_level_spans = vectara_spans.copy()
     top_level_spans['context.span_id'] = top_level_spans['top_level_parent_id']

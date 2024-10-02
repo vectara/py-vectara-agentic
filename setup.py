@@ -25,7 +25,7 @@ setup(
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
         "Topic :: Software Development :: Libraries :: Python Modules",
     ],
-    keywords = ["LLM", "NLP", "RAG", "Agentic-RAG"],
+    keywords=["LLM", "NLP", "RAG", "Agentic-RAG"],
     project_urls={
         "Documentation": "https://vectara.github.io/vectara-agentic-docs/",
     },
