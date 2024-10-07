@@ -8,7 +8,7 @@ def read_requirements():
 
 setup(
     name="vectara_agentic",
-    version="0.1.13",
+    version="0.1.14",
     author="Ofer Mendelevitch",
     author_email="ofer@vectara.com",
     description="A Python package for creating AI Assistants and AI Agents with Vectara",
