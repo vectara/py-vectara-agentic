@@ -389,7 +389,7 @@ class ToolsFactory:
         """
         return [
             self.create_tool(
-                avoid_topics_tool("politics", "religion", "voilence", "hate speech", "adult content", "illegal activities")
+                avoid_topics_tool
             )
         ]
 
