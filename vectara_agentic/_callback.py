@@ -78,7 +78,6 @@ class AgentCallbackHandler(BaseCallbackHandler):
         else:
             print(f"No messages or prompt found in payload {payload}")
 
-
     def on_event_start(
         self,
         event_type: CBEventType,
