@@ -7,11 +7,6 @@ import os
 from llama_index.core.llms import LLM
 from llama_index.llms.openai import OpenAI
 from llama_index.llms.anthropic import Anthropic
-from llama_index.llms.together import TogetherLLM
-from llama_index.llms.groq import Groq
-from llama_index.llms.fireworks import Fireworks
-from llama_index.llms.cohere import Cohere
-from llama_index.llms.gemini import Gemini
 
 import tiktoken
 from typing import Tuple, Callable, Optional
@@ -83,14 +78,19 @@ def get_llm(role: LLMRole) -> LLM:
     elif model_provider == ModelProvider.ANTHROPIC:
         llm = Anthropic(model=model_name, temperature=0, is_function_calling_model=True)
     elif model_provider == ModelProvider.GEMINI:
+        from llama_index.llms.gemini import Gemini
         llm = Gemini(model=model_name, temperature=0, is_function_calling_model=True)
     elif model_provider == ModelProvider.TOGETHER:
+        from llama_index.llms.together import TogetherLLM
         llm = TogetherLLM(model=model_name, temperature=0, is_function_calling_model=True)
     elif model_provider == ModelProvider.GROQ:
+        from llama_index.llms.groq import Groq
         llm = Groq(model=model_name, temperature=0, is_function_calling_model=True)
     elif model_provider == ModelProvider.FIREWORKS:
+        from llama_index.llms.fireworks import Fireworks
         llm = Fireworks(model=model_name, temperature=0, is_function_calling_model=True)
     elif model_provider == ModelProvider.COHERE:
+        from llama_index.llms.cohere import Cohere
         llm = Cohere(model=model_name, temperature=0, is_function_calling_model=True)
     else:
         raise ValueError(f"Unknown LLM provider: {model_provider}")

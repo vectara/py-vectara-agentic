@@ -4,8 +4,6 @@ import pandas as pd
 
 from .types import ObserverType
 
-
-
 def setup_observer() -> bool:
     '''
     Setup the observer.

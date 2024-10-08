@@ -5,6 +5,7 @@ This module contains the tools catalog for the Vectara Agentic.
 from typing import Optional, Callable, Any, List
 from pydantic import Field
 import requests
+from functools import lru_cache
 
 from .types import LLMRole
 from .utils import get_llm
@@ -23,6 +24,7 @@ get_headers = {
 #
 # Standard Tools
 #
+@lru_cache(maxsize=5)
 def summarize_text(
     text: str = Field(description="the original text."),
     expertise: str = Field(
@@ -53,7 +55,7 @@ def summarize_text(
     response = llm.complete(prompt)
     return response.text
 
-
+@lru_cache(maxsize=5)
 def rephrase_text(
     text: str = Field(description="the original text."),
     instructions: str = Field(
@@ -82,7 +84,7 @@ def rephrase_text(
     response = llm.complete(prompt)
     return response.text
 
-
+@lru_cache(maxsize=5)
 def critique_text(
     text: str = Field(description="the original text."),
     role: Optional[str] = Field(
