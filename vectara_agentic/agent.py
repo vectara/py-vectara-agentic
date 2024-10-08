@@ -21,6 +21,12 @@ from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
 from llama_index.core.memory import ChatMemoryBuffer
 
+import logging
+logger = logging.getLogger('opentelemetry.exporter.otlp.proto.http.trace_exporter')
+logger.setLevel(logging.CRITICAL)
+
+load_dotenv(override=True)
+
 from .types import AgentType, AgentStatusType, LLMRole, ToolType
 from .utils import get_llm, get_tokenizer_for_model
 from ._prompts import REACT_PROMPT_TEMPLATE, GENERAL_PROMPT_TEMPLATE
@@ -28,11 +34,6 @@ from ._callback import AgentCallbackHandler
 from ._observability import setup_observer, eval_fcs
 from .tools import VectaraToolFactory, VectaraTool
 
-import logging
-logger = logging.getLogger('opentelemetry.exporter.otlp.proto.http.trace_exporter')
-logger.setLevel(logging.CRITICAL)
-
-load_dotenv(override=True)
 
 def _get_prompt(prompt_template: str, topic: str, custom_instructions: str):
     """

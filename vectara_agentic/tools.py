@@ -254,7 +254,6 @@ class VectaraToolFactory:
                     raw_input={"args": args, "kwargs": kwargs},
                     raw_output={'response': msg}
                 )
-
             res = {
                 "response": response.response,
                 "references_metadata": citation_metadata,
@@ -389,7 +388,7 @@ class ToolsFactory:
         """
         return [
             self.create_tool(
-                avoid_topics_tool
+                avoid_topics_tool(["politics", "religion", "voilence", "hate speech", "adult content", "illegal activities"])
             )
         ]
 

@@ -13,7 +13,7 @@ def setup_observer() -> bool:
         import phoenix as px
         from phoenix.otel import register
         from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
-        
+
         phoenix_endpoint = os.getenv("PHOENIX_ENDPOINT", None)
         if not phoenix_endpoint:
             px.launch_app()

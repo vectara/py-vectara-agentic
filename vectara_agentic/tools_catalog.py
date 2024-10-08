@@ -124,9 +124,9 @@ def critique_text(
 #
 def avoid_topics_tool(
         text: str = Field(description="the original text."),
-        topics_to_avoid: List[str] = Field(default=["politics", "religion", "violence", "hate speech", "adult content", "illegal activities"], 
+        topics_to_avoid: List[str] = Field(default=["politics", "religion", "violence", "hate speech", "adult content", "illegal activities"],
                                            description="List of topics to avoid.")
-    ) -> str:
+        ) -> str:
     """
     A tool to help avoid certain topics in the response.
     Given the input text, rephrases the text to ensure that the response avoids of the topics listed in 'topics_to_avoid'.
