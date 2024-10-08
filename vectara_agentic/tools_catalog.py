@@ -136,7 +136,6 @@ def avoid_topics_tool(
     Returns:
         str: The rephrased text.
     """
-    print(f"DEBUG - topics_to_avoid: {topics_to_avoid}")
     return rephrase_text(text, f"Avoid the following topics: {', '.join(topics_to_avoid)}")
 
 #
