@@ -21,7 +21,6 @@ from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
 from llama_index.core.memory import ChatMemoryBuffer
 
-
 from .types import AgentType, AgentStatusType, LLMRole, ToolType
 from .utils import get_llm, get_tokenizer_for_model
 from ._prompts import REACT_PROMPT_TEMPLATE, GENERAL_PROMPT_TEMPLATE
@@ -33,9 +32,7 @@ import logging
 logger = logging.getLogger('opentelemetry.exporter.otlp.proto.http.trace_exporter')
 logger.setLevel(logging.CRITICAL)
 
-
 load_dotenv(override=True)
-
 
 def _get_prompt(prompt_template: str, topic: str, custom_instructions: str):
     """

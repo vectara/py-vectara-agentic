@@ -19,19 +19,18 @@ from llama_index.core.tools.types import ToolMetadata, ToolOutput
 
 from .types import ToolType
 from .tools_catalog import (
-    # General tools
     summarize_text,
     rephrase_text,
     critique_text,
-    # Guardrail tools
-    guardrails_no_politics,
-    guardrails_be_polite,
+    avoid_topics_tool,
+    db_load_sample_data
 )
 
 LI_packages = {
     "yahoo_finance": ToolType.QUERY,
     "arxiv": ToolType.QUERY,
     "tavily_research": ToolType.QUERY,
+    "neo4j": ToolType.QUERY,
     "database": ToolType.QUERY,
     "google": {
         "GmailToolSpec": {
@@ -389,8 +388,9 @@ class ToolsFactory:
         Create a list of guardrail tools to avoid controversial topics.
         """
         return [
-            self.create_tool(tool)
-            for tool in [guardrails_no_politics, guardrails_be_polite]
+            self.create_tool(
+                avoid_topics_tool
+            )
         ]
 
     def financial_tools(self):
@@ -494,4 +494,10 @@ class ToolsFactory:
                     tool._metadata.description
                     + f"The database tables include data about {content_description}."
                 )
+
+        load_data_tool = [t for t in tools if t._metadata.name.endswith("load_data")][0]
+        sample_data_fn = db_load_sample_data(load_data_tool)
+        sample_data_fn.__name__ = f"{tool_name_prefix}_load_sample_data"
+        sample_data_tool = self.create_tool(sample_data_fn, ToolType.QUERY)
+        tools.append(sample_data_tool)
         return tools

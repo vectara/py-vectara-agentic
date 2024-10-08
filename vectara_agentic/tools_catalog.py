@@ -2,9 +2,10 @@
 This module contains the tools catalog for the Vectara Agentic.
 """
 
-from typing import Optional
+from typing import Optional, Callable, Any, List
 from pydantic import Field
 import requests
+from functools import lru_cache
 
 from .types import LLMRole
 from .utils import get_llm
@@ -23,6 +24,7 @@ get_headers = {
 #
 # Standard Tools
 #
+@lru_cache(maxsize=5)
 def summarize_text(
     text: str = Field(description="the original text."),
     expertise: str = Field(
@@ -53,7 +55,7 @@ def summarize_text(
     response = llm.complete(prompt)
     return response.text
 
-
+@lru_cache(maxsize=5)
 def rephrase_text(
     text: str = Field(description="the original text."),
     instructions: str = Field(
@@ -82,7 +84,7 @@ def rephrase_text(
     response = llm.complete(prompt)
     return response.text
 
-
+@lru_cache(maxsize=5)
 def critique_text(
     text: str = Field(description="the original text."),
     role: Optional[str] = Field(
@@ -120,29 +122,51 @@ def critique_text(
 #
 # Guardrails tools
 #
-def guardrails_no_politics(text: str = Field(description="the original text.")) -> str:
+def avoid_topics_tool(
+        text: str = Field(description="the original text."),
+        topics_to_avoid: List[str] = Field(default=["politics", "religion", "violence", "hate speech", "adult content", "illegal activities"], 
+                                           description="List of topics to avoid.")
+    ) -> str:
     """
-    A guardrails tool.
-    Given the input text, rephrases the text to ensure that the response avoids any specific political content.
+    A tool to help avoid certain topics in the response.
+    Given the input text, rephrases the text to ensure that the response avoids of the topics listed in 'topics_to_avoid'.
 
     Args:
         text (str): The original text.
+        topics_to_avoid (List[str]): A list of topics to avoid.
 
     Returns:
         str: The rephrased text.
     """
-    return rephrase_text(text, "avoid any specific political content.")
+    return rephrase_text(text, f"Avoid the following topics: {', '.join(topics_to_avoid)}")
 
-
-def guardrails_be_polite(text: str = Field(description="the original text.")) -> str:
+#
+# Additional database tool
+#
+class db_load_sample_data:
     """
-    A guardrails tool.
-    Given the input text, rephrases the text to ensure that the response is polite.
+    A tool to load a sample of data from the specified database table.
 
-    Args:
-        text (str): The original text.
-
-    Returns:
-        str: The rephrased text.
+    This tool fetches the first num_rows (default 25) rows from the given table using a provided database query function.
     """
-    return rephrase_text(text, "Ensure the response is super polite.")
+
+    def __init__(self, load_data_tool: Callable):
+        """
+        Initializes the db_load_sample_data with the provided load_data_tool function.
+
+        Args:
+            load_data_tool (Callable): A function to execute the SQL query.
+        """
+        self.load_data_tool = load_data_tool
+
+    def __call__(self, table_name: str, num_rows: int = 25) -> Any:
+        """
+        Fetches the first num_rows rows from the specified database table.
+
+        Args:
+            table_name (str): The name of the database table.
+
+        Returns:
+            Any: The result of the database query.
+        """
+        return self.load_data_tool(f"SELECT * FROM {table_name} LIMIT {num_rows}")

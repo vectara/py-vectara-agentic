@@ -43,7 +43,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
                 if self.fn:
                     self.fn(AgentStatusType.AGENT_UPDATE, response)
         else:
-            print("No messages or prompt found in payload")
+            print(f"No messages or prompt found in payload {payload}")
 
     def _handle_function_call(self, payload: dict) -> None:
         """Calls self.fn() with the information about tool calls."""
@@ -62,7 +62,22 @@ class AgentCallbackHandler(BaseCallbackHandler):
             if self.fn:
                 self.fn(AgentStatusType.TOOL_OUTPUT, response)
         else:
-            print("No function call or output found in payload")
+            print(f"No function call or output found in payload {payload}")
+
+    def _handle_agent_step(self, payload: dict) -> None:
+        """Calls self.fn() with the information about agent step."""
+        print(f"Handling agent step: {payload}")
+        if EventPayload.MESSAGES in payload:
+            msg = str(payload.get(EventPayload.MESSAGES))
+            if self.fn:
+                self.fn(AgentStatusType.AGENT_STEP, msg)
+        elif EventPayload.RESPONSE in payload:
+            response = str(payload.get(EventPayload.RESPONSE))
+            if self.fn:
+                self.fn(AgentStatusType.AGENT_STEP, response)
+        else:
+            print(f"No messages or prompt found in payload {payload}")
+
 
     def on_event_start(
         self,
@@ -78,7 +93,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
             elif event_type == CBEventType.FUNCTION_CALL:
                 self._handle_function_call(payload)
             elif event_type == CBEventType.AGENT_STEP:
-                pass  # Do nothing
+                self._handle_agent_step(payload)
             elif event_type == CBEventType.EXCEPTION:
                 print(f"Exception: {payload.get(EventPayload.EXCEPTION)}")
             else:
@@ -98,3 +113,9 @@ class AgentCallbackHandler(BaseCallbackHandler):
                 self._handle_llm(payload)
             elif event_type == CBEventType.FUNCTION_CALL:
                 self._handle_function_call(payload)
+            elif event_type == CBEventType.AGENT_STEP:
+                self._handle_agent_step(payload)
+            elif event_type == CBEventType.EXCEPTION:
+                print(f"Exception: {payload.get(EventPayload.EXCEPTION)}")
+            else:
+                print(f"Unknown event type: {event_type}, payload={payload}")

@@ -37,6 +37,7 @@ class AgentStatusType(Enum):
     AGENT_UPDATE = "agent_update"
     TOOL_CALL = "tool_call"
     TOOL_OUTPUT = "tool_output"
+    AGENT_STEP = "agent_step"
 
 
 class LLMRole(Enum):
