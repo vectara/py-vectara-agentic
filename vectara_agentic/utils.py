@@ -5,7 +5,6 @@ Utilities for the Vectara agentic.
 import os
 import tiktoken
 from typing import Tuple, Callable, Optional
-from types import FunctionType
 
 from llama_index.core.llms import LLM
 from llama_index.llms.openai import OpenAI

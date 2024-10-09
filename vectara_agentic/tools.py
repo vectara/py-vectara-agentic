@@ -389,7 +389,7 @@ class ToolsFactory:
         return [
             self.create_tool(get_bad_topics)
         ]
-    
+
     def financial_tools(self):
         """
         Create a list of financial tools.
