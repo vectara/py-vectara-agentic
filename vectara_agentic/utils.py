@@ -3,13 +3,13 @@ Utilities for the Vectara agentic.
 """
 
 import os
+import tiktoken
+from typing import Tuple, Callable, Optional
+from types import FunctionType
 
 from llama_index.core.llms import LLM
 from llama_index.llms.openai import OpenAI
 from llama_index.llms.anthropic import Anthropic
-
-import tiktoken
-from typing import Tuple, Callable, Optional
 
 from .types import LLMRole, AgentType, ModelProvider
 
@@ -24,7 +24,6 @@ provider_to_default_model_name = {
 }
 
 DEFAULT_MODEL_PROVIDER = ModelProvider.OPENAI
-
 
 def _get_llm_params_for_role(role: LLMRole) -> Tuple[ModelProvider, str]:
     """Get the model provider and model name for the specified role."""

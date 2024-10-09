@@ -22,7 +22,7 @@ from .tools_catalog import (
     summarize_text,
     rephrase_text,
     critique_text,
-    avoid_topics_tool,
+    get_bad_topics,
     db_load_sample_data
 )
 
@@ -387,11 +387,9 @@ class ToolsFactory:
         Create a list of guardrail tools to avoid controversial topics.
         """
         return [
-            self.create_tool(
-                avoid_topics_tool(["politics", "religion", "voilence", "hate speech", "adult content", "illegal activities"])
-            )
+            self.create_tool(get_bad_topics)
         ]
-
+    
     def financial_tools(self):
         """
         Create a list of financial tools.

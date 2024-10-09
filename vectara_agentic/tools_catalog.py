@@ -122,23 +122,11 @@ def critique_text(
 #
 # Guardrails tools
 #
-def avoid_topics_tool(
-        text: str = Field(description="the original text."),
-        topics_to_avoid: List[str] = Field(default=["politics", "religion", "violence", "hate speech", "adult content", "illegal activities"],
-                                           description="List of topics to avoid.")
-        ) -> str:
+def get_bad_topics() -> List[str]:
     """
-    A tool to help avoid certain topics in the response.
-    Given the input text, rephrases the text to ensure that the response avoids of the topics listed in 'topics_to_avoid'.
-
-    Args:
-        text (str): The original text.
-        topics_to_avoid (List[str]): A list of topics to avoid.
-
-    Returns:
-        str: The rephrased text.
+    Get the list of topics to avoid in the response.
     """
-    return rephrase_text(text, f"Avoid the following topics: {', '.join(topics_to_avoid)}")
+    return ["politics", "religion", "violence", "hate speech", "adult content", "illegal activities"]
 
 #
 # Additional database tool
