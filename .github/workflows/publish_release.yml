@@ -37,7 +37,7 @@ jobs:
 
     - name: Lint the package
       run: |
-        flake8 --ignore=E501 .
+        flake8 .
 
     - name: Publish package
       env:
