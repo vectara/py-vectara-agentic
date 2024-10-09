@@ -1,4 +1,4 @@
-# <img src=".github/assets/Vectara-logo.png" alt="Vectara Logo" width="30" height="30" style="vertical-align: middle;"> vectara-agentic
+# <img src="https://raw.githubusercontent.com/vectara/py-vectara-agentic/main/.github/assets/Vectara-logo.png" alt="Vectara Logo" width="30" height="30" style="vertical-align: middle;"> vectara-agentic
 
 <p align="center">
   <a href="https://vectara.github.io/vectara-agentic-docs">Documentation</a> ·
