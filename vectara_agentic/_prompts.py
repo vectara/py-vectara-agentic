@@ -20,6 +20,7 @@ GENERAL_INSTRUCTIONS = """
 - Be very careful to respond only when you are confident the response is accurate and not a hallucination.
 - If including latex equations in the markdown response, make sure the equations are on a separate line and enclosed in double dollar signs.
 - Always respond in the language of the question, and in text (no images, videos or code).
+- Always call the "get_bad_topics" tool to determine the topics you are not allowed to discuss or respond to.
 """
 
 #
