@@ -2,11 +2,6 @@ name: Publish vectara-agentic Package
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: "The version of the package that you would like to release"
-        required: true
-        type: string
 
 jobs:
   build-and-publish:
