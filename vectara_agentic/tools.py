@@ -18,13 +18,7 @@ from llama_index.core.tools.types import ToolMetadata, ToolOutput
 
 
 from .types import ToolType
-from .tools_catalog import (
-    summarize_text,
-    rephrase_text,
-    critique_text,
-    get_bad_topics,
-    db_load_sample_data
-)
+from .tools_catalog import summarize_text, rephrase_text, critique_text, get_bad_topics, DBLoadSampleData
 
 LI_packages = {
     "yahoo_finance": ToolType.QUERY,
@@ -55,6 +49,7 @@ class VectaraTool(FunctionTool):
     """
     A subclass of FunctionTool adding the tool_type attribute.
     """
+
     def __init__(
         self,
         tool_type: ToolType,
@@ -78,12 +73,7 @@ class VectaraTool(FunctionTool):
         tool_metadata: Optional[ToolMetadata] = None,
     ) -> "VectaraTool":
         tool = FunctionTool.from_defaults(fn, name, description, return_direct, fn_schema, async_fn, tool_metadata)
-        vectara_tool = cls(
-            tool_type=tool_type,
-            fn=tool._fn,
-            metadata=tool._metadata,
-            async_fn=tool._async_fn
-        )
+        vectara_tool = cls(tool_type=tool_type, fn=tool._fn, metadata=tool.metadata, async_fn=tool._async_fn)
         return vectara_tool
 
     def __eq__(self, other):
@@ -98,9 +88,10 @@ class VectaraTool(FunctionTool):
             if key not in other_schema_dict:
                 is_equal = False
                 break
-            if (self_schema_dict[key].annotation != other_schema_dict[key].annotation or
-                self_schema_dict[key].description != other_schema_dict[key].description or
-                self_schema_dict[key].is_required() != other_schema_dict[key].is_required()
+            if (
+                self_schema_dict[key].annotation != other_schema_dict[key].annotation
+                or self_schema_dict[key].description != other_schema_dict[key].description
+                or self_schema_dict[key].is_required() != other_schema_dict[key].is_required()
             ):
                 is_equal = False
                 break
@@ -145,7 +136,7 @@ class VectaraToolFactory:
         rerank_k: int = 50,
         mmr_diversity_bias: float = 0.2,
         include_citations: bool = True,
-        fcs_threshold: float = 0.0
+        fcs_threshold: float = 0.0,
     ) -> VectaraTool:
         """
         Creates a RAG (Retrieve and Generate) tool.
@@ -175,7 +166,7 @@ class VectaraToolFactory:
             vectara_api_key=self.vectara_api_key,
             vectara_customer_id=self.vectara_customer_id,
             vectara_corpus_id=self.vectara_corpus_id,
-            x_source_str="vectara-agentic"
+            x_source_str="vectara-agentic",
         )
 
         def _build_filter_string(kwargs):
@@ -225,7 +216,7 @@ class VectaraToolFactory:
                     tool_name=rag_function.__name__,
                     content=msg,
                     raw_input={"args": args, "kwargs": kwargs},
-                    raw_output={'response': msg}
+                    raw_output={"response": msg},
                 )
             if len(response.source_nodes) == 0:
                 msg = "Tool failed to generate a response since no matches were found."
@@ -233,7 +224,7 @@ class VectaraToolFactory:
                     tool_name=rag_function.__name__,
                     content=msg,
                     raw_input={"args": args, "kwargs": kwargs},
-                    raw_output={'response': msg}
+                    raw_output={"response": msg},
                 )
 
             # Extract citation metadata
@@ -252,7 +243,7 @@ class VectaraToolFactory:
                     tool_name=rag_function.__name__,
                     content=msg,
                     raw_input={"args": args, "kwargs": kwargs},
-                    raw_output={'response': msg}
+                    raw_output={"response": msg},
                 )
             res = {
                 "response": response.response,
@@ -288,7 +279,7 @@ class VectaraToolFactory:
         # Create a new signature using the extracted parameters
         sig = inspect.Signature(params)
         rag_function.__signature__ = sig
-        rag_function.__annotations__['return'] = dict[str, Any]
+        rag_function.__annotations__["return"] = dict[str, Any]
         rag_function.__name__ = "_" + re.sub(r"[^A-Za-z0-9_]", "_", tool_name)
 
         # Create the tool
@@ -307,9 +298,7 @@ class ToolsFactory:
     A factory class for creating agent tools.
     """
 
-    def create_tool(
-        self, function: Callable, tool_type: ToolType = ToolType.QUERY
-    ) -> VectaraTool:
+    def create_tool(self, function: Callable, tool_type: ToolType = ToolType.QUERY) -> VectaraTool:
         """
         Create a tool from a function.
 
@@ -343,9 +332,7 @@ class ToolsFactory:
         """
         # Dynamically install and import the module
         if tool_package_name not in LI_packages.keys():
-            raise ValueError(
-                f"Tool package {tool_package_name} from LlamaIndex not supported by Vectara-agentic."
-            )
+            raise ValueError(f"Tool package {tool_package_name} from LlamaIndex not supported by Vectara-agentic.")
 
         module_name = f"llama_index.tools.{tool_package_name}"
         module = importlib.import_module(module_name)
@@ -358,21 +345,14 @@ class ToolsFactory:
         vtools = []
         for tool in tools:
             if len(tool_name_prefix) > 0:
-                tool._metadata.name = tool_name_prefix + "_" + tool._metadata.name
+                tool.metadata.name = tool_name_prefix + "_" + tool.metadata.name
             if isinstance(func_type, dict):
                 if tool_spec_name not in func_type.keys():
-                    raise ValueError(
-                        f"Tool spec {tool_spec_name} not found in package {tool_package_name}."
-                    )
+                    raise ValueError(f"Tool spec {tool_spec_name} not found in package {tool_package_name}.")
                 tool_type = func_type[tool_spec_name]
             else:
                 tool_type = func_type
-            vtool = VectaraTool(
-                tool_type=tool_type,
-                fn=tool.fn,
-                metadata=tool.metadata,
-                async_fn=tool.async_fn
-            )
+            vtool = VectaraTool(tool_type=tool_type, fn=tool.fn, metadata=tool.metadata, async_fn=tool.async_fn)
             vtools.append(vtool)
         return vtools
 
@@ -386,23 +366,19 @@ class ToolsFactory:
         """
         Create a list of guardrail tools to avoid controversial topics.
         """
-        return [
-            self.create_tool(get_bad_topics)
-        ]
+        return [self.create_tool(get_bad_topics)]
 
     def financial_tools(self):
         """
         Create a list of financial tools.
         """
-        return self.get_llama_index_tools(
-            tool_package_name="yahoo_finance",
-            tool_spec_name="YahooFinanceToolSpec"
-        )
+        return self.get_llama_index_tools(tool_package_name="yahoo_finance", tool_spec_name="YahooFinanceToolSpec")
 
     def legal_tools(self) -> List[FunctionTool]:
         """
         Create a list of legal tools.
         """
+
         def summarize_legal_text(
             text: str = Field(description="the original text."),
         ) -> str:
@@ -426,9 +402,7 @@ class ToolsFactory:
                 """,
             )
 
-        return [
-            self.create_tool(tool) for tool in [summarize_legal_text, critique_as_judge]
-        ]
+        return [self.create_tool(tool) for tool in [summarize_legal_text, critique_as_judge]]
 
     def database_tools(
         self,
@@ -482,18 +456,19 @@ class ToolsFactory:
                     dbname=dbname,
                 )
             else:
-                raise Exception("Please provide a SqlDatabase option or a valid DB scheme type (postgresql, mysql, sqlite, mssql, oracle).")
+                raise Exception(
+                    "Please provide a SqlDatabase option or a valid DB scheme type (postgresql, mysql, sqlite, mssql, oracle)."
+                )
 
         # Update tools with description
         for tool in tools:
             if content_description:
-                tool._metadata.description = (
-                    tool._metadata.description
-                    + f"The database tables include data about {content_description}."
+                tool.metadata.description = (
+                    tool.metadata.description + f"The database tables include data about {content_description}."
                 )
 
-        load_data_tool = [t for t in tools if t._metadata.name.endswith("load_data")][0]
-        sample_data_fn = db_load_sample_data(load_data_tool)
+        load_data_tool = [t for t in tools if t.metadata.name.endswith("load_data")][0]
+        sample_data_fn = DBLoadSampleData(load_data_tool)
         sample_data_fn.__name__ = f"{tool_name_prefix}_load_sample_data"
         sample_data_tool = self.create_tool(sample_data_fn, ToolType.QUERY)
         tools.append(sample_data_tool)

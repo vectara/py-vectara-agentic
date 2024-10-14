@@ -65,10 +65,7 @@ IMPORTANT - FOLLOW THESE INSTRUCTIONS CAREFULLY:
 {INSTRUCTIONS}
 {custom_instructions}
 
-## Input
-The user will specify a task or a question in text.
-
-### Output Format
+## Output Format
 
 Please answer in the same language as the question and use the following format:
 
@@ -95,12 +92,12 @@ At that point, you MUST respond in the one of the following two formats (and do 
 
 ```
 Thought: I can answer without using any more tools. I'll use the user's language to answer
-Answer: [your answer here (In the same language as the user's question, and maintain any references/citations)]
+Answer: [your answer here (In the same language as the user's question, and maintain any references)]
 ```
 
 ```
 Thought: I cannot answer the question with the provided tools.
-Answer: [your answer here (In the same language as the user's question, and maintain any references/citations)]
+Answer: [your answer here (In the same language as the user's question)]
 ```
 
 ## Current Conversation

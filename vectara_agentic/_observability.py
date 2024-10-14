@@ -83,7 +83,9 @@ def eval_fcs():
     client = px.Client()
     all_spans = client.query_spans(query, project_name="vectara-agentic")
     vectara_spans = all_spans[all_spans['name'] == 'VectaraQueryEngine._query'].copy()
-    vectara_spans['top_level_parent_id'] = vectara_spans.apply(lambda row: _find_top_level_parent_id(row, all_spans), axis=1)
+    vectara_spans['top_level_parent_id'] = vectara_spans.apply(
+        lambda row: _find_top_level_parent_id(row, all_spans), axis=1
+    )
     vectara_spans['score'] = vectara_spans['output.value'].apply(lambda x: _extract_fcs_value(x))
 
     vectara_spans.reset_index(inplace=True)
