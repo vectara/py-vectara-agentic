@@ -11,7 +11,6 @@ class AgentType(Enum):
     OPENAI = "OPENAI"
     LLMCOMPILER = "LLMCOMPILER"
 
-
 class ObserverType(Enum):
     """Enumeration for different types of observability integrations."""
 
