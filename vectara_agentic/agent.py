@@ -74,6 +74,7 @@ class Agent:
         custom_instructions: str = "",
         verbose: bool = True,
         update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
+        agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
         agent_type: AgentType = None,
     ) -> None:
         """
@@ -85,20 +86,23 @@ class Agent:
             topic (str, optional): The topic for the agent. Defaults to 'general'.
             custom_instructions (str, optional): Custom instructions for the agent. Defaults to ''.
             verbose (bool, optional): Whether the agent should print its steps. Defaults to True.
-            update_func (Callable): A callback function the code calls on any agent updates.
+            agent_progress_callback (Callable): A callback function the code calls on any agent updates. 
+                update_func (Callable): old name for agent_progress_callback. Will be deprecated in future.
+            agent_type (AgentType, optional): The type of agent to be used. Defaults to None.
         """
         self.agent_type = agent_type or AgentType(os.getenv("VECTARA_AGENTIC_AGENT_TYPE", "OPENAI"))
         self.tools = tools
         self.llm = get_llm(LLMRole.MAIN)
         self._custom_instructions = custom_instructions
         self._topic = topic
+        self.agent_progress_callback = agent_progress_callback if agent_progress_callback else update_func
 
         main_tok = get_tokenizer_for_model(role=LLMRole.MAIN)
         self.main_token_counter = TokenCountingHandler(tokenizer=main_tok) if main_tok else None
         tool_tok = get_tokenizer_for_model(role=LLMRole.TOOL)
         self.tool_token_counter = TokenCountingHandler(tokenizer=tool_tok) if tool_tok else None
 
-        callbacks: list[BaseCallbackHandler] = [AgentCallbackHandler(update_func)]
+        callbacks: list[BaseCallbackHandler] = [AgentCallbackHandler(self.agent_progress_callback)]
         if self.main_token_counter:
             callbacks.append(self.main_token_counter)
         if self.tool_token_counter:
@@ -205,6 +209,7 @@ class Agent:
         custom_instructions: str = "",
         verbose: bool = True,
         update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
+        agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
         agent_type: AgentType = None,
     ) -> "Agent":
         """
@@ -216,13 +221,18 @@ class Agent:
             topic (str, optional): The topic for the agent. Defaults to 'general'.
             custom_instructions (str, optional): custom instructions for the agent. Defaults to ''.
             verbose (bool, optional): Whether the agent should print its steps. Defaults to True.
-            update_func (Callable): A callback function the code calls on any agent updates.
-
+            agent_progress_callback (Callable): A callback function the code calls on any agent updates. 
+                update_func (Callable): old name for agent_progress_callback. Will be deprecated in future.
+            agent_type (AgentType, optional): The type of agent to be used. Defaults to None.
 
         Returns:
             Agent: An instance of the Agent class.
         """
-        return cls(tools, topic, custom_instructions, verbose, update_func, agent_type)
+        return cls(
+            tools=tools, topic=topic, custom_instructions=custom_instructions, 
+            verbose=verbose, agent_progress_callback=agent_progress_callback, 
+            update_func=update_func, agent_type=agent_type
+        )
 
     @classmethod
     def from_corpus(
@@ -233,6 +243,7 @@ class Agent:
         vectara_customer_id: str = str(os.environ.get("VECTARA_CUSTOMER_ID", "")),
         vectara_corpus_id: str = str(os.environ.get("VECTARA_CORPUS_ID", "")),
         vectara_api_key: str = str(os.environ.get("VECTARA_API_KEY", "")),
+        agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
         verbose: bool = False,
         vectara_filter_fields: list[dict] = [],
         vectara_lambda_val: float = 0.005,
@@ -251,6 +262,7 @@ class Agent:
             vectara_customer_id (str): The Vectara customer ID.
             vectara_corpus_id (str): The Vectara corpus ID (or comma separated list of IDs).
             vectara_api_key (str): The Vectara API key.
+            agent_progress_callback (Callable): A callback function the code calls on any agent updates.
             data_description (str): The description of the data.
             assistant_specialty (str): The specialty of the assistant.
             verbose (bool, optional): Whether to print verbose output.
@@ -309,7 +321,7 @@ class Agent:
             topic=assistant_specialty,
             custom_instructions=assistant_instructions,
             verbose=verbose,
-            update_func=None,
+            agent_progress_callback=agent_progress_callback,
         )
 
     def report(self) -> None:

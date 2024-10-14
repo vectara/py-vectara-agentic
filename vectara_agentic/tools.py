@@ -45,6 +45,23 @@ LI_packages = {
 }
 
 
+class VectaraToolMetadata(ToolMetadata):
+    """
+    A subclass of ToolMetadata adding the tool_type attribute.
+    """
+    tool_type: ToolType
+
+    def __init__(self, tool_type: ToolType, **kwargs):
+        super().__init__(**kwargs)
+        self.tool_type = tool_type
+
+    def __repr__(self) -> str:
+        """
+        Returns a string representation of the VectaraToolMetadata object, including the tool_type attribute.
+        """
+        base_repr = super().__repr__()
+        return f"{base_repr}, tool_type={self.tool_type}"
+
 class VectaraTool(FunctionTool):
     """
     A subclass of FunctionTool adding the tool_type attribute.
@@ -53,12 +70,13 @@ class VectaraTool(FunctionTool):
     def __init__(
         self,
         tool_type: ToolType,
+        metadata: ToolMetadata,
         fn: Optional[Callable[..., Any]] = None,
-        metadata: Optional[ToolMetadata] = None,
         async_fn: Optional[AsyncCallable] = None,
     ) -> None:
-        self.tool_type = tool_type
-        super().__init__(fn, metadata, async_fn)
+        metadata_dict = metadata.dict() if hasattr(metadata, 'dict') else metadata.__dict__
+        vm = VectaraToolMetadata(tool_type=tool_type, **metadata_dict)
+        super().__init__(fn, vm, async_fn)
 
     @classmethod
     def from_defaults(
@@ -96,7 +114,6 @@ class VectaraTool(FunctionTool):
                 is_equal = False
                 break
         return is_equal
-
 
 class VectaraToolFactory:
     """
