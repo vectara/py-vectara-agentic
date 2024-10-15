@@ -2,7 +2,7 @@
 This module contains the tools catalog for the Vectara Agentic.
 """
 
-from typing import Optional, Callable, Any, List
+from typing import Callable, Any, List
 from functools import lru_cache
 from pydantic import Field
 import requests

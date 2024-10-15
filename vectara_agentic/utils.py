@@ -61,10 +61,9 @@ def get_tokenizer_for_model(role: LLMRole) -> Optional[Callable]:
     model_provider, model_name = _get_llm_params_for_role(role)
     if model_provider == ModelProvider.OPENAI:
         return tiktoken.encoding_for_model(model_name).encode
-    elif model_provider == ModelProvider.ANTHROPIC:
+    if model_provider == ModelProvider.ANTHROPIC:
         return Anthropic().tokenizer
-    else:
-        return None
+    return None
 
 
 def get_llm(role: LLMRole) -> LLM:
@@ -74,7 +73,7 @@ def get_llm(role: LLMRole) -> LLM:
     if model_provider == ModelProvider.OPENAI:
         llm = OpenAI(model=model_name, temperature=0, is_function_calling_model=True)
     elif model_provider == ModelProvider.ANTHROPIC:
-        llm = Anthropic(model=model_name, temperature=0, is_function_calling_model=True)
+        llm = Anthropic(model=model_name, temperature=0)
     elif model_provider == ModelProvider.GEMINI:
         from llama_index.llms.gemini import Gemini
         llm = Gemini(model=model_name, temperature=0, is_function_calling_model=True)
@@ -86,10 +85,10 @@ def get_llm(role: LLMRole) -> LLM:
         llm = Groq(model=model_name, temperature=0, is_function_calling_model=True)
     elif model_provider == ModelProvider.FIREWORKS:
         from llama_index.llms.fireworks import Fireworks
-        llm = Fireworks(model=model_name, temperature=0, is_function_calling_model=True)
+        llm = Fireworks(model=model_name, temperature=0)
     elif model_provider == ModelProvider.COHERE:
         from llama_index.llms.cohere import Cohere
-        llm = Cohere(model=model_name, temperature=0, is_function_calling_model=True)
+        llm = Cohere(model=model_name, temperature=0)
     else:
         raise ValueError(f"Unknown LLM provider: {model_provider}")
 

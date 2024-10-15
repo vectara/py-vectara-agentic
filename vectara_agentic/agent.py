@@ -24,8 +24,6 @@ from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
 from llama_index.core.memory import ChatMemoryBuffer
 
-
-
 from .types import AgentType, AgentStatusType, LLMRole, ToolType
 from .utils import get_llm, get_tokenizer_for_model
 from ._prompts import REACT_PROMPT_TEMPLATE, GENERAL_PROMPT_TEMPLATE
@@ -87,7 +85,7 @@ class Agent:
             topic (str, optional): The topic for the agent. Defaults to 'general'.
             custom_instructions (str, optional): Custom instructions for the agent. Defaults to ''.
             verbose (bool, optional): Whether the agent should print its steps. Defaults to True.
-            agent_progress_callback (Callable): A callback function the code calls on any agent updates. 
+            agent_progress_callback (Callable): A callback function the code calls on any agent updates.
                 update_func (Callable): old name for agent_progress_callback. Will be deprecated in future.
             agent_type (AgentType, optional): The type of agent to be used. Defaults to None.
         """
@@ -222,7 +220,7 @@ class Agent:
             topic (str, optional): The topic for the agent. Defaults to 'general'.
             custom_instructions (str, optional): custom instructions for the agent. Defaults to ''.
             verbose (bool, optional): Whether the agent should print its steps. Defaults to True.
-            agent_progress_callback (Callable): A callback function the code calls on any agent updates. 
+            agent_progress_callback (Callable): A callback function the code calls on any agent updates.
                 update_func (Callable): old name for agent_progress_callback. Will be deprecated in future.
             agent_type (AgentType, optional): The type of agent to be used. Defaults to None.
 
@@ -230,8 +228,8 @@ class Agent:
             Agent: An instance of the Agent class.
         """
         return cls(
-            tools=tools, topic=topic, custom_instructions=custom_instructions, 
-            verbose=verbose, agent_progress_callback=agent_progress_callback, 
+            tools=tools, topic=topic, custom_instructions=custom_instructions,
+            verbose=verbose, agent_progress_callback=agent_progress_callback,
             update_func=update_func, agent_type=agent_type
         )
 

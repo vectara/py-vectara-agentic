@@ -1,6 +1,16 @@
+"""
+Observability for Vectara Agentic.
+"""
 import os
 import json
+from typing import Optional, Union
 import pandas as pd
+
+import phoenix as px
+from phoenix.trace.dsl import SpanQuery
+from phoenix.trace import SpanEvaluations
+from phoenix.otel import register
+from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
 
 from .types import ObserverType
 
@@ -10,10 +20,6 @@ def setup_observer() -> bool:
     '''
     observer = ObserverType(os.getenv("VECTARA_AGENTIC_OBSERVER_TYPE", "NO_OBSERVER"))
     if observer == ObserverType.ARIZE_PHOENIX:
-        import phoenix as px
-        from phoenix.otel import register
-        from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
-
         phoenix_endpoint = os.getenv("PHOENIX_ENDPOINT", None)
         if not phoenix_endpoint:
             px.launch_app()
@@ -21,7 +27,7 @@ def setup_observer() -> bool:
         elif 'app.phoenix.arize.com' in phoenix_endpoint:   # hosted on Arizze
             phoenix_api_key = os.getenv("PHOENIX_API_KEY", None)
             if not phoenix_api_key:
-                raise Exception("Arize Phoenix API key not set. Please set PHOENIX_API_KEY environment variable.")
+                raise ValueError("Arize Phoenix API key not set. Please set PHOENIX_API_KEY environment variable.")
             os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={phoenix_api_key}"
             os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
             tracer_provider = register(endpoint=phoenix_endpoint, project_name="vectara-agentic")
@@ -29,12 +35,11 @@ def setup_observer() -> bool:
             tracer_provider = register(endpoint=phoenix_endpoint, project_name="vectara-agentic")
         LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
         return True
-    else:
-        print("No observer set.")
-        return False
+    print("No observer set.")
+    return False
 
 
-def _extract_fcs_value(output):
+def _extract_fcs_value(output: Union[str, dict]) -> Optional[float]:
     '''
     Extract the FCS value from the output.
     '''
@@ -49,7 +54,7 @@ def _extract_fcs_value(output):
     return None
 
 
-def _find_top_level_parent_id(row, all_spans):
+def _find_top_level_parent_id(row: pd.Series, all_spans: pd.DataFrame) -> Optional[str]:
     '''
     Find the top level parent id for the given span.
     '''
@@ -67,14 +72,10 @@ def _find_top_level_parent_id(row, all_spans):
     return current_id
 
 
-def eval_fcs():
+def eval_fcs() -> None:
     '''
     Evaluate the FCS score for the VectaraQueryEngine._query span.
     '''
-    from phoenix.trace.dsl import SpanQuery
-    from phoenix.trace import SpanEvaluations
-    import phoenix as px
-
     query = SpanQuery().select(
         "output.value",
         "parent_id",
@@ -86,7 +87,7 @@ def eval_fcs():
     vectara_spans['top_level_parent_id'] = vectara_spans.apply(
         lambda row: _find_top_level_parent_id(row, all_spans), axis=1
     )
-    vectara_spans['score'] = vectara_spans['output.value'].apply(lambda x: _extract_fcs_value(x))
+    vectara_spans['score'] = vectara_spans['output.value'].apply(_extract_fcs_value)
 
     vectara_spans.reset_index(inplace=True)
     top_level_spans = vectara_spans.copy()

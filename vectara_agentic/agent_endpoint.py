@@ -1,20 +1,30 @@
+"""
+This module contains functions to start the agent behind an API endpoint.
+"""
 import os
 import logging
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security.api_key import APIKeyHeader
 from pydantic import BaseModel
 import uvicorn
-from agent import Agent  # Assuming agent.py is in the same directory
+
+from .agent import Agent
 
 API_KEY_NAME = "X-API-Key"
 API_KEY = os.getenv("VECTARA_AGENTIC_API_KEY", "dev-api-key")
 api_key_header = APIKeyHeader(name=API_KEY_NAME)
 
 class ChatRequest(BaseModel):
+    """
+    A request model for the chat endpoint.
+    """
     message: str
 
 
 def create_app(agent: Agent) -> FastAPI:
+    """
+    Create a FastAPI application with a chat endpoint.
+    """
     app = FastAPI()
     logger = logging.getLogger("uvicorn.error")
     logging.basicConfig(level=logging.INFO)
@@ -36,7 +46,7 @@ def create_app(agent: Agent) -> FastAPI:
             return {"response": response}
         except Exception as e:
             logger.error(f"Error during agent processing: {e}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     return app
 
