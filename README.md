@@ -20,13 +20,25 @@
 
 ## ✨ Overview
 
-`vectara-agentic` is a Python library for developing powerful AI assistants using Vectara and Agentic-RAG. It leverages the LlamaIndex Agent framework, customized for use with Vectara.
+`vectara-agentic` is a Python library for developing powerful AI assistants and agents using Vectara and Agentic-RAG. It leverages the LlamaIndex Agent framework, customized for use with Vectara.
 
-###  Key Features
+###  Features
 
+- Enables easy creation of custom AI assistants and agents.
+- Create a Vectara RAG tool with a single line of code.
 - Supports `ReAct`, `OpenAIAgent` and `LLMCompiler` agent types.
 - Includes pre-built tools for various domains (e.g., finance, legal).
-- Enables easy creation of custom AI assistants and agents.
+- Integrates with various LLM inference services like OpenAI, Anthropic, Gemini, GROQ, Together.AI, Cohere and Fireworks
+- Built-in support for observability with Arize Phoenix
+
+### 📚 Example AI Assistants
+
+Check out our example AI assistants:
+
+- [Financial Assistant](https://huggingface.co/spaces/vectara/finance-chat)
+- [Justice Harvard Teaching Assistant](https://huggingface.co/spaces/vectara/Justice-Harvard)
+- [Legal Assistant](https://huggingface.co/spaces/vectara/legal-agent)
+
 
 ###  Prerequisites
 
@@ -149,7 +161,15 @@ When creating a VectaraToolFactory, you can pass in a `vectara_api_key`, `vectar
 
 ## ℹ️ Additional Information
 
-###  Agent Diagnostics
+### About Custom Instructions for your Agent
+
+The custom instructions you provide to the agent guide its behavior.
+Here are some guidelines when creating your instructions:
+- Write precise and clear instructions, without overcomplicating.
+- Consider edge cases and unusual or atypical scenarios.
+- Be cautious to not over-specify behavior based on your primary use-case, as it may limit the agent's ability to behave properly in others.
+
+###  Diagnostics
 
 The `Agent` class defines a few helpful methods to help you understand the internals of your application. 
 * The `report()` method prints out the agent object’s type, the tools, and the LLMs used for the main agent and tool calling.
@@ -176,21 +196,43 @@ Then you can use Arize Phoenix in three ways:
 Now when you run your agent, all call traces are sent to Phoenix and recorded. 
 In addition, vectara-agentic also records `FCS` (factual consistency score, aka HHEM) values into Arize for every Vectara RAG call. You can see those results in the `Feedback` column of the arize UI.
 
-### About Custom Instructions
+## 🌐 API Endpoint
 
-The custom instructions you provide to the agent guide its behavior.
-Here are some guidelines when creating your instructions:
-- Write precise and clear instructions, without overcomplicating.
-- Consider edge cases and unusual or atypical scenarios.
-- Be cautious to not over-specify behavior based on your primary use-case, as it may limit the agent's ability to behave properly in others.
+`vectara-agentic` can be easily hosted locally or on a remote machine behind an API endpoint, by following theses steps:
 
-## 📚 Examples
+### Step 1: Setup your API key
+Ensure that you have your API key set up as an environment variable:
 
-Check out our example AI assistants:
+```
+export VECTARA_AGENTIC_API_KEY=<YOUR-ENDPOINT-API-KEY>
+```
 
-- [Financial Assistant](https://huggingface.co/spaces/vectara/finance-chat)
-- [Justice Harvard Teaching Assistant](https://huggingface.co/spaces/vectara/Justice-Harvard)
-- [Legal Assistant](https://huggingface.co/spaces/vectara/legal-agent)
+### Step 2: Start the API Server
+Initialize the agent and start the FastAPI server by following this example:
+
+
+```
+from agent import Agent
+from agent_endpoint import start_app
+agent = Agent(...)            # Initialize your agent with appropriate parameters
+start_app(agent)
+```
+
+You can customize the host and port by passing them as arguments to start_app():
+* Default: host="0.0.0.0" and port=8000.
+For example:
+```
+start_app(agent, host="0.0.0.0", port=8080)
+```
+
+### Step 3: Access the API Endpoint
+Once the server is running, you can interact with it using curl or any HTTP client. For example:
+
+```
+curl -G "http://<remote-server-ip>:8000/chat" \
+--data-urlencode "message=What is Vectara?" \
+-H "X-API-Key: <YOUR-API-KEY>"
+```
 
 ## 🤝 Contributing
 
