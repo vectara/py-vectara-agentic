@@ -222,7 +222,7 @@ You can customize the host and port by passing them as arguments to start_app():
 * Default: host="0.0.0.0" and port=8000.
 For example:
 ```
-start_app(agent, host="0.0.0.0", port=8080)
+start_app(agent, host="0.0.0.0", port=8000)
 ```
 
 ### Step 3: Access the API Endpoint
