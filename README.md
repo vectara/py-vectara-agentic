@@ -22,6 +22,10 @@
 
 `vectara-agentic` is a Python library for developing powerful AI assistants and agents using Vectara and Agentic-RAG. It leverages the LlamaIndex Agent framework, customized for use with Vectara.
 
+<p align="center">
+<img src="https://raw.githubusercontent.com/vectara/py-vectara-agentic/main/.github/assets/diagram1.png" alt="Agentic RAG diagram" width="100%" style="vertical-align: middle;">
+</p>
+
 ###  Features
 
 - Enables easy creation of custom AI assistants and agents.
