@@ -459,12 +459,12 @@ class Agent:
             async_fn = dill.loads(tool_data["async_fn"].encode("latin-1")) if tool_data["async_fn"] else None
 
             tool = VectaraTool.from_defaults(
-                tool_type=ToolType(tool_data["tool_type"]),
                 name=tool_data["name"],
                 description=tool_data["description"],
                 fn=fn,
                 async_fn=async_fn,
                 fn_schema=query_args_model,  # Re-assign the recreated dynamic model
+                tool_type=ToolType(tool_data["tool_type"]),
             )
             tools.append(tool)
 

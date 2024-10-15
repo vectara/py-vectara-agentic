@@ -81,7 +81,6 @@ class VectaraTool(FunctionTool):
     @classmethod
     def from_defaults(
         cls,
-        tool_type: ToolType,
         fn: Optional[Callable[..., Any]] = None,
         name: Optional[str] = None,
         description: Optional[str] = None,
@@ -89,13 +88,14 @@ class VectaraTool(FunctionTool):
         fn_schema: Optional[Type[BaseModel]] = None,
         async_fn: Optional[AsyncCallable] = None,
         tool_metadata: Optional[ToolMetadata] = None,
+        tool_type: ToolType = ToolType.QUERY,
     ) -> "VectaraTool":
         tool = FunctionTool.from_defaults(fn, name, description, return_direct, fn_schema, async_fn, tool_metadata)
-        vectara_tool = cls(tool_type=tool_type, fn=tool._fn, metadata=tool.metadata, async_fn=tool._async_fn)
+        vectara_tool = cls(tool_type=tool_type, fn=tool.fn, metadata=tool.metadata, async_fn=tool.async_fn)
         return vectara_tool
 
     def __eq__(self, other):
-        if self.tool_type != other.tool_type:
+        if self.metadata.tool_type != other.metadata.tool_type:
             return False
 
         # Check if fn_schema is an instance of a BaseModel or a class itself (metaclass)
@@ -247,12 +247,22 @@ class VectaraToolFactory:
             # Extract citation metadata
             pattern = r"\[(\d+)\]"
             matches = re.findall(pattern, response.response)
-            citation_numbers = sorted(set([int(match) for match in matches]))
+            citation_numbers = sorted(set(int(match) for match in matches))
             citation_metadata = ""
             keys_to_ignore = ["lang", "offset", "len"]
             for citation_number in citation_numbers:
                 metadata = response.source_nodes[citation_number - 1].metadata
-                citation_metadata += f"""[{citation_number}]: {"; ".join([f"{k}='{v}'" for k,v in metadata.items() if k not in keys_to_ignore])}.\n"""
+                citation_metadata += (
+                    f"[{citation_number}]: "
+                    + "; ".join(
+                        [
+                            f"{k}='{v}'"
+                            for k, v in metadata.items()
+                            if k not in keys_to_ignore
+                        ]
+                    )
+                    + ".\n"
+                )
             fcs = response.metadata["fcs"] if "fcs" in response.metadata else 0.0
             if fcs < fcs_threshold:
                 msg = f"Could not answer the query due to suspected hallucination (fcs={fcs})."
@@ -301,11 +311,11 @@ class VectaraToolFactory:
 
         # Create the tool
         tool = VectaraTool.from_defaults(
-            tool_type=ToolType.QUERY,
             fn=rag_function,
             name=tool_name,
             description=tool_description,
             fn_schema=tool_args_schema,
+            tool_type=ToolType.QUERY,
         )
         return tool
 
@@ -348,7 +358,7 @@ class ToolsFactory:
             List[VectaraTool]: A list of VectaraTool objects.
         """
         # Dynamically install and import the module
-        if tool_package_name not in LI_packages.keys():
+        if tool_package_name not in LI_packages:
             raise ValueError(f"Tool package {tool_package_name} from LlamaIndex not supported by Vectara-agentic.")
 
         module_name = f"llama_index.tools.{tool_package_name}"
@@ -473,8 +483,9 @@ class ToolsFactory:
                     dbname=dbname,
                 )
             else:
-                raise Exception(
-                    "Please provide a SqlDatabase option or a valid DB scheme type (postgresql, mysql, sqlite, mssql, oracle)."
+                raise ValueError(
+                    "Please provide a SqlDatabase option or a valid DB scheme type "
+                    " (postgresql, mysql, sqlite, mssql, oracle)."
                 )
 
         # Update tools with description
