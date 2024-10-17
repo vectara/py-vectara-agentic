@@ -222,7 +222,7 @@ agent = Agent(...)            # Initialize your agent with appropriate parameter
 start_app(agent)
 ```
 
-You can customize the host and port by passing them as arguments to start_app():
+You can customize the host and port by passing them as arguments to `start_app()`:
 * Default: host="0.0.0.0" and port=8000.
 For example:
 ```
