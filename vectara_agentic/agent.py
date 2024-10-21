@@ -6,6 +6,9 @@ import os
 from datetime import date
 import time
 import json
+import logging
+import traceback
+
 import dill
 from dotenv import load_dotenv
 
@@ -21,12 +24,6 @@ from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
 from llama_index.core.memory import ChatMemoryBuffer
 
-import logging
-logger = logging.getLogger('opentelemetry.exporter.otlp.proto.http.trace_exporter')
-logger.setLevel(logging.CRITICAL)
-
-load_dotenv(override=True)
-
 from .types import AgentType, AgentStatusType, LLMRole, ToolType
 from .utils import get_llm, get_tokenizer_for_model
 from ._prompts import REACT_PROMPT_TEMPLATE, GENERAL_PROMPT_TEMPLATE
@@ -34,6 +31,10 @@ from ._callback import AgentCallbackHandler
 from ._observability import setup_observer, eval_fcs
 from .tools import VectaraToolFactory, VectaraTool
 
+logger = logging.getLogger("opentelemetry.exporter.otlp.proto.http.trace_exporter")
+logger.setLevel(logging.CRITICAL)
+
+load_dotenv(override=True)
 
 def _get_prompt(prompt_template: str, topic: str, custom_instructions: str):
     """
@@ -57,15 +58,14 @@ def _get_prompt(prompt_template: str, topic: str, custom_instructions: str):
 
 def _retry_if_exception(exception):
     # Define the condition to retry on certain exceptions
-    return isinstance(
-        exception, (TimeoutError)
-    )
+    return isinstance(exception, (TimeoutError))
 
 
 class Agent:
     """
     Agent class for handling different types of agents and their interactions.
     """
+
     def __init__(
         self,
         tools: list[FunctionTool],
@@ -73,6 +73,7 @@ class Agent:
         custom_instructions: str = "",
         verbose: bool = True,
         update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
+        agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
         agent_type: AgentType = None,
     ) -> None:
         """
@@ -84,35 +85,38 @@ class Agent:
             topic (str, optional): The topic for the agent. Defaults to 'general'.
             custom_instructions (str, optional): Custom instructions for the agent. Defaults to ''.
             verbose (bool, optional): Whether the agent should print its steps. Defaults to True.
-            update_func (Callable): A callback function the code calls on any agent updates.
+            agent_progress_callback (Callable): A callback function the code calls on any agent updates.
+                update_func (Callable): old name for agent_progress_callback. Will be deprecated in future.
+            agent_type (AgentType, optional): The type of agent to be used. Defaults to None.
         """
         self.agent_type = agent_type or AgentType(os.getenv("VECTARA_AGENTIC_AGENT_TYPE", "OPENAI"))
         self.tools = tools
         self.llm = get_llm(LLMRole.MAIN)
         self._custom_instructions = custom_instructions
         self._topic = topic
+        self.agent_progress_callback = agent_progress_callback if agent_progress_callback else update_func
 
         main_tok = get_tokenizer_for_model(role=LLMRole.MAIN)
         self.main_token_counter = TokenCountingHandler(tokenizer=main_tok) if main_tok else None
         tool_tok = get_tokenizer_for_model(role=LLMRole.TOOL)
         self.tool_token_counter = TokenCountingHandler(tokenizer=tool_tok) if tool_tok else None
 
-        callbacks: list[BaseCallbackHandler] = [AgentCallbackHandler(update_func)]
+        callbacks: list[BaseCallbackHandler] = [AgentCallbackHandler(self.agent_progress_callback)]
         if self.main_token_counter:
             callbacks.append(self.main_token_counter)
         if self.tool_token_counter:
             callbacks.append(self.tool_token_counter)
-        callback_manager = CallbackManager(callbacks)   # type: ignore
+        callback_manager = CallbackManager(callbacks)  # type: ignore
         self.llm.callback_manager = callback_manager
         self.verbose = verbose
 
-        memory = ChatMemoryBuffer.from_defaults(token_limit=128000)
+        self.memory = ChatMemoryBuffer.from_defaults(token_limit=128000)
         if self.agent_type == AgentType.REACT:
             prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
             self.agent = ReActAgent.from_tools(
                 tools=tools,
                 llm=self.llm,
-                memory=memory,
+                memory=self.memory,
                 verbose=verbose,
                 react_chat_formatter=ReActChatFormatter(system_header=prompt),
                 max_iterations=30,
@@ -123,7 +127,7 @@ class Agent:
             self.agent = OpenAIAgent.from_tools(
                 tools=tools,
                 llm=self.llm,
-                memory=memory,
+                memory=self.memory,
                 verbose=verbose,
                 callable_manager=callback_manager,
                 max_function_calls=20,
@@ -134,7 +138,7 @@ class Agent:
                 tools=tools,
                 llm=self.llm,
                 verbose=verbose,
-                callable_manager=callback_manager
+                callable_manager=callback_manager,
             ).as_agent()
         else:
             raise ValueError(f"Unknown agent type: {self.agent_type}")
@@ -145,14 +149,26 @@ class Agent:
             print(f"Failed to set up observer ({e}), ignoring")
             self.observability_enabled = False
 
+    def clear_memory(self) -> None:
+        """
+        Clear the agent's memory.
+        """
+        self.agent.memory.reset()
+
     def __eq__(self, other):
+        """
+        Compare two Agent instances for equality.
+        """
         if not isinstance(other, Agent):
             print(f"Comparison failed: other is not an instance of Agent. (self: {type(self)}, other: {type(other)})")
             return False
 
         # Compare agent_type
         if self.agent_type != other.agent_type:
-            print(f"Comparison failed: agent_type differs. (self.agent_type: {self.agent_type}, other.agent_type: {other.agent_type})")
+            print(
+                f"Comparison failed: agent_type differs. (self.agent_type: {self.agent_type}, "
+                f"other.agent_type: {other.agent_type})"
+            )
             return False
 
         # Compare tools
@@ -167,7 +183,10 @@ class Agent:
 
         # Compare custom_instructions
         if self._custom_instructions != other._custom_instructions:
-            print(f"Comparison failed: custom_instructions differ. (self.custom_instructions: {self._custom_instructions}, other.custom_instructions: {other._custom_instructions})")
+            print(
+                "Comparison failed: custom_instructions differ. (self.custom_instructions: "
+                f"{self._custom_instructions}, other.custom_instructions: {other._custom_instructions})"
+            )
             return False
 
         # Compare verbose
@@ -177,7 +196,10 @@ class Agent:
 
         # Compare agent
         if self.agent.memory.chat_store != other.agent.memory.chat_store:
-            print(f"Comparison failed: agent memory differs. (self.agent: {repr(self.agent.memory.chat_store)}, other.agent: {repr(other.agent.memory.chat_store)})")
+            print(
+                f"Comparison failed: agent memory differs. (self.agent: {repr(self.agent.memory.chat_store)}, "
+                f"other.agent: {repr(other.agent.memory.chat_store)})"
+            )
             return False
 
         # If all comparisons pass
@@ -192,6 +214,7 @@ class Agent:
         custom_instructions: str = "",
         verbose: bool = True,
         update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
+        agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
         agent_type: AgentType = None,
     ) -> "Agent":
         """
@@ -203,13 +226,18 @@ class Agent:
             topic (str, optional): The topic for the agent. Defaults to 'general'.
             custom_instructions (str, optional): custom instructions for the agent. Defaults to ''.
             verbose (bool, optional): Whether the agent should print its steps. Defaults to True.
-            update_func (Callable): A callback function the code calls on any agent updates.
-
+            agent_progress_callback (Callable): A callback function the code calls on any agent updates.
+                update_func (Callable): old name for agent_progress_callback. Will be deprecated in future.
+            agent_type (AgentType, optional): The type of agent to be used. Defaults to None.
 
         Returns:
             Agent: An instance of the Agent class.
         """
-        return cls(tools, topic, custom_instructions, verbose, update_func, agent_type)
+        return cls(
+            tools=tools, topic=topic, custom_instructions=custom_instructions,
+            verbose=verbose, agent_progress_callback=agent_progress_callback,
+            update_func=update_func, agent_type=agent_type
+        )
 
     @classmethod
     def from_corpus(
@@ -220,6 +248,7 @@ class Agent:
         vectara_customer_id: str = str(os.environ.get("VECTARA_CUSTOMER_ID", "")),
         vectara_corpus_id: str = str(os.environ.get("VECTARA_CORPUS_ID", "")),
         vectara_api_key: str = str(os.environ.get("VECTARA_API_KEY", "")),
+        agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
         verbose: bool = False,
         vectara_filter_fields: list[dict] = [],
         vectara_lambda_val: float = 0.005,
@@ -238,10 +267,12 @@ class Agent:
             vectara_customer_id (str): The Vectara customer ID.
             vectara_corpus_id (str): The Vectara corpus ID (or comma separated list of IDs).
             vectara_api_key (str): The Vectara API key.
+            agent_progress_callback (Callable): A callback function the code calls on any agent updates.
             data_description (str): The description of the data.
             assistant_specialty (str): The specialty of the assistant.
             verbose (bool, optional): Whether to print verbose output.
-            vectara_filter_fields (List[dict], optional): The filterable attributes (each dict maps field name to Tuple[type, description]).
+            vectara_filter_fields (List[dict], optional): The filterable attributes
+                (each dict maps field name to Tuple[type, description]).
             vectara_lambda_val (float, optional): The lambda value for Vectara hybrid search.
             vectara_reranker (str, optional): The Vectara reranker name (default "mmr")
             vectara_rerank_k (int, optional): The number of results to use with reranking.
@@ -253,18 +284,19 @@ class Agent:
         Returns:
             Agent: An instance of the Agent class.
         """
-        vec_factory = VectaraToolFactory(vectara_api_key=vectara_api_key,
-                                         vectara_customer_id=vectara_customer_id,
-                                         vectara_corpus_id=vectara_corpus_id)
-        field_definitions = {}
-        field_definitions['query'] = (str, Field(description="The user query"))  # type: ignore
-        for field in vectara_filter_fields:
-            field_definitions[field['name']] = (eval(field['type']),
-                                                Field(description=field['description']))  # type: ignore
-        QueryArgs = create_model(   # type: ignore
-            "QueryArgs",
-            **field_definitions
+        vec_factory = VectaraToolFactory(
+            vectara_api_key=vectara_api_key,
+            vectara_customer_id=vectara_customer_id,
+            vectara_corpus_id=vectara_corpus_id,
         )
+        field_definitions = {}
+        field_definitions["query"] = (str, Field(description="The user query"))  # type: ignore
+        for field in vectara_filter_fields:
+            field_definitions[field["name"]] = (
+                eval(field["type"]),
+                Field(description=field["description"]),
+            )  # type: ignore
+        query_args = create_model("QueryArgs", **field_definitions)  # type: ignore
 
         vectara_tool = vec_factory.create_rag_tool(
             tool_name=tool_name or f"vectara_{vectara_corpus_id}",
@@ -272,8 +304,9 @@ class Agent:
             Given a user query,
             returns a response (str) to a user question about {data_description}.
             """,
-            tool_args_schema=QueryArgs,
-            reranker=vectara_reranker, rerank_k=vectara_rerank_k,
+            tool_args_schema=query_args,
+            reranker=vectara_reranker,
+            rerank_k=vectara_rerank_k,
             n_sentences_before=vectara_n_sentences_before,
             n_sentences_after=vectara_n_sentences_after,
             lambda_val=vectara_lambda_val,
@@ -293,7 +326,7 @@ class Agent:
             topic=assistant_specialty,
             custom_instructions=assistant_instructions,
             verbose=verbose,
-            update_func=None
+            agent_progress_callback=agent_progress_callback,
         )
 
     def report(self) -> None:
@@ -308,7 +341,7 @@ class Agent:
         print(f"Topic = {self._topic}")
         print("Tools:")
         for tool in self.tools:
-            print(f"- {tool._metadata.name}")
+            print(f"- {tool.metadata.name}")
         print(f"Agent LLM = {get_llm(LLMRole.MAIN).metadata.model_name}")
         print(f"Tool LLM = {get_llm(LLMRole.TOOL).metadata.model_name}")
 
@@ -349,7 +382,6 @@ class Agent:
                 eval_fcs()
             return agent_response.response
         except Exception as e:
-            import traceback
             return f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()}), and can't respond."
 
     # Serialization methods
@@ -371,17 +403,21 @@ class Agent:
             # Serialize each tool's metadata, function, and dynamic model schema (QueryArgs)
             tool_dict = {
                 "tool_type": tool.tool_type.value,
-                "name": tool._metadata.name,
-                "description": tool._metadata.description,
-                "fn": dill.dumps(tool.fn).decode('latin-1') if tool.fn else None,  # Serialize fn
-                "async_fn": dill.dumps(tool.async_fn).decode('latin-1') if tool.async_fn else None,  # Serialize async_fn
-                "fn_schema": tool._metadata.fn_schema.model_json_schema() if hasattr(tool._metadata, 'fn_schema') else None,  # Serialize schema if available
+                "name": tool.metadata.name,
+                "description": tool.metadata.description,
+                "fn": dill.dumps(tool.fn).decode("latin-1") if tool.fn else None,  # Serialize fn
+                "async_fn": dill.dumps(tool.async_fn).decode("latin-1")
+                if tool.async_fn
+                else None,  # Serialize async_fn
+                "fn_schema": tool.metadata.fn_schema.model_json_schema()
+                if hasattr(tool.metadata, "fn_schema")
+                else None,  # Serialize schema if available
             }
             tool_info.append(tool_dict)
 
         return {
             "agent_type": self.agent_type.value,
-            "memory": dill.dumps(self.agent.memory).decode('latin-1'),
+            "memory": dill.dumps(self.agent.memory).decode("latin-1"),
             "tools": tool_info,
             "topic": self._topic,
             "custom_instructions": self._custom_instructions,
@@ -394,13 +430,13 @@ class Agent:
         agent_type = AgentType(data["agent_type"])
         tools = []
 
-        JSON_TYPE_TO_PYTHON = {
-            "string": "str",
-            "integer": "int",
-            "boolean": "bool",
-            "array": "list",
-            "object": "dict",
-            "number": "float",
+        json_type_to_python = {
+            "string": str,
+            "integer": int,
+            "boolean": bool,
+            "array": list,
+            "object": dict,
+            "number": float,
         }
 
         for tool_data in data["tools"]:
@@ -408,29 +444,33 @@ class Agent:
             if tool_data.get("fn_schema"):
                 field_definitions = {}
                 for field, values in tool_data["fn_schema"]["properties"].items():
-                    if 'default' in values:
-                        field_definitions[field] = (eval(JSON_TYPE_TO_PYTHON.get(values['type'], values['type'])),
-                                                    Field(description=values['description'], default=values['default']))  # type: ignore
+                    if "default" in values:
+                        field_definitions[field] = (
+                            json_type_to_python.get(values["type"], values["type"]),
+                            Field(
+                                description=values["description"],
+                                default=values["default"],
+                            ),
+                        )  # type: ignore
                     else:
-                        field_definitions[field] = (eval(JSON_TYPE_TO_PYTHON.get(values['type'], values['type'])),
-                                                    Field(description=values['description']))    # type: ignore
-                query_args_model = create_model(   # type: ignore
-                    "QueryArgs",
-                    **field_definitions
-                )
+                        field_definitions[field] = (
+                            json_type_to_python.get(values["type"], values["type"]),
+                            Field(description=values["description"]),
+                        )  # type: ignore
+                query_args_model = create_model("QueryArgs", **field_definitions)  # type: ignore
             else:
                 query_args_model = create_model("QueryArgs")
 
-            fn = dill.loads(tool_data["fn"].encode('latin-1')) if tool_data["fn"] else None
-            async_fn = dill.loads(tool_data["async_fn"].encode('latin-1')) if tool_data["async_fn"] else None
+            fn = dill.loads(tool_data["fn"].encode("latin-1")) if tool_data["fn"] else None
+            async_fn = dill.loads(tool_data["async_fn"].encode("latin-1")) if tool_data["async_fn"] else None
 
             tool = VectaraTool.from_defaults(
-                tool_type=ToolType(tool_data["tool_type"]),
                 name=tool_data["name"],
                 description=tool_data["description"],
                 fn=fn,
                 async_fn=async_fn,
-                fn_schema=query_args_model  # Re-assign the recreated dynamic model
+                fn_schema=query_args_model,  # Re-assign the recreated dynamic model
+                tool_type=ToolType(tool_data["tool_type"]),
             )
             tools.append(tool)
 
@@ -441,7 +481,7 @@ class Agent:
             custom_instructions=data["custom_instructions"],
             verbose=data["verbose"],
         )
-        memory = dill.loads(data["memory"].encode('latin-1')) if data.get("memory") else None
+        memory = dill.loads(data["memory"].encode("latin-1")) if data.get("memory") else None
         if memory:
             agent.agent.memory = memory
         return agent

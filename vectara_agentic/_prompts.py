@@ -7,10 +7,10 @@ GENERAL_INSTRUCTIONS = """
 - Use tools as your main source of information, do not respond without using a tool. Do not respond based on pre-trained knowledge.
 - When using a tool with arguments, simplify the query as much as possible if you use the tool with arguments.
   For example, if the original query is "revenue for apple in 2021", you can use the tool with a query "revenue" with arguments year=2021 and company=apple.
-- If you can't answer the question with the information provided by the tools, try to rephrase the question and call a tool again,
+- If you can't answer the question with the information provided by a tool, try to rephrase the question and call the tool again,
   or break the question into sub-questions and call a tool for each sub-question, then combine the answers to provide a complete response.
   For example if asked "what is the population of France and Germany", you can call the tool twice, once for each country.
-- If a query tool provides citations or references in markdown as part of its response, include the citations in your response.
+- If a query tool provides citations or references in markdown as part of its response, include the references in your response.
 - When providing links in your response, where possible put the name of the website or source of information for the displayed text. Don't just say 'source'.
 - If after retrying you can't get the information or answer the question, respond with "I don't know".
 - Your response should never be the input to a tool, only the output.
@@ -21,6 +21,14 @@ GENERAL_INSTRUCTIONS = """
 - If including latex equations in the markdown response, make sure the equations are on a separate line and enclosed in double dollar signs.
 - Always respond in the language of the question, and in text (no images, videos or code).
 - Always call the "get_bad_topics" tool to determine the topics you are not allowed to discuss or respond to.
+- If you are provided with database tools use them for analytical queries (such as counting, calculating max, min, average, sum, or other statistics).
+  For each database, the database tools include: x_list_tables, x_load_data, x_describe_tables, and x_load_sample_data, where 'x' in the database name.
+  The x_list_tables tool provides a list of available tables in the x database.
+  Always use the x_describe_tables tool to understand the schema of each table, before you access data from that table.
+  Always use the x_load_sample_data tool to understand the column names, and the unique values in each column, so you can use them in your queries. 
+  Some times the user may ask for a specific column value, but the actual value in the table may be different, and you will need to use the correct value.
+- Never call x_load_data to retrieve values from each row in the table. 
+- Do not mention table names or database names in your response.
 """
 
 #
@@ -65,10 +73,7 @@ IMPORTANT - FOLLOW THESE INSTRUCTIONS CAREFULLY:
 {INSTRUCTIONS}
 {custom_instructions}
 
-## Input
-The user will specify a task or a question in text.
-
-### Output Format
+## Output Format
 
 Please answer in the same language as the question and use the following format:
 
@@ -95,12 +100,12 @@ At that point, you MUST respond in the one of the following two formats (and do 
 
 ```
 Thought: I can answer without using any more tools. I'll use the user's language to answer
-Answer: [your answer here (In the same language as the user's question, and maintain any references/citations)]
+Answer: [your answer here (In the same language as the user's question, and maintain any references)]
 ```
 
 ```
 Thought: I cannot answer the question with the provided tools.
-Answer: [your answer here (In the same language as the user's question, and maintain any references/citations)]
+Answer: [your answer here (In the same language as the user's question)]
 ```
 
 ## Current Conversation

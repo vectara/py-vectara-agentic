@@ -2,10 +2,10 @@
 This module contains the tools catalog for the Vectara Agentic.
 """
 
-from typing import Optional, Callable, Any, List
+from typing import Callable, Any, List
+from functools import lru_cache
 from pydantic import Field
 import requests
-from functools import lru_cache
 
 from .types import LLMRole
 from .utils import get_llm
@@ -24,7 +24,7 @@ get_headers = {
 #
 # Standard Tools
 #
-@lru_cache(maxsize=5)
+@lru_cache(maxsize=None)
 def summarize_text(
     text: str = Field(description="the original text."),
     expertise: str = Field(
@@ -55,12 +55,11 @@ def summarize_text(
     response = llm.complete(prompt)
     return response.text
 
-@lru_cache(maxsize=5)
+
+@lru_cache(maxsize=None)
 def rephrase_text(
     text: str = Field(description="the original text."),
-    instructions: str = Field(
-        description="the specific instructions for how to rephrase the text."
-    ),
+    instructions: str = Field(description="the specific instructions for how to rephrase the text."),
 ) -> str:
     """
     This is a helper tool.
@@ -84,15 +83,12 @@ def rephrase_text(
     response = llm.complete(prompt)
     return response.text
 
-@lru_cache(maxsize=5)
+
+@lru_cache(maxsize=None)
 def critique_text(
     text: str = Field(description="the original text."),
-    role: Optional[str] = Field(
-        None, description="the role of the person providing critique."
-    ),
-    point_of_view: Optional[str] = Field(
-        None, description="the point of view with which to provide critique."
-    ),
+    role: str = Field(default=None, description="the role of the person providing critique."),
+    point_of_view: str = Field(default=None, description="the point of view with which to provide critique."),
 ) -> str:
     """
     This is a helper tool.
@@ -109,9 +105,7 @@ def critique_text(
     if role:
         prompt = f"As a {role}, critique the provided text from the point of view of {point_of_view}."
     else:
-        prompt = (
-            f"Critique the provided text from the point of view of {point_of_view}."
-        )
+        prompt = f"Critique the provided text from the point of view of {point_of_view}."
     prompt += "Structure the critique as bullet points.\n"
     prompt += f"Original text: {text}\nCritique:"
     llm = get_llm(LLMRole.TOOL)
@@ -126,21 +120,30 @@ def get_bad_topics() -> List[str]:
     """
     Get the list of topics to avoid in the response.
     """
-    return ["politics", "religion", "violence", "hate speech", "adult content", "illegal activities"]
+    return [
+        "politics",
+        "religion",
+        "violence",
+        "hate speech",
+        "adult content",
+        "illegal activities",
+    ]
+
 
 #
 # Additional database tool
 #
-class db_load_sample_data:
+class DBLoadSampleData:
     """
     A tool to load a sample of data from the specified database table.
 
-    This tool fetches the first num_rows (default 25) rows from the given table using a provided database query function.
+    This tool fetches the first num_rows (default 25) rows from the given table
+    using a provided database query function.
     """
 
     def __init__(self, load_data_tool: Callable):
         """
-        Initializes the db_load_sample_data with the provided load_data_tool function.
+        Initializes the DBLoadSampleData object with the provided load_data_tool function.
 
         Args:
             load_data_tool (Callable): A function to execute the SQL query.
