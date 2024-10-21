@@ -110,13 +110,13 @@ class Agent:
         self.llm.callback_manager = callback_manager
         self.verbose = verbose
 
-        memory = ChatMemoryBuffer.from_defaults(token_limit=128000)
+        self.memory = ChatMemoryBuffer.from_defaults(token_limit=128000)
         if self.agent_type == AgentType.REACT:
             prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
             self.agent = ReActAgent.from_tools(
                 tools=tools,
                 llm=self.llm,
-                memory=memory,
+                memory=self.memory,
                 verbose=verbose,
                 react_chat_formatter=ReActChatFormatter(system_header=prompt),
                 max_iterations=30,
@@ -127,7 +127,7 @@ class Agent:
             self.agent = OpenAIAgent.from_tools(
                 tools=tools,
                 llm=self.llm,
-                memory=memory,
+                memory=self.memory,
                 verbose=verbose,
                 callable_manager=callback_manager,
                 max_function_calls=20,
@@ -148,6 +148,12 @@ class Agent:
         except Exception as e:
             print(f"Failed to set up observer ({e}), ignoring")
             self.observability_enabled = False
+
+    def clear_memory(self) -> None:
+        """
+        Clear the agent's memory.
+        """
+        self.agent.memory.reset()
 
     def __eq__(self, other):
         """

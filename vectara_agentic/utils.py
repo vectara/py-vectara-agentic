@@ -4,6 +4,8 @@ Utilities for the Vectara agentic.
 
 import os
 from typing import Tuple, Callable, Optional
+from functools import lru_cache
+
 import tiktoken
 
 from llama_index.core.llms import LLM
@@ -24,6 +26,7 @@ provider_to_default_model_name = {
 
 DEFAULT_MODEL_PROVIDER = ModelProvider.OPENAI
 
+@lru_cache(maxsize=None)
 def _get_llm_params_for_role(role: LLMRole) -> Tuple[ModelProvider, str]:
     """Get the model provider and model name for the specified role."""
     if role == LLMRole.TOOL:
@@ -57,7 +60,7 @@ def _get_llm_params_for_role(role: LLMRole) -> Tuple[ModelProvider, str]:
 
     return model_provider, model_name
 
-
+@lru_cache(maxsize=None)
 def get_tokenizer_for_model(role: LLMRole) -> Optional[Callable]:
     """Get the tokenizer for the specified model."""
     model_provider, model_name = _get_llm_params_for_role(role)
@@ -68,6 +71,7 @@ def get_tokenizer_for_model(role: LLMRole) -> Optional[Callable]:
     return None
 
 
+@lru_cache(maxsize=None)
 def get_llm(role: LLMRole) -> LLM:
     """Get the LLM for the specified role."""
     model_provider, model_name = _get_llm_params_for_role(role)

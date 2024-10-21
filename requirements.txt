@@ -1,4 +1,4 @@
-llama-index==0.11.13
+llama-index==0.11.18
 llama-index-indices-managed-vectara==0.2.2
 llama-index-agent-llm-compiler==0.2.0
 llama-index-agent-openai==0.3.4

@@ -495,8 +495,9 @@ class ToolsFactory:
                     tool.metadata.description + f"The database tables include data about {content_description}."
                 )
 
-        load_data_tool = [t for t in tools if t.metadata.name.endswith("load_data")][0]
-        sample_data_fn = DBLoadSampleData(load_data_tool)
+        # Update load_data_tool to return only text instead of "Document" objects (to save on space)
+        load_data_tool_index = next(i for i, t in enumerate(tools) if t.metadata.name.endswith("load_data"))
+        sample_data_fn = DBLoadSampleData(tools[load_data_tool_index])
         sample_data_fn.__name__ = f"{tool_name_prefix}_load_sample_data"
         sample_data_tool = self.create_tool(sample_data_fn, ToolType.QUERY)
         tools.append(sample_data_tool)

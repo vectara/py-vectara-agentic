@@ -5,19 +5,15 @@ import os
 import json
 from typing import Optional, Union
 import pandas as pd
-
-import phoenix as px
-from phoenix.trace.dsl import SpanQuery
-from phoenix.trace import SpanEvaluations
-from phoenix.otel import register
-from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
-
 from .types import ObserverType
 
 def setup_observer() -> bool:
     '''
     Setup the observer.
     '''
+    import phoenix as px
+    from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
+    from phoenix.otel import register
     observer = ObserverType(os.getenv("VECTARA_AGENTIC_OBSERVER_TYPE", "NO_OBSERVER"))
     if observer == ObserverType.ARIZE_PHOENIX:
         phoenix_endpoint = os.getenv("PHOENIX_ENDPOINT", None)
@@ -76,6 +72,9 @@ def eval_fcs() -> None:
     '''
     Evaluate the FCS score for the VectaraQueryEngine._query span.
     '''
+    import phoenix as px
+    from phoenix.trace.dsl import SpanQuery
+    from phoenix.trace import SpanEvaluations
     query = SpanQuery().select(
         "output.value",
         "parent_id",

@@ -24,7 +24,7 @@ get_headers = {
 #
 # Standard Tools
 #
-@lru_cache(maxsize=5)
+@lru_cache(maxsize=None)
 def summarize_text(
     text: str = Field(description="the original text."),
     expertise: str = Field(
@@ -56,7 +56,7 @@ def summarize_text(
     return response.text
 
 
-@lru_cache(maxsize=5)
+@lru_cache(maxsize=None)
 def rephrase_text(
     text: str = Field(description="the original text."),
     instructions: str = Field(description="the specific instructions for how to rephrase the text."),
@@ -84,7 +84,7 @@ def rephrase_text(
     return response.text
 
 
-@lru_cache(maxsize=5)
+@lru_cache(maxsize=None)
 def critique_text(
     text: str = Field(description="the original text."),
     role: str = Field(default=None, description="the role of the person providing critique."),
