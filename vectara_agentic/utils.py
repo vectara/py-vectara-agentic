@@ -31,7 +31,7 @@ def _get_llm_params_for_role(role: LLMRole) -> Tuple[ModelProvider, str]:
     """Get the model provider and model name for the specified role."""
     if role == LLMRole.TOOL:
         model_provider = ModelProvider(
-            os.getenv("VECTARA_AGENTIC_TOOL_LLM_PROVIDER", str(DEFAULT_MODEL_PROVIDER))
+            os.getenv("VECTARA_AGENTIC_TOOL_LLM_PROVIDER", DEFAULT_MODEL_PROVIDER.value)
         )
         model_name = os.getenv(
             "VECTARA_AGENTIC_TOOL_MODEL_NAME",
@@ -39,7 +39,7 @@ def _get_llm_params_for_role(role: LLMRole) -> Tuple[ModelProvider, str]:
         )
     else:
         model_provider = ModelProvider(
-            os.getenv("VECTARA_AGENTIC_MAIN_LLM_PROVIDER", str(DEFAULT_MODEL_PROVIDER))
+            os.getenv("VECTARA_AGENTIC_MAIN_LLM_PROVIDER", DEFAULT_MODEL_PROVIDER.value)
         )
         model_name = os.getenv(
             "VECTARA_AGENTIC_MAIN_MODEL_NAME",
@@ -47,7 +47,7 @@ def _get_llm_params_for_role(role: LLMRole) -> Tuple[ModelProvider, str]:
         )
 
     agent_type = AgentType(
-        os.getenv("VECTARA_AGENTIC_AGENT_TYPE", str(AgentType.OPENAI))
+        os.getenv("VECTARA_AGENTIC_AGENT_TYPE", AgentType.OPENAI.value)
     )
     if (
         role == LLMRole.MAIN
