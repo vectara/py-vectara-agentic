@@ -66,7 +66,6 @@ class AgentCallbackHandler(BaseCallbackHandler):
 
     def _handle_agent_step(self, payload: dict) -> None:
         """Calls self.fn() with the information about agent step."""
-        print(f"Handling agent step: {payload}")
         if EventPayload.MESSAGES in payload:
             msg = str(payload.get(EventPayload.MESSAGES))
             if self.fn:
