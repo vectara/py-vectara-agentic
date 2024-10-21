@@ -25,9 +25,9 @@ GENERAL_INSTRUCTIONS = """
   For each database, the database tools include: x_list_tables, x_load_data, x_describe_tables, and x_load_sample_data, where 'x' in the database name.
   The x_list_tables tool provides a list of available tables in the x database.
   Always use the x_describe_tables tool to understand the schema of each table, before you access data from that table.
-  Always use the x_load_sample_data tool to understand the column names, and the unique values in each column, so you can use them in your queries. 
+  Always use the x_load_sample_data tool to understand the column names, and the unique values in each column, so you can use them in your queries.
   Some times the user may ask for a specific column value, but the actual value in the table may be different, and you will need to use the correct value.
-- Never call x_load_data to retrieve values from each row in the table. 
+- Never call x_load_data to retrieve values from each row in the table.
 - Do not mention table names or database names in your response.
 """
 
