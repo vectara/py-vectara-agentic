@@ -18,7 +18,8 @@ from llama_index.core.tools.types import ToolMetadata, ToolOutput
 
 
 from .types import ToolType
-from .tools_catalog import summarize_text, rephrase_text, critique_text, get_bad_topics, DBLoadSampleData
+from .tools_catalog import summarize_text, rephrase_text, critique_text, get_bad_topics
+from .db_tools import DBLoadSampleData, DBLoadUniqueValues, DBLoadData
 
 LI_packages = {
     "yahoo_finance": ToolType.QUERY,
@@ -42,8 +43,14 @@ LI_packages = {
         },
         "GoogleSearchToolSpec": {"google_search": ToolType.QUERY},
     },
+    "slack": {
+        "SlackToolSpec": {
+            "load_data": ToolType.QUERY,
+            "send_message": ToolType.ACTION,
+            "fetch_channel": ToolType.QUERY,
+        }
+    }
 }
-
 
 class VectaraToolMetadata(ToolMetadata):
     """
@@ -495,10 +502,22 @@ class ToolsFactory:
                     tool.metadata.description + f"The database tables include data about {content_description}."
                 )
 
-        # Update load_data_tool to return only text instead of "Document" objects (to save on space)
+        # Add two new tools: load_sample_data and load_unique_values
         load_data_tool_index = next(i for i, t in enumerate(tools) if t.metadata.name.endswith("load_data"))
-        sample_data_fn = DBLoadSampleData(tools[load_data_tool_index])
+        load_data_fn_original = tools[load_data_tool_index].fn
+
+        load_data_fn = DBLoadData(load_data_fn_original)
+        load_data_fn.__name__ = f"{tool_name_prefix}_load_data"
+        load_data_tool = self.create_tool(load_data_fn, ToolType.QUERY)
+
+        sample_data_fn = DBLoadSampleData(load_data_fn_original)
         sample_data_fn.__name__ = f"{tool_name_prefix}_load_sample_data"
         sample_data_tool = self.create_tool(sample_data_fn, ToolType.QUERY)
-        tools.append(sample_data_tool)
+
+        load_unique_values_fn = DBLoadUniqueValues(load_data_fn_original)
+        load_unique_values_fn.__name__ = f"{tool_name_prefix}_load_unique_values"
+        load_unique_values_tool = self.create_tool(load_unique_values_fn, ToolType.QUERY)
+
+        tools[load_data_tool_index] = load_data_tool
+        tools.extend([sample_data_tool, load_unique_values_tool])
         return tools

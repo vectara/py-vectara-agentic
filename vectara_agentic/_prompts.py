@@ -24,9 +24,11 @@ GENERAL_INSTRUCTIONS = """
 - If you are provided with database tools use them for analytical queries (such as counting, calculating max, min, average, sum, or other statistics).
   For each database, the database tools include: x_list_tables, x_load_data, x_describe_tables, and x_load_sample_data, where 'x' in the database name.
   The x_list_tables tool provides a list of available tables in the x database.
-  Always use the x_describe_tables tool to understand the schema of each table, before you access data from that table.
-  Always use the x_load_sample_data tool to understand the column names, and the unique values in each column, so you can use them in your queries.
-  Some times the user may ask for a specific column value, but the actual value in the table may be different, and you will need to use the correct value.
+  Before issuing a SQL query, always:
+  - Use the x_describe_tables tool to understand the schema of each table
+  - Use the x_load_unique_values tool to understand the unique values in each column.
+    Sometimes the user may ask for a specific column value, but the actual value in the table may be different, and you will need to use the correct value.
+  - Use the x_load_sample_data tool to understand the column names, and typical values in each column.
 - Never call x_load_data to retrieve values from each row in the table.
 - Do not mention table names or database names in your response.
 """
@@ -88,6 +90,8 @@ Please ALWAYS start with a Thought.
 NEVER surround your response with markdown code markers. You may use code markers within your response if you need to.
 
 Please use a valid JSON format for the Action Input. Do NOT do this {{'input': 'hello world', 'num_beams': 5}}.
+
+Do not include the Action Input in a wrapper dictionary 'properties' like this: {{'properties': {{'input': 'hello world', 'num_beams': 5}} }}.
 
 If this format is used, the user will respond in the following format:
 

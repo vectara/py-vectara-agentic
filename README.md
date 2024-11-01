@@ -134,12 +134,21 @@ print(response)
 - `stock_news`: provides news about a company
 - `stock_analyst_recommendations`: provides stock analyst recommendations for a company.
 
-1. **Database tools**: providing tools to inspect and query a database
+4. **Database tools**: providing tools to inspect and query a database
 - `list_tables`: list all tables in the database
 - `describe_tables`: describe the schema of tables in the database
 - `load_data`: returns data based on a SQL query
+- `load_sample_data`: returns the first 25 rows of a table
+- `load_unique_values`: returns the top unique values for a given column
 
-More tools coming soon...
+In addition, we include various other tools from LlamaIndex ToolSpecs:
+* Tavily search
+* arxiv
+* neo4j
+* Google tools (including gmail, calendar, and search)
+* Slack
+
+Note that some of these tools may require API keys as environment variables
 
 You can create your own tool directly from a Python function using the `create_tool()` method of the `ToolsFactory` class:
 
