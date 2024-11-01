@@ -520,6 +520,4 @@ class ToolsFactory:
 
         tools[load_data_tool_index] = load_data_tool
         tools.extend([sample_data_tool, load_unique_values_tool])
-        for t in tools:
-            print(f"DEBUG tool = {t.metadata}")
         return tools
