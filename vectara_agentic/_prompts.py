@@ -91,6 +91,8 @@ NEVER surround your response with markdown code markers. You may use code marker
 
 Please use a valid JSON format for the Action Input. Do NOT do this {{'input': 'hello world', 'num_beams': 5}}.
 
+Do not include the Action Input in a wrapper dictionary 'properties' like this: {{'properties': {{'input': 'hello world', 'num_beams': 5}} }}.
+
 If this format is used, the user will respond in the following format:
 
 ```
