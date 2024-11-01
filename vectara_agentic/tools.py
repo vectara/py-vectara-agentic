@@ -183,7 +183,7 @@ class VectaraToolFactory:
             udf_expression (str, optional): the user defined expression for reranking results.
             rerank_chain (List[Dict], optional): A list of rerankers to be applied sequentially.
                 Each dictionary should specify the "type" of reranker (mmr, slingshot, udf)
-                and any other parameters (e.g. "limit" or "cutoff" for any type, 
+                and any other parameters (e.g. "limit" or "cutoff" for any type,
                 "diversity_bias" for mmr, and "user_function" for udf).
             If using slingshot/multilingual_reranker_v1, it must be first in the list.
             include_citations (bool, optional): Whether to include citations in the response.
