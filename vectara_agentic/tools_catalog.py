@@ -1,8 +1,7 @@
 """
 This module contains the tools catalog for the Vectara Agentic.
 """
-
-from typing import Callable, Any, List
+from typing import List
 from functools import lru_cache
 from pydantic import Field
 import requests
@@ -114,7 +113,7 @@ def critique_text(
 
 
 #
-# Guardrails tools
+# Guardrails tool: returns list of topics to avoid
 #
 def get_bad_topics() -> List[str]:
     """
@@ -128,36 +127,3 @@ def get_bad_topics() -> List[str]:
         "adult content",
         "illegal activities",
     ]
-
-
-#
-# Additional database tool
-#
-class DBLoadSampleData:
-    """
-    A tool to load a sample of data from the specified database table.
-
-    This tool fetches the first num_rows (default 25) rows from the given table
-    using a provided database query function.
-    """
-
-    def __init__(self, load_data_tool: Callable):
-        """
-        Initializes the DBLoadSampleData object with the provided load_data_tool function.
-
-        Args:
-            load_data_tool (Callable): A function to execute the SQL query.
-        """
-        self.load_data_tool = load_data_tool
-
-    def __call__(self, table_name: str, num_rows: int = 25) -> Any:
-        """
-        Fetches the first num_rows rows from the specified database table.
-
-        Args:
-            table_name (str): The name of the database table.
-
-        Returns:
-            Any: The result of the database query.
-        """
-        return self.load_data_tool(f"SELECT * FROM {table_name} LIMIT {num_rows}")
