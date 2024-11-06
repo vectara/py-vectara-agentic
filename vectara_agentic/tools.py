@@ -241,6 +241,7 @@ class VectaraToolFactory:
                 filter=filter_string,
                 citations_style="MARKDOWN" if include_citations else None,
                 citations_url_pattern="{doc.url}" if include_citations else None,
+                x_source_str = "vectara-agentic",
             )
             response = vectara_query_engine.query(query)
 
