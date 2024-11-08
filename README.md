@@ -220,13 +220,15 @@ Ensure that you have your API key set up as an environment variable:
 export VECTARA_AGENTIC_API_KEY=<YOUR-ENDPOINT-API-KEY>
 ```
 
+if you don't specify an Endpoint API key it uses the default "dev-api-key".
+
 ### Step 2: Start the API Server
 Initialize the agent and start the FastAPI server by following this example:
 
 
 ```
-from agent import Agent
-from agent_endpoint import start_app
+from vectara_agentic.agent import Agent
+from vectara_agentic.agent_endpoint import start_app
 agent = Agent(...)            # Initialize your agent with appropriate parameters
 start_app(agent)
 ```
@@ -244,7 +246,7 @@ Once the server is running, you can interact with it using curl or any HTTP clie
 ```
 curl -G "http://<remote-server-ip>:8000/chat" \
 --data-urlencode "message=What is Vectara?" \
--H "X-API-Key: <YOUR-API-KEY>"
+-H "X-API-Key: <YOUR-ENDPOINT-API-KEY>"
 ```
 
 ## 🤝 Contributing
