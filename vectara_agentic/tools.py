@@ -12,9 +12,10 @@ from pydantic import BaseModel, Field
 
 from llama_index.core.tools import FunctionTool
 from llama_index.core.tools.function_tool import AsyncCallable
-from llama_index.indices.managed.vectara import VectaraIndex
+from llama_index.indices.managed.vectara import VectaraIndex, VectaraAutoRetriever
 from llama_index.core.utilities.sql_wrapper import SQLDatabase
 from llama_index.core.tools.types import ToolMetadata, ToolOutput
+from llama_index.core.vector_stores.types import MetadataInfo, VectorStoreIndo
 
 
 from .types import ToolType
@@ -216,6 +217,31 @@ class VectaraToolFactory:
             """
             Dynamically generated function for RAG query with Vectara.
             """
+
+            # Make Query Call with AutoRetriever; NOT CERTAIN IF THIS IS THE RIGHT PLACE TO PUT ALL THE QUERY PARAMETERS
+            auto_retriever.vectara_query(
+                kwargs.pop("query"),
+                summary_enabled=True,
+                summary_num_results=summary_num_results,
+                summary_response_lang=summary_response_lang,
+                summary_prompt_name=vectara_summarizer,
+                reranker=reranker,
+                rerank_k=rerank_k if rerank_k * self.num_corpora <= 100 else int(100 / self.num_corpora),
+                mmr_diversity_bias=mmr_diversity_bias,
+                udf_expression=udf_expression,
+                rerank_chain=rerank_chain,
+                n_sentence_before=n_sentences_before,
+                n_sentence_after=n_sentences_after,
+                lambda_val=lambda_val,
+                filter=filter_string,
+                citations_style="MARKDOWN" if include_citations else None,
+                citations_url_pattern="{doc.url}" if include_citations else None,
+                x_source_str="vectara-agentic",
+            )
+
+
+
+
             # Convert args to kwargs using the function signature
             sig = inspect.signature(rag_function)
             bound_args = sig.bind_partial(*args, **kwargs)
@@ -309,6 +335,25 @@ class VectaraToolFactory:
                 raw_output=res,
             )
             return out
+
+
+        # Set up Metadata Info
+        vector_store_info = VectorStoreInfo(
+            content_info=tool_description, # May need another parameter for this, but try this for now
+            metadata_info = [MetadataInfo(
+                name=field_model.alias if field_model.alias else name,
+                description=field_model.description,
+                type=field_model.annotation
+            ) for name, field_info in tool_args_schema.model_fields],
+        )
+
+        # Set up autoretriever
+        autoretriever = VectaraAutoRetriever(
+            index=vectara,
+            vector_store_info = vector_store_info,
+            llm=MAIN_OR_TOOL_LLM, # FIX THIS LINE
+        )
+
 
         fields = tool_args_schema.model_fields
         params = [
