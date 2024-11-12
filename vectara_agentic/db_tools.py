@@ -13,8 +13,9 @@ class DBTool(ABC):
     """
     A base class for vectara-agentic database tools extensions
     """
-    def __init__(self, load_data_fn: Callable):
+    def __init__(self, load_data_fn: Callable, max_rows: int = 500):
         self.load_data_fn = load_data_fn
+        self.max_rows = max_rows
 
 class DBLoadData(DBTool):
     """
@@ -29,6 +30,12 @@ class DBLoadData(DBTool):
         Returns:
             List[text]: a list of text values from the database.
         """
+        count_query = f"SELECT COUNT(*) FROM ({query})"
+        count_rows = self.load_data_fn(count_query)
+        num_rows = int(count_rows[0].text)
+        if num_rows > self.max_rows:
+            return [f"The query is expected to return more than {self.max_rows} rows. Please refine your query to make it return less rows."]
+
         res = self.load_data_fn(query)
         return [d.text for d in res]
 
