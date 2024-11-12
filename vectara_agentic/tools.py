@@ -12,10 +12,11 @@ from pydantic import BaseModel, Field
 
 from llama_index.core.tools import FunctionTool
 from llama_index.core.tools.function_tool import AsyncCallable
-from llama_index.indices.managed.vectara import VectaraIndex, VectaraAutoRetriever
+from llama_index.indices.managed.vectara import VectaraIndex, VectaraRetriever, VectaraAutoRetriever
 from llama_index.core.utilities.sql_wrapper import SQLDatabase
 from llama_index.core.tools.types import ToolMetadata, ToolOutput
 from llama_index.core.vector_stores.types import MetadataInfo, VectorStoreInfo, VectorStoreQuerySpec
+from llama_index.core.schema import QueryBundle
 
 
 from .types import ToolType, LLMRole
@@ -209,7 +210,7 @@ class VectaraToolFactory:
                 self,
                 query_bundle: QueryBundle,
                 **kwargs: Any,
-            ):
+            ) ->  VectaraRetriever:
                 spec = self.generate_retrieval_spec(query_bundle)
                 vectara_retriever, new_query = self._build_retriever_from_spec(
                     VectorStoreQuerySpec(
@@ -220,13 +221,14 @@ class VectaraToolFactory:
                 return vectara_retriever
 
         # Set up Metadata Info
+        fields = tool_args_schema.model_fields
         vector_store_info = VectorStoreInfo(
             content_info=tool_description, # May need another parameter for this, but try this for now
             metadata_info = [MetadataInfo(
-                name=field_model.alias if field_model.alias else name,
-                description=field_model.description,
-                type=field_model.annotation
-            ) for name, field_info in tool_args_schema.model_fields],
+                name=field_info.alias if field_info.alias else name,
+                description=field_info.description,
+                type=str(field_info.annotation)
+            ) for name, field_info in fields.items()],
         )
 
         # Set up autoretriever
@@ -259,7 +261,9 @@ class VectaraToolFactory:
             kwargs = bound_args.arguments
 
             query = kwargs.pop("query")
-            filter_string = autoretriever.build_vectara_query_filter(query)
+            # print(f"DEBUG: AUTORETRIEVER OBJECT EXISTS IN FUNCTION {dir(autoretriever)}")
+            filter_string = autoretriever._build_vectara_query_filter(query)
+            print(f"DEBUG: FILTER STRING IS {filter_string}")
 
             vectara_query_engine = vectara.as_query_engine(
                 summary_enabled=True,
@@ -346,7 +350,6 @@ class VectaraToolFactory:
             )
             return out
 
-        fields = tool_args_schema.model_fields
         params = [
             inspect.Parameter(
                 name=field_name,
