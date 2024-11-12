@@ -8,6 +8,7 @@ import time
 import json
 import logging
 import traceback
+from functools import lru_cache
 
 import dill
 from dotenv import load_dotenv
@@ -36,6 +37,7 @@ logger.setLevel(logging.CRITICAL)
 
 load_dotenv(override=True)
 
+lru_cache(maxsize=None)
 def _get_prompt(prompt_template: str, topic: str, custom_instructions: str):
     """
     Generate a prompt by replacing placeholders with topic and date.

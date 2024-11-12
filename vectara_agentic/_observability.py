@@ -11,11 +11,11 @@ def setup_observer() -> bool:
     '''
     Setup the observer.
     '''
-    import phoenix as px
-    from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
-    from phoenix.otel import register
     observer = ObserverType(os.getenv("VECTARA_AGENTIC_OBSERVER_TYPE", "NO_OBSERVER"))
     if observer == ObserverType.ARIZE_PHOENIX:
+        import phoenix as px
+        from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
+        from phoenix.otel import register
         phoenix_endpoint = os.getenv("PHOENIX_ENDPOINT", None)
         if not phoenix_endpoint:
             px.launch_app()

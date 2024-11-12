@@ -6,6 +6,7 @@ import inspect
 import re
 import importlib
 import os
+from functools import lru_cache
 
 from typing import Callable, List, Dict, Any, Optional, Type
 from pydantic import BaseModel, Field
@@ -401,24 +402,28 @@ class ToolsFactory:
             vtools.append(vtool)
         return vtools
 
+    @lru_cache(maxsize=10)
     def standard_tools(self) -> List[FunctionTool]:
         """
         Create a list of standard tools.
         """
         return [self.create_tool(tool) for tool in [summarize_text, rephrase_text]]
 
+    @lru_cache(maxsize=10)
     def guardrail_tools(self) -> List[FunctionTool]:
         """
         Create a list of guardrail tools to avoid controversial topics.
         """
         return [self.create_tool(get_bad_topics)]
 
+    @lru_cache(maxsize=10)
     def financial_tools(self):
         """
         Create a list of financial tools.
         """
         return self.get_llama_index_tools(tool_package_name="yahoo_finance", tool_spec_name="YahooFinanceToolSpec")
 
+    @lru_cache(maxsize=10)
     def legal_tools(self) -> List[FunctionTool]:
         """
         Create a list of legal tools.
@@ -449,6 +454,7 @@ class ToolsFactory:
 
         return [self.create_tool(tool) for tool in [summarize_legal_text, critique_as_judge]]
 
+    @lru_cache(maxsize=10)
     def database_tools(
         self,
         tool_name_prefix: str = "",
@@ -477,7 +483,7 @@ class ToolsFactory:
             password (str, optional): The database password. Defaults to "Password".
             dbname (str, optional): The database name. Defaults to "postgres".
                You must specify either the sql_database object or the scheme, host, port, user, password, and dbname.
-            max_rows (int, optional): if specified, instructs the load_data tool to never return more than max_rows rows.
+            max_rows (int, optional): if specified, instructs the load_data tool to never return more than max_rows.
                Defaults to 500.
 
         Returns:
