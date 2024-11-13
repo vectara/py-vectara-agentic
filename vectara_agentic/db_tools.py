@@ -30,6 +30,7 @@ class DBLoadData(DBTool):
         Returns:
             List[text]: a list of text values from the database.
         """
+        query = query.strip(';')    # Remove trailing semicolon, if exists
         count_query = f"SELECT COUNT(*) FROM ({query})"
         count_rows = self.load_data_fn(count_query)
         num_rows = int(count_rows[0].text)
