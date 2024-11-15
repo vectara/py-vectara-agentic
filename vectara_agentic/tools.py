@@ -208,9 +208,10 @@ class VectaraToolFactory:
 
             def _build_vectara_query_filter(
                 self,
-                query_bundle: QueryBundle,
+                query_string: QueryBundle,
                 **kwargs: Any,
             ) ->  VectaraRetriever:
+                query_bundle = QueryBundle(query_str=query_string)
                 spec = self.generate_retrieval_spec(query_bundle)
                 vectara_retriever, new_query = self._build_retriever_from_spec(
                     VectorStoreQuerySpec(
@@ -261,8 +262,11 @@ class VectaraToolFactory:
             kwargs = bound_args.arguments
 
             query = kwargs.pop("query")
-            # print(f"DEBUG: AUTORETRIEVER OBJECT EXISTS IN FUNCTION {dir(autoretriever)}")
-            filter_string = autoretriever._build_vectara_query_filter(query)
+
+            # NEED TO ADD KWARGS TO FUNCTION CALL SOMEHOW SO THAT THEY ARE PASSED TO generate_retrieval_spec()!!
+            # PROBABLY NEED SOME AGENT INSTRUCTIONS OR SOME OTHER KIND OF METHOD TO INDICATE RELATIONSHIP TO ESTABLISH CORRECT REALTIONAL OPERATOR
+            combined_query = f'query: {query}, ' + ', '.join([f'{key}: {value}' for key, value in kwargs.items()]) if kwargs else query
+            filter_string = autoretriever._build_vectara_query_filter(combined_query)._filter
             print(f"DEBUG: FILTER STRING IS {filter_string}")
 
             vectara_query_engine = vectara.as_query_engine(
