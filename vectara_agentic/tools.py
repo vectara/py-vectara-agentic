@@ -26,6 +26,7 @@ LI_packages = {
     "arxiv": ToolType.QUERY,
     "tavily_research": ToolType.QUERY,
     "neo4j": ToolType.QUERY,
+    "kuzu": ToolType.QUERY,
     "database": ToolType.QUERY,
     "google": {
         "GmailToolSpec": {
