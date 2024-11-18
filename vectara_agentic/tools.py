@@ -12,10 +12,11 @@ from pydantic import BaseModel, Field
 
 from llama_index.core.tools import FunctionTool
 from llama_index.core.tools.function_tool import AsyncCallable
-from llama_index.indices.managed.vectara import VectaraIndex, VectaraRetriever, VectaraAutoRetriever
+from llama_index.indices.managed.vectara import VectaraIndex, VectaraRetriever, VectaraQueryEngine, VectaraAutoRetriever
 from llama_index.core.utilities.sql_wrapper import SQLDatabase
 from llama_index.core.tools.types import ToolMetadata, ToolOutput
 from llama_index.core.vector_stores.types import MetadataInfo, VectorStoreInfo, VectorStoreQuerySpec
+from llama_index.core.llms import LLM
 from llama_index.core.schema import QueryBundle
 
 
@@ -125,6 +126,28 @@ class VectaraTool(FunctionTool):
                 break
         return is_equal
 
+def _build_auto_retriever(
+    query_string: str,
+    index: VectaraIndex,
+    vector_store_info: VectorStoreInfo,
+    llm: LLM
+    **kwargs: Any,
+) ->  VectaraQueryEngine:
+    query_bundle = QueryBundle(query_str=query_string)
+    auto_retriever = VectaraAutoRetriever(
+        index=vectara,
+        vector_store_info = vector_store_info,
+        llm=get_llm(LLMRole.TOOL)
+    )
+    spec = auto_retriever.generate_retrieval_spec(query_bundle)
+    vectara_retriever, new_query = auto_retriever._build_retriever_from_spec(
+        VectorStoreQuerySpec(
+            query=spec.query, filters=spec.filters
+        )
+    )
+
+    return VectaraQueryEngine.from_args(retriever=vectara_retriever)    
+
 class VectaraToolFactory:
     """
     A factory class for creating Vectara RAG tools.
@@ -204,39 +227,15 @@ class VectaraToolFactory:
             x_source_str="vectara-agentic",
         )
 
-        class VectaraAgenticAutoRetriever(VectaraAutoRetriever):
-
-            def _build_vectara_query_filter(
-                self,
-                query_string: QueryBundle,
-                **kwargs: Any,
-            ) ->  VectaraRetriever:
-                query_bundle = QueryBundle(query_str=query_string)
-                spec = self.generate_retrieval_spec(query_bundle)
-                vectara_retriever, new_query = self._build_retriever_from_spec(
-                    VectorStoreQuerySpec(
-                        query=spec.query, filters=spec.filters, top_k=self._similarity_top_k
-                    )
-                )
-
-                return vectara_retriever
-
         # Set up Metadata Info
         fields = tool_args_schema.model_fields
         vector_store_info = VectorStoreInfo(
-            content_info=tool_description, # May need another parameter for this, but try this for now
+            content_info=tool_description,
             metadata_info = [MetadataInfo(
                 name=field_info.alias if field_info.alias else name,
                 description=field_info.description,
                 type=str(field_info.annotation)
             ) for name, field_info in fields.items()],
-        )
-
-        # Set up autoretriever
-        autoretriever = VectaraAgenticAutoRetriever(
-            index=vectara,
-            vector_store_info = vector_store_info,
-            llm=get_llm(LLMRole.TOOL),
         )
 
         # def _build_filter_string(kwargs):
@@ -250,26 +249,25 @@ class VectaraToolFactory:
         #     return " AND ".join(filter_parts)
 
         # Dynamically generate the RAG function
-        def rag_function(*args, **kwargs) -> ToolOutput:
+        def rag_function(query: str) -> ToolOutput:
             """
             Dynamically generated function for RAG query with Vectara.
             """
 
             # Convert args to kwargs using the function signature
-            sig = inspect.signature(rag_function)
-            bound_args = sig.bind_partial(*args, **kwargs)
-            bound_args.apply_defaults()
-            kwargs = bound_args.arguments
+            # sig = inspect.signature(rag_function)
+            # bound_args = sig.bind_partial(*args, **kwargs)
+            # bound_args.apply_defaults()
+            # kwargs = bound_args.arguments
 
-            query = kwargs.pop("query")
+            # Give me the cases related to fishing since 2023 -> "query": "cases related to fishing", "date": "2023"
 
-            # NEED TO ADD KWARGS TO FUNCTION CALL SOMEHOW SO THAT THEY ARE PASSED TO generate_retrieval_spec()!!
-            # PROBABLY NEED SOME AGENT INSTRUCTIONS OR SOME OTHER KIND OF METHOD TO INDICATE RELATIONSHIP TO ESTABLISH CORRECT REALTIONAL OPERATOR
-            combined_query = f'query: {query}, ' + ', '.join([f'{key}: {value}' for key, value in kwargs.items()]) if kwargs else query
-            filter_string = autoretriever._build_vectara_query_filter(combined_query)._filter
-            print(f"DEBUG: FILTER STRING IS {filter_string}")
-
-            vectara_query_engine = vectara.as_query_engine(
+            # Set up query engine
+            vectara_query_engine = _build_auto_retriever(
+                query,
+                vectara,
+                vector_store_info,
+                get_llm(LLMRole.TOOL),
                 summary_enabled=True,
                 summary_num_results=summary_num_results,
                 summary_response_lang=summary_response_lang,
@@ -287,6 +285,26 @@ class VectaraToolFactory:
                 citations_url_pattern="{doc.url}" if include_citations else None,
                 x_source_str="vectara-agentic",
             )
+
+            # vectara_query_engine = vectara.as_query_engine(
+            #     summary_enabled=True,
+            #     summary_num_results=summary_num_results,
+            #     summary_response_lang=summary_response_lang,
+            #     summary_prompt_name=vectara_summarizer,
+            #     reranker=reranker,
+            #     rerank_k=rerank_k if rerank_k * self.num_corpora <= 100 else int(100 / self.num_corpora),
+            #     mmr_diversity_bias=mmr_diversity_bias,
+            #     udf_expression=udf_expression,
+            #     rerank_chain=rerank_chain,
+            #     n_sentence_before=n_sentences_before,
+            #     n_sentence_after=n_sentences_after,
+            #     lambda_val=lambda_val,
+            #     filter=filter_string,
+            #     citations_style="MARKDOWN" if include_citations else None,
+            #     citations_url_pattern="{doc.url}" if include_citations else None,
+            #     x_source_str="vectara-agentic",
+            # )
+
             response = vectara_query_engine.query(query)
 
             if str(response) == "None":
@@ -354,15 +372,16 @@ class VectaraToolFactory:
             )
             return out
 
-        params = [
-            inspect.Parameter(
-                name=field_name,
-                kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                default=field_info.default,
-                annotation=field_info,
-            )
-            for field_name, field_info in fields.items()
-        ]
+        # Outside dynamic RAG function
+        # params = [
+        #     inspect.Parameter(
+        #         name=field_name,
+        #         kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+        #         default=field_info.default,
+        #         annotation=field_info,
+        #     )
+        #     for field_name, field_info in fields.items()
+        # ]
 
         # Create a new signature using the extracted parameters
         sig = inspect.Signature(params)
