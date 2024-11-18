@@ -130,15 +130,16 @@ def _build_auto_retriever(
     query_string: str,
     index: VectaraIndex,
     vector_store_info: VectorStoreInfo,
-    llm: LLM
+    llm: LLM,
     **kwargs: Any,
 ) ->  VectaraQueryEngine:
-    query_bundle = QueryBundle(query_str=query_string)
     auto_retriever = VectaraAutoRetriever(
-        index=vectara,
+        index=index,
         vector_store_info = vector_store_info,
-        llm=get_llm(LLMRole.TOOL)
+        llm=get_llm(LLMRole.TOOL),
+        **kwargs
     )
+    query_bundle = QueryBundle(query_str=query_string)
     spec = auto_retriever.generate_retrieval_spec(query_bundle)
     vectara_retriever, new_query = auto_retriever._build_retriever_from_spec(
         VectorStoreQuerySpec(
@@ -238,29 +239,11 @@ class VectaraToolFactory:
             ) for name, field_info in fields.items()],
         )
 
-        # def _build_filter_string(kwargs):
-        #     filter_parts = []
-        #     for key, value in kwargs.items():
-        #         if value:
-        #             if isinstance(value, str):
-        #                 filter_parts.append(f"doc.{key}='{value}'")
-        #             else:
-        #                 filter_parts.append(f"doc.{key}={value}")
-        #     return " AND ".join(filter_parts)
-
         # Dynamically generate the RAG function
         def rag_function(query: str) -> ToolOutput:
             """
             Dynamically generated function for RAG query with Vectara.
             """
-
-            # Convert args to kwargs using the function signature
-            # sig = inspect.signature(rag_function)
-            # bound_args = sig.bind_partial(*args, **kwargs)
-            # bound_args.apply_defaults()
-            # kwargs = bound_args.arguments
-
-            # Give me the cases related to fishing since 2023 -> "query": "cases related to fishing", "date": "2023"
 
             # Set up query engine
             vectara_query_engine = _build_auto_retriever(
@@ -280,30 +263,10 @@ class VectaraToolFactory:
                 n_sentence_before=n_sentences_before,
                 n_sentence_after=n_sentences_after,
                 lambda_val=lambda_val,
-                filter=filter_string,
                 citations_style="MARKDOWN" if include_citations else None,
                 citations_url_pattern="{doc.url}" if include_citations else None,
                 x_source_str="vectara-agentic",
             )
-
-            # vectara_query_engine = vectara.as_query_engine(
-            #     summary_enabled=True,
-            #     summary_num_results=summary_num_results,
-            #     summary_response_lang=summary_response_lang,
-            #     summary_prompt_name=vectara_summarizer,
-            #     reranker=reranker,
-            #     rerank_k=rerank_k if rerank_k * self.num_corpora <= 100 else int(100 / self.num_corpora),
-            #     mmr_diversity_bias=mmr_diversity_bias,
-            #     udf_expression=udf_expression,
-            #     rerank_chain=rerank_chain,
-            #     n_sentence_before=n_sentences_before,
-            #     n_sentence_after=n_sentences_after,
-            #     lambda_val=lambda_val,
-            #     filter=filter_string,
-            #     citations_style="MARKDOWN" if include_citations else None,
-            #     citations_url_pattern="{doc.url}" if include_citations else None,
-            #     x_source_str="vectara-agentic",
-            # )
 
             response = vectara_query_engine.query(query)
 
@@ -312,7 +275,7 @@ class VectaraToolFactory:
                 return ToolOutput(
                     tool_name=rag_function.__name__,
                     content=msg,
-                    raw_input={"args": args, "kwargs": kwargs},
+                    raw_input={"query": query},
                     raw_output={"response": msg},
                 )
             if len(response.source_nodes) == 0:
@@ -320,7 +283,7 @@ class VectaraToolFactory:
                 return ToolOutput(
                     tool_name=rag_function.__name__,
                     content=msg,
-                    raw_input={"args": args, "kwargs": kwargs},
+                    raw_input={"query": query},
                     raw_output={"response": msg},
                 )
 
@@ -349,7 +312,7 @@ class VectaraToolFactory:
                 return ToolOutput(
                     tool_name=rag_function.__name__,
                     content=msg,
-                    raw_input={"args": args, "kwargs": kwargs},
+                    raw_input={"query": query},
                     raw_output={"response": msg},
                 )
             res = {
@@ -367,25 +330,11 @@ class VectaraToolFactory:
             out = ToolOutput(
                 tool_name=rag_function.__name__,
                 content=tool_output,
-                raw_input={"args": args, "kwargs": kwargs},
+                raw_input={"query": query},
                 raw_output=res,
             )
             return out
 
-        # Outside dynamic RAG function
-        # params = [
-        #     inspect.Parameter(
-        #         name=field_name,
-        #         kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
-        #         default=field_info.default,
-        #         annotation=field_info,
-        #     )
-        #     for field_name, field_info in fields.items()
-        # ]
-
-        # Create a new signature using the extracted parameters
-        sig = inspect.Signature(params)
-        rag_function.__signature__ = sig
         rag_function.__annotations__["return"] = dict[str, Any]
         rag_function.__name__ = "_" + re.sub(r"[^A-Za-z0-9_]", "_", tool_name)
 
@@ -394,7 +343,6 @@ class VectaraToolFactory:
             fn=rag_function,
             name=tool_name,
             description=tool_description,
-            fn_schema=tool_args_schema,
             tool_type=ToolType.QUERY,
         )
         return tool
