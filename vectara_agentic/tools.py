@@ -147,7 +147,7 @@ def _build_auto_retriever(
         )
     )
 
-    return VectaraQueryEngine.from_args(retriever=vectara_retriever)    
+    return VectaraQueryEngine.from_args(retriever=vectara_retriever), new_query
 
 class VectaraToolFactory:
     """
@@ -246,7 +246,7 @@ class VectaraToolFactory:
             """
 
             # Set up query engine
-            vectara_query_engine = _build_auto_retriever(
+            vectara_query_engine, query = _build_auto_retriever(
                 query,
                 vectara,
                 vector_store_info,
@@ -267,7 +267,7 @@ class VectaraToolFactory:
                 citations_url_pattern="{doc.url}" if include_citations else None,
                 x_source_str="vectara-agentic",
             )
-
+            
             response = vectara_query_engine.query(query)
 
             if str(response) == "None":
