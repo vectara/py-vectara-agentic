@@ -273,6 +273,36 @@ class VectaraToolFactory:
                 "FILTER_ATTRIBUTE_TYPE__FLOAT": "float"
             }
 
+            def get_examples(field: str) -> Dict:
+                url = "https://api.vectara.io/v1/list-documents"
+
+                payload = json.dumps({
+                "corpusId": self.vectara_corpus_id,
+                "numResults": 20,
+                "pageKey": "",
+                "metadataFilter": f""
+                })
+                headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'customer-id': self.vectara_customer_id,
+                'x-api-key': self.vectara_api_key
+                }
+
+                res = requests.request("POST", url, headers=headers, data=payload)
+
+                examples = {}
+
+                for document in res['document']:
+                    for field in document['metadata']:
+                        if field['name'] in examples:
+                            examples[field['name']].add(field['value'])
+                        else:
+                            examples[field['name']] = set(field['value'])
+
+                return examples
+
+
             filter_attributes = res['corpora'][0]['filterAttribute']
             vector_store_info = VectorStoreInfo(
                 content_info=tool_description,
