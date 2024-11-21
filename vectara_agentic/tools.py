@@ -5,6 +5,8 @@ This module contains the ToolsFactory class for creating agent tools.
 import inspect
 import re
 import importlib
+import requests
+import json
 import os
 
 from typing import Callable, List, Dict, Any, Optional, Type
@@ -176,7 +178,7 @@ class VectaraToolFactory:
         self,
         tool_name: str,
         tool_description: str,
-        tool_args_schema: type[BaseModel],
+        tool_args_schema: type[BaseModel] = None,
         vectara_summarizer: str = "vectara-summary-ext-24-05-sml",
         summary_num_results: int = 5,
         summary_response_lang: str = "eng",
@@ -228,16 +230,69 @@ class VectaraToolFactory:
             x_source_str="vectara-agentic",
         )
 
-        # Set up Metadata Info
-        fields = tool_args_schema.model_fields
-        vector_store_info = VectorStoreInfo(
-            content_info=tool_description,
-            metadata_info = [MetadataInfo(
-                name=field_info.alias if field_info.alias else name,
-                description=field_info.description,
-                type=str(field_info.annotation)
-            ) for name, field_info in fields.items()],
-        )
+        # Set up Metadata Info using the Tool Args Schema
+        if tool_args_schema:
+            fields = tool_args_schema.model_fields
+            vector_store_info = VectorStoreInfo(
+                content_info=tool_description,
+                metadata_info = [MetadataInfo(
+                    name=field_info.alias if field_info.alias else name,
+                    description=f"{field_info.description} (e.g. {', '.join(field_info.examples)})" if field_info.examples else field_info.description,
+                    type=str(field_info.annotation)
+                ) for name, field_info in fields.items()],
+            )
+        elif "zut_" in self.vectara_api_key:
+            url = "https://api.vectara.io/v1/read-corpus"
+
+            payload = json.dumps({
+            "corpusId": [
+                self.vectara_corpus_id
+            ],
+            "readBasicInfo": False,
+            "readSize": False,
+            "readApiKeys": False,
+            "readCustomDimensions": False,
+            "readFilterAttributes": True
+            })
+
+            headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'customer-id': self.vectara_customer_id,
+            'x-api-key': self.vectara_api_key
+            }
+
+            res = requests.request("POST", url, headers=headers, data=payload)
+
+            res = res.json()
+
+            filter_attribute_types = {
+                "FILTER_ATTRIBUTE_TYPE__TEXT": "str",
+                "FILTER_ATTRIBUTE_TYPE__BOOLEAN": "bool",
+                "FILTER_ATTRIBUTE_TYPE__INTEGER": "int",
+                "FILTER_ATTRIBUTE_TYPE__FLOAT": "float"
+            }
+
+            filter_attributes = res['corpora'][0]['filterAttribute']
+            vector_store_info = VectorStoreInfo(
+                content_info=tool_description,
+                metadata_info = [MetadataInfo(
+                    name=field["name"],
+                    description=field["description"],
+                    type=filter_attribute_types[field["type"]]
+                ) for field in filter_attributes]
+            )
+            # USE list(set(example_values))[:5] to get up to 5 unique examples per metadata field
+        else:
+            vector_store_info = VectorStoreInfo(
+                content_info=tool_description,
+                metadata_info = MetadataInfo(
+                    name="query",
+                    description="The user query",
+                    type="str"
+                )
+            )
+            
 
         # Dynamically generate the RAG function
         def rag_function(query: str) -> ToolOutput:
@@ -267,8 +322,12 @@ class VectaraToolFactory:
                 citations_url_pattern="{doc.url}" if include_citations else None,
                 x_source_str="vectara-agentic",
             )
+
+            print(f"DEBUG: TRYING QUERY {query} WITH FILTER STRING {vectara_query_engine.retriever._filter}")
             
             response = vectara_query_engine.query(query)
+
+            print(f"DEBUG: RECEIVED RESPONSE {response}")
 
             if str(response) == "None":
                 msg = "Tool failed to generate a response due to internal error."
