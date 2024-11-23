@@ -58,6 +58,68 @@ LI_packages = {
     }
 }
 
+filter_attribute_types = {
+    "FILTER_ATTRIBUTE_TYPE__TEXT": "str",
+    "FILTER_ATTRIBUTE_TYPE__BOOLEAN": "bool",
+    "FILTER_ATTRIBUTE_TYPE__INTEGER": "int",
+    "FILTER_ATTRIBUTE_TYPE__REAL": "float"
+}
+
+def get_filter_attributes_from_corpus(vectara_tool_factory):
+    url = "https://api.vectara.io/v1/read-corpus"
+
+    payload = json.dumps({
+    "corpusId": [
+        vectara_tool_factory.vectara_corpus_id
+    ],
+    "readBasicInfo": False,
+    "readSize": False,
+    "readApiKeys": False,
+    "readCustomDimensions": False,
+    "readFilterAttributes": True
+    })
+
+    headers = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    'customer-id': vectara_tool_factory.vectara_customer_id,
+    'x-api-key': vectara_tool_factory.vectara_api_key
+    }
+
+    response = requests.request("POST", url, headers=headers, data=payload)
+    response = response.json()
+    return response['corpora'][0]['filterAttribute']
+
+def get_filter_attribute_examples(vectara_tool_factory) -> Dict:
+                url = "https://api.vectara.io/v1/list-documents"
+
+                payload = json.dumps({
+                "corpusId": vectara_tool_factory.vectara_corpus_id,
+                "numResults": 50,
+                "pageKey": "",
+                "metadataFilter": ""
+                })
+                headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'customer-id': vectara_tool_factory.vectara_customer_id,
+                'x-api-key': vectara_tool_factory.vectara_api_key
+                }
+
+                response = requests.request("POST", url, headers=headers, data=payload)
+                response = response.json()
+
+                examples = {}
+
+                for document in response['document']:
+                    for field in document['metadata']:
+                        if field['name'] in examples:
+                            examples[field['name']].add(field['value'])
+                        else:
+                            examples[field['name']] = set(field['value'])
+
+                return examples
+
 class VectaraToolMetadata(ToolMetadata):
     """
     A subclass of ToolMetadata adding the tool_type attribute.
@@ -242,77 +304,27 @@ class VectaraToolFactory:
                 ) for name, field_info in fields.items()],
             )
         elif "zut_" in self.vectara_api_key:
-            url = "https://api.vectara.io/v1/read-corpus"
+            filter_attributes = get_filter_attributes_from_corpus(self)
+            filter_attribute_examples = get_filter_attribute_examples(self)
 
-            payload = json.dumps({
-            "corpusId": [
-                self.vectara_corpus_id
-            ],
-            "readBasicInfo": False,
-            "readSize": False,
-            "readApiKeys": False,
-            "readCustomDimensions": False,
-            "readFilterAttributes": True
-            })
-
-            headers = {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'customer-id': self.vectara_customer_id,
-            'x-api-key': self.vectara_api_key
-            }
-
-            res = requests.request("POST", url, headers=headers, data=payload)
-
-            res = res.json()
-
-            filter_attribute_types = {
-                "FILTER_ATTRIBUTE_TYPE__TEXT": "str",
-                "FILTER_ATTRIBUTE_TYPE__BOOLEAN": "bool",
-                "FILTER_ATTRIBUTE_TYPE__INTEGER": "int",
-                "FILTER_ATTRIBUTE_TYPE__FLOAT": "float"
-            }
-
-            def get_examples(field: str) -> Dict:
-                url = "https://api.vectara.io/v1/list-documents"
-
-                payload = json.dumps({
-                "corpusId": self.vectara_corpus_id,
-                "numResults": 20,
-                "pageKey": "",
-                "metadataFilter": f""
-                })
-                headers = {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'customer-id': self.vectara_customer_id,
-                'x-api-key': self.vectara_api_key
-                }
-
-                res = requests.request("POST", url, headers=headers, data=payload)
-
-                examples = {}
-
-                for document in res['document']:
-                    for field in document['metadata']:
-                        if field['name'] in examples:
-                            examples[field['name']].add(field['value'])
-                        else:
-                            examples[field['name']] = set(field['value'])
-
-                return examples
-
-
-            filter_attributes = res['corpora'][0]['filterAttribute']
+            print("DEBUG: Creating field attributes:")
+            for field in filter_attributes:
+                if field["description"] != "" and field["level"] == "FILTER_ATTRIBUTE_LEVEL__DOCUMENT":
+                    print(f"FIELD NAME {field['name']}")
+                    if field["name"] in filter_attribute_examples:
+                        print(f"FIELD DESCRIPTION {field['description']} (e.g. {'; '.join(list(filter_attribute_examples[field['name']])[:5])})")
+                    else:
+                        print(f"FIELD DESCRIPTION {field['description']}")
+                    print(f"FIELD TYPE {filter_attribute_types[field['type']]}")
+            
             vector_store_info = VectorStoreInfo(
                 content_info=tool_description,
                 metadata_info = [MetadataInfo(
                     name=field["name"],
-                    description=field["description"],
+                    description= f"{field['description']} (e.g. {'; '.join(list(filter_attribute_examples[field['name']])[:5])})" if field["name"] in filter_attribute_examples else field["description"],
                     type=filter_attribute_types[field["type"]]
-                ) for field in filter_attributes]
+                ) for field in filter_attributes if (field["description"] != "" and field["level"] == "FILTER_ATTRIBUTE_LEVEL__DOCUMENT")]
             )
-            # USE list(set(example_values))[:5] to get up to 5 unique examples per metadata field
         else:
             vector_store_info = VectorStoreInfo(
                 content_info=tool_description,
