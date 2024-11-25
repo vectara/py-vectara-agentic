@@ -15,7 +15,7 @@ from llama_index.llms.anthropic import Anthropic
 from .types import LLMRole, AgentType, ModelProvider
 
 provider_to_default_model_name = {
-    ModelProvider.OPENAI: "gpt-4o-2024-08-06",
+    ModelProvider.OPENAI: "gpt-4o",
     ModelProvider.ANTHROPIC: "claude-3-5-sonnet-20240620",
     ModelProvider.TOGETHER: "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
     ModelProvider.GROQ: "llama-3.1-70b-versatile",
