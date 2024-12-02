@@ -116,9 +116,19 @@ def get_filter_attribute_examples(vectara_tool_factory) -> Dict:
                         if field['name'] in examples:
                             examples[field['name']].add(field['value'])
                         else:
-                            examples[field['name']] = set(field['value'])
+                            examples[field['name']] = set([field['value']])
 
                 return examples
+
+def process_filter_string(filter_string) -> str:
+    # Check for any operators that are supported by different names
+    filter_string = filter_string.replace(" nin ", " NOT IN ")
+    filter_string = filter_string.replace(" is_empty ", " IS NULL ")
+
+    # Replace list brackets with parentheses
+    filter_string = re.sub(r"'\[(.*?)\]'", r"(\1)", filter_string)
+
+    return filter_string
 
 class VectaraToolMetadata(ToolMetadata):
     """
@@ -306,16 +316,16 @@ class VectaraToolFactory:
         elif "zut_" in self.vectara_api_key:
             filter_attributes = get_filter_attributes_from_corpus(self)
             filter_attribute_examples = get_filter_attribute_examples(self)
-
-            print("DEBUG: Creating field attributes:")
-            for field in filter_attributes:
-                if field["description"] != "" and field["level"] == "FILTER_ATTRIBUTE_LEVEL__DOCUMENT":
-                    print(f"FIELD NAME {field['name']}")
-                    if field["name"] in filter_attribute_examples:
-                        print(f"FIELD DESCRIPTION {field['description']} (e.g. {'; '.join(list(filter_attribute_examples[field['name']])[:5])})")
-                    else:
-                        print(f"FIELD DESCRIPTION {field['description']}")
-                    print(f"FIELD TYPE {filter_attribute_types[field['type']]}")
+            
+            # print("DEBUG: Creating field attributes:")
+            # for field in filter_attributes:
+            #     if field["description"] != "" and field["level"] == "FILTER_ATTRIBUTE_LEVEL__DOCUMENT":
+            #         print(f"FIELD NAME {field['name']}")
+            #         if field["name"] in filter_attribute_examples:
+            #             print(f"FIELD DESCRIPTION {field['description']} (e.g. {'; '.join(list(filter_attribute_examples[field['name']])[:5])})")
+            #         else:
+            #             print(f"FIELD DESCRIPTION {field['description']}")
+            #         print(f"FIELD TYPE {filter_attribute_types[field['type']]}")
             
             vector_store_info = VectorStoreInfo(
                 content_info=tool_description,
@@ -365,14 +375,23 @@ class VectaraToolFactory:
                 x_source_str="vectara-agentic",
             )
 
-            print(f"DEBUG: TRYING QUERY {query} WITH FILTER STRING {vectara_query_engine.retriever._filter}")
+            ## ADD POST PROCESSING FOR SPECIFIC OPERATORS THAT WE CANNOT HANDLE
+            filter_string = vectara_query_engine.retriever._filter
+            print(f"DEBUG: ORIGINAL FILTER STRING IS {filter_string}")
+
+            filter_string = process_filter_string(filter_string)
+
+            vectara_query_engine.retriever._filter = filter_string
+
+            print(f"DEBUG: TRYING QUERY {query} WITH UPDATED FILTER STRING {vectara_query_engine.retriever._filter}")
             
             response = vectara_query_engine.query(query)
 
             print(f"DEBUG: RECEIVED RESPONSE {response}")
 
             if str(response) == "None":
-                msg = "Tool failed to generate a response due to internal error."
+                # msg = "Tool failed to generate a response due to internal error."
+                msg = f"Tool processed query as {query} with a filter condition {vectara_query_engine.retriever._filter}, which resulted in no results. Please rephrase your query and call this tool again."
                 return ToolOutput(
                     tool_name=rag_function.__name__,
                     content=msg,
@@ -438,6 +457,13 @@ class VectaraToolFactory:
 
         rag_function.__annotations__["return"] = dict[str, Any]
         rag_function.__name__ = "_" + re.sub(r"[^A-Za-z0-9_]", "_", tool_name)
+
+        field_names = [metadata_field.name for metadata_field in vector_store_info.metadata_info]
+
+        tool_description += f"""
+        Any call to this tool with a query string that includes a value of a field from {field_names} will be processed by filtering on the value of that field.
+        The tool only supports conjunction between filtering conditions, so please make separate tool calls for disjunction.
+        """
 
         # Create the tool
         tool = VectaraTool.from_defaults(
