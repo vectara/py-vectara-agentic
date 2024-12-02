@@ -1,3 +1,7 @@
+"""
+Module to handle agent callbacks
+"""
+
 import inspect
 from typing import Any, Dict, Optional, List, Callable
 
@@ -55,6 +59,18 @@ class AgentCallbackHandler(BaseCallbackHandler):
         event_id: str = "",
         **kwargs: Any,
     ) -> None:
+        """
+        Handle the end of an event
+
+        Args:
+            event_type: the type of event
+            payload: the event payload
+            event_id: the event ID
+            kwargs: additional keyword arguments
+
+        Returns:
+            None
+        """
         if self.fn is not None and payload is not None:
             if inspect.iscoroutinefunction(self.fn):
                 raise ValueError("Synchronous callback handler cannot use async callback function")
@@ -70,6 +86,19 @@ class AgentCallbackHandler(BaseCallbackHandler):
         parent_id: str = "",
         **kwargs: Any,
     ) -> str:
+        """
+        Handle the start of an event
+
+        Args:
+            event_type: the type of event
+            payload: the event payload
+            event_id: the event ID
+            parent_id: the parent event ID
+            kwargs: additional keyword arguments
+
+        Returns:
+            event_id: the event ID
+        """
         if self.fn is not None and payload is not None:
             await self._ahandle_event(event_type, payload)
         return event_id
@@ -81,6 +110,9 @@ class AgentCallbackHandler(BaseCallbackHandler):
         event_id: str = "",
         **kwargs: Any,
     ) -> None:
+        """
+        Handle the end of an event (async)
+        """
         if self.fn is not None and payload is not None:
             await self._ahandle_event(event_type, payload)
 

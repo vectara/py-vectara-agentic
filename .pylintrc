@@ -15,5 +15,6 @@ disable =
     too-many-return-statements, 
     import-outside-toplevel, 
     eval-used,
-    too-few-public-methods
+    too-few-public-methods,
+    unused-argument
 
