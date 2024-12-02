@@ -478,8 +478,8 @@ class ToolsFactory:
             password (str, optional): The database password. Defaults to "Password".
             dbname (str, optional): The database name. Defaults to "postgres".
                You must specify either the sql_database object or the scheme, host, port, user, password, and dbname.
-            max_rows (int, optional): if specified, instructs the load_data tool to never return more than max_rows rows.
-               Defaults to 500.
+            max_rows (int, optional): if specified, instructs the load_data tool to never return more than max_rows
+               rows. Defaults to 500.
 
         Returns:
             List[VectaraTool]: A list of VectaraTool objects.

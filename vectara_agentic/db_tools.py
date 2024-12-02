@@ -34,7 +34,10 @@ class DBLoadData(DBTool):
         count_rows = self.load_data_fn(count_query)
         num_rows = int(count_rows[0].text)
         if num_rows > self.max_rows:
-            return [f"The query is expected to return more than {self.max_rows} rows. Please refine your query to make it return less rows."]
+            return [
+                f"The query is expected to return more than {self.max_rows} rows. "
+                "Please refine your query to make it return less rows."
+            ]
 
         res = self.load_data_fn(query)
         return [d.text for d in res]
