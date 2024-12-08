@@ -20,6 +20,7 @@ from llama_index.core.tools.types import ToolMetadata, ToolOutput
 from .types import ToolType
 from .tools_catalog import summarize_text, rephrase_text, critique_text, get_bad_topics
 from .db_tools import DBLoadSampleData, DBLoadUniqueValues, DBLoadData
+from .utils import is_float
 
 LI_packages = {
     "yahoo_finance": ToolType.QUERY,
@@ -151,6 +152,7 @@ class VectaraToolFactory:
         tool_name: str,
         tool_description: str,
         tool_args_schema: type[BaseModel],
+        tool_args_types: Dict[str, str] = {},
         vectara_summarizer: str = "vectara-summary-ext-24-05-sml",
         summary_num_results: int = 5,
         summary_response_lang: str = "eng",
@@ -164,6 +166,7 @@ class VectaraToolFactory:
         rerank_chain: List[Dict] = None,
         include_citations: bool = True,
         fcs_threshold: float = 0.0,
+        verbose: bool = False,
     ) -> VectaraTool:
         """
         Creates a RAG (Retrieve and Generate) tool.
@@ -186,15 +189,17 @@ class VectaraToolFactory:
                 Each dictionary should specify the "type" of reranker (mmr, slingshot, udf)
                 and any other parameters (e.g. "limit" or "cutoff" for any type,
                 "diversity_bias" for mmr, and "user_function" for udf).
-            If using slingshot/multilingual_reranker_v1, it must be first in the list.
+                If using slingshot/multilingual_reranker_v1, it must be first in the list.
             include_citations (bool, optional): Whether to include citations in the response.
                 If True, uses markdown vectara citations that requires the Vectara scale plan.
             fcs_threshold (float, optional): a threshold for factual consistency.
                 If set above 0, the tool notifies the calling agent that it "cannot respond" if FCS is too low.
+            verbose (bool, optional): Whether to print verbose output.
 
         Returns:
             VectaraTool: A VectaraTool object.
         """
+
         vectara = VectaraIndex(
             vectara_api_key=self.vectara_api_key,
             vectara_customer_id=self.vectara_customer_id,
@@ -202,14 +207,42 @@ class VectaraToolFactory:
             x_source_str="vectara-agentic",
         )
 
-        def _build_filter_string(kwargs):
+        def _build_filter_string(kwargs: Dict[str, Any], tool_args_types: Dict[str, str]) -> str:
             filter_parts = []
+            comparison_operators = [">=", "<=", ">", "<", "!="]
+
             for key, value in kwargs.items():
-                if value:
-                    if isinstance(value, str):
-                        filter_parts.append(f"doc.{key}='{value}'")
+                if value is None or value == "":
+                    continue
+
+                # Determine the prefix for the key. Valid values are "doc" or "part"
+                # default to 'doc' if not specified
+                prefix = tool_args_types.get(key, "doc")
+
+                # Check if value contains a known comparison operator at the start
+                val_str = str(value).strip()
+                matched_operator = None
+                for op in comparison_operators:
+                    if val_str.startswith(op):
+                        matched_operator = op
+                        break
+
+                # Break down operator from value
+                # e.g. val_str = ">2022" --> operator = ">", rhs = "2022"
+                if matched_operator:
+                    rhs = val_str[len(matched_operator):].strip()
+                    if rhs.isdigit() or is_float(rhs):
+                        filter_parts.append(f"{prefix}.{key}{matched_operator}{rhs}")
                     else:
-                        filter_parts.append(f"doc.{key}={value}")
+                        raise ValueError(
+                            f"Conditional expression only valid for numerical arguments in {key}: {val_str}"
+                        )
+                else:
+                    if val_str.isdigit() or is_float(val_str):
+                        filter_parts.append(f"{prefix}.{key}={val_str}")
+                    else:
+                        filter_parts.append(f"{prefix}.{key}='{val_str}'")
+
             return " AND ".join(filter_parts)
 
         # Dynamically generate the RAG function
@@ -224,7 +257,7 @@ class VectaraToolFactory:
             kwargs = bound_args.arguments
 
             query = kwargs.pop("query")
-            filter_string = _build_filter_string(kwargs)
+            filter_string = _build_filter_string(kwargs, tool_args_types)
 
             vectara_query_engine = vectara.as_query_engine(
                 summary_enabled=True,
@@ -243,6 +276,7 @@ class VectaraToolFactory:
                 citations_style="MARKDOWN" if include_citations else None,
                 citations_url_pattern="{doc.url}" if include_citations else None,
                 x_source_str="vectara-agentic",
+                verbose=verbose,
             )
             response = vectara_query_engine.query(query)
 
@@ -337,7 +371,6 @@ class VectaraToolFactory:
             tool_type=ToolType.QUERY,
         )
         return tool
-
 
 class ToolsFactory:
     """
