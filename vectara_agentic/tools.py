@@ -152,7 +152,7 @@ class VectaraToolFactory:
         tool_name: str,
         tool_description: str,
         tool_args_schema: type[BaseModel],
-        tool_args_types: Dict[str, str] = {},
+        tool_args_type: Dict[str, str] = {},
         vectara_summarizer: str = "vectara-summary-ext-24-05-sml",
         summary_num_results: int = 5,
         summary_response_lang: str = "eng",
@@ -175,6 +175,7 @@ class VectaraToolFactory:
             tool_name (str): The name of the tool.
             tool_description (str): The description of the tool.
             tool_args_schema (BaseModel): The schema for the tool arguments.
+            tool_args_type (Dict[str, str], optional): The type of each argument (doc or part).
             vectara_summarizer (str, optional): The Vectara summarizer to use.
             summary_num_results (int, optional): The number of summary results.
             summary_response_lang (str, optional): The response language for the summary.
@@ -207,7 +208,7 @@ class VectaraToolFactory:
             x_source_str="vectara-agentic",
         )
 
-        def _build_filter_string(kwargs: Dict[str, Any], tool_args_types: Dict[str, str]) -> str:
+        def _build_filter_string(kwargs: Dict[str, Any], tool_args_type: Dict[str, str]) -> str:
             filter_parts = []
             comparison_operators = [">=", "<=", ">", "<", "!="]
 
@@ -217,7 +218,7 @@ class VectaraToolFactory:
 
                 # Determine the prefix for the key. Valid values are "doc" or "part"
                 # default to 'doc' if not specified
-                prefix = tool_args_types.get(key, "doc")
+                prefix = tool_args_type.get(key, "doc")
 
                 # Check if value contains a known comparison operator at the start
                 val_str = str(value).strip()
@@ -257,7 +258,7 @@ class VectaraToolFactory:
             kwargs = bound_args.arguments
 
             query = kwargs.pop("query")
-            filter_string = _build_filter_string(kwargs, tool_args_types)
+            filter_string = _build_filter_string(kwargs, tool_args_type)
 
             vectara_query_engine = vectara.as_query_engine(
                 summary_enabled=True,
