@@ -16,5 +16,7 @@ disable =
     import-outside-toplevel, 
     eval-used,
     too-few-public-methods,
-    unused-argument
+    unused-argument,
+    too-many-locals,
+    too-many-statements,
 
