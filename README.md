@@ -63,7 +63,7 @@ pip install vectara-agentic
 
 ```python
 import os
-from vectara_agentic import VectaraToolFactory
+from vectara_agentic.tools import VectaraToolFactory
 from pydantic import BaseModel, Field
 
 vec_factory = VectaraToolFactory(
