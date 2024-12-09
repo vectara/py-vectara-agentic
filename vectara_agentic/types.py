@@ -10,6 +10,7 @@ class AgentType(Enum):
     REACT = "REACT"
     OPENAI = "OPENAI"
     LLMCOMPILER = "LLMCOMPILER"
+    LATS = "LATS"
 
 class ObserverType(Enum):
     """Enumeration for different types of observability integrations."""

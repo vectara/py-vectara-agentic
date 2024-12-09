@@ -19,6 +19,7 @@ from llama_index.core.tools import FunctionTool
 from llama_index.core.agent import ReActAgent
 from llama_index.core.agent.react.formatter import ReActChatFormatter
 from llama_index.agent.llm_compiler import LLMCompilerAgentWorker
+from llama_index.agent.lats import LATSAgentWorker
 from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
@@ -137,6 +138,15 @@ class Agent:
             self.agent = LLMCompilerAgentWorker.from_tools(
                 tools=tools,
                 llm=self.llm,
+                verbose=verbose,
+                callable_manager=callback_manager,
+            ).as_agent()
+        elif self.agent_type == AgentType.LATS:
+            self.agent = LATSAgentWorker.from_tools(
+                tools=tools,
+                llm=self.llm,
+                num_expansions=5,
+                max_rollouts=-1,
                 verbose=verbose,
                 callable_manager=callback_manager,
             ).as_agent()
