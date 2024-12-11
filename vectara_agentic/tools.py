@@ -210,7 +210,7 @@ class VectaraToolFactory:
 
         def _build_filter_string(kwargs: Dict[str, Any], tool_args_type: Dict[str, str]) -> str:
             filter_parts = []
-            comparison_operators = [">=", "<=", ">", "<", "!="]
+            comparison_operators = [">=", "<=", "!=", ">", "<", "="]
 
             for key, value in kwargs.items():
                 if value is None or value == "":
