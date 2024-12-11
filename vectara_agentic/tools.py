@@ -211,6 +211,7 @@ class VectaraToolFactory:
         def _build_filter_string(kwargs: Dict[str, Any], tool_args_type: Dict[str, str]) -> str:
             filter_parts = []
             comparison_operators = [">=", "<=", "!=", ">", "<", "="]
+            numeric_only_ops = {">", "<", ">=", "<="}
 
             for key, value in kwargs.items():
                 if value is None or value == "":
@@ -232,12 +233,21 @@ class VectaraToolFactory:
                 # e.g. val_str = ">2022" --> operator = ">", rhs = "2022"
                 if matched_operator:
                     rhs = val_str[len(matched_operator):].strip()
-                    if rhs.isdigit() or is_float(rhs):
+
+                    if matched_operator in numeric_only_ops:
+                        # Must be numeric
+                        if not (rhs.isdigit() or is_float(rhs)):
+                            raise ValueError(
+                                f"Operator {matched_operator} requires a numeric operand for {key}: {val_str}"
+                            )
                         filter_parts.append(f"{prefix}.{key}{matched_operator}{rhs}")
                     else:
-                        raise ValueError(
-                            f"Conditional expression only valid for numerical arguments in {key}: {val_str}"
-                        )
+                        # = and != operators can be numeric or string
+                        if rhs.isdigit() or is_float(rhs):
+                            filter_parts.append(f"{prefix}.{key}{matched_operator}{rhs}")
+                        else:
+                            # For string operands, wrap them in quotes
+                            filter_parts.append(f"{prefix}.{key}{matched_operator}'{rhs}'")
                 else:
                     if val_str.isdigit() or is_float(val_str):
                         filter_parts.append(f"{prefix}.{key}={val_str}")
