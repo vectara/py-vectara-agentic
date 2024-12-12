@@ -27,7 +27,7 @@ from llama_index.core.memory import ChatMemoryBuffer
 
 from .types import AgentType, AgentStatusType, LLMRole, ToolType
 from .utils import get_llm, get_tokenizer_for_model
-from ._prompts import REACT_PROMPT_TEMPLATE, GENERAL_PROMPT_TEMPLATE
+from ._prompts import REACT_PROMPT_TEMPLATE, GENERAL_PROMPT_TEMPLATE, GENERAL_INSTRUCTIONS
 from ._callback import AgentCallbackHandler
 from ._observability import setup_observer, eval_fcs
 from .tools import VectaraToolFactory, VectaraTool
@@ -42,7 +42,6 @@ def _get_prompt(prompt_template: str, topic: str, custom_instructions: str):
     Generate a prompt by replacing placeholders with topic and date.
 
     Args:
-
         prompt_template (str): The template for the prompt.
         topic (str): The topic to be included in the prompt.
         custom_instructions(str): The custom instructions to be included in the prompt.
@@ -56,6 +55,23 @@ def _get_prompt(prompt_template: str, topic: str, custom_instructions: str):
         .replace("{custom_instructions}", custom_instructions)
     )
 
+
+def _get_llm_compiler_prompt(prompt: str, topic: str, custom_instructions: str) -> str:
+    """
+    Add custom instructions to the prompt.
+
+    Args:
+        prompt (str): The prompt to which custom instructions should be added.
+
+    Returns:
+        str: The prompt with custom instructions added.
+    """
+    prompt += "\nAdditional Instructions:\n"
+    prompt += f"You have experise in {topic}.\n"
+    prompt += GENERAL_INSTRUCTIONS
+    prompt += custom_instructions
+    prompt += f"Today is {date.today().strftime('%A, %B %d, %Y')}"
+    return prompt
 
 def _retry_if_exception(exception):
     # Define the condition to retry on certain exceptions
@@ -141,6 +157,16 @@ class Agent:
                 verbose=verbose,
                 callable_manager=callback_manager,
             ).as_agent()
+            self.agent.agent_worker.system_prompt = _get_prompt(
+                _get_llm_compiler_prompt(self.agent.agent_worker.system_prompt, topic, custom_instructions),
+                topic, custom_instructions
+            )
+            self.agent.agent_worker.system_prompt_replan = _get_prompt(
+                _get_llm_compiler_prompt(self.agent.agent_worker.system_prompt_replan, topic, custom_instructions),
+                topic, custom_instructions
+            )
+            print(f"DEBUG - LLMCompilerAgentWorker: {self.agent.agent_worker.system_prompt}")
+            print(f"DEBUG - LLMCompilerAgentWorker: {self.agent.agent_worker.system_prompt_replan}")
         elif self.agent_type == AgentType.LATS:
             self.agent = LATSAgentWorker.from_tools(
                 tools=tools,
@@ -150,6 +176,9 @@ class Agent:
                 verbose=verbose,
                 callable_manager=callback_manager,
             ).as_agent()
+            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
+            self.agent.chat_formatter =  ReActChatFormatter(system_header=prompt)
+
         else:
             raise ValueError(f"Unknown agent type: {self.agent_type}")
 
