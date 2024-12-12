@@ -26,6 +26,7 @@ LI_packages = {
     "yahoo_finance": ToolType.QUERY,
     "arxiv": ToolType.QUERY,
     "tavily_research": ToolType.QUERY,
+    "exa": ToolType.QUERY,
     "neo4j": ToolType.QUERY,
     "kuzu": ToolType.QUERY,
     "database": ToolType.QUERY,

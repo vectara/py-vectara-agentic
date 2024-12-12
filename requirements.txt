@@ -18,7 +18,9 @@ llama-index-tools-tavily_research==0.3.0
 llama-index-tools-neo4j==0.3.0
 llama-index-graph-stores-kuzu==0.5.0
 llama-index-tools-slack==0.3.0
+llama-index-tools-exa==0.3.0
 tavily-python==0.5.0
+exa-py==1.7.0
 yahoo-finance==1.4.0
 openinference-instrumentation-llama-index==3.0.3
 opentelemetry-proto==1.26.0

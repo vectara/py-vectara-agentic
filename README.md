@@ -143,6 +143,7 @@ print(response)
 
 In addition, we include various other tools from LlamaIndex ToolSpecs:
 * Tavily search
+* EXA.AI
 * arxiv
 * neo4j & Kuzu for Graph integration
 * Google tools (including gmail, calendar, and search)
