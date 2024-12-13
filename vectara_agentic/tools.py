@@ -5,8 +5,6 @@ This module contains the ToolsFactory class for creating agent tools.
 import inspect
 import re
 import importlib
-import requests
-import json
 import os
 
 from typing import Callable, List, Dict, Any, Optional, Type
@@ -14,18 +12,16 @@ from pydantic import BaseModel, Field
 
 from llama_index.core.tools import FunctionTool
 from llama_index.core.tools.function_tool import AsyncCallable
-from llama_index.indices.managed.vectara import VectaraIndex, VectaraRetriever, VectaraQueryEngine, VectaraAutoRetriever
+from llama_index.indices.managed.vectara import VectaraIndex
+from llama_index.core.vector_stores.types import MetadataInfo, VectorStoreInfo
 from llama_index.core.utilities.sql_wrapper import SQLDatabase
 from llama_index.core.tools.types import ToolMetadata, ToolOutput
-from llama_index.core.vector_stores.types import MetadataInfo, VectorStoreInfo, VectorStoreQuerySpec
-from llama_index.core.llms import LLM
-from llama_index.core.schema import QueryBundle
-
 
 from .types import ToolType, LLMRole
-from .utils import get_llm
 from .tools_catalog import summarize_text, rephrase_text, critique_text, get_bad_topics
 from .db_tools import DBLoadSampleData, DBLoadUniqueValues, DBLoadData
+from .utils import get_llm
+from .ar_utils import filter_attribute_types, get_filter_attributes_from_corpus, get_filter_attribute_examples, process_filter_string, _build_auto_retriever
 
 LI_packages = {
     "yahoo_finance": ToolType.QUERY,
@@ -57,78 +53,6 @@ LI_packages = {
         }
     }
 }
-
-filter_attribute_types = {
-    "FILTER_ATTRIBUTE_TYPE__TEXT": "str",
-    "FILTER_ATTRIBUTE_TYPE__BOOLEAN": "bool",
-    "FILTER_ATTRIBUTE_TYPE__INTEGER": "int",
-    "FILTER_ATTRIBUTE_TYPE__REAL": "float"
-}
-
-def get_filter_attributes_from_corpus(vectara_tool_factory):
-    url = "https://api.vectara.io/v1/read-corpus"
-
-    payload = json.dumps({
-    "corpusId": [
-        vectara_tool_factory.vectara_corpus_id
-    ],
-    "readBasicInfo": False,
-    "readSize": False,
-    "readApiKeys": False,
-    "readCustomDimensions": False,
-    "readFilterAttributes": True
-    })
-
-    headers = {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    'customer-id': vectara_tool_factory.vectara_customer_id,
-    'x-api-key': vectara_tool_factory.vectara_api_key
-    }
-
-    response = requests.request("POST", url, headers=headers, data=payload)
-    response = response.json()
-    return response['corpora'][0]['filterAttribute']
-
-def get_filter_attribute_examples(vectara_tool_factory) -> Dict:
-                url = "https://api.vectara.io/v1/list-documents"
-
-                payload = json.dumps({
-                "corpusId": vectara_tool_factory.vectara_corpus_id,
-                "numResults": 50,
-                "pageKey": "",
-                "metadataFilter": ""
-                })
-                headers = {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'customer-id': vectara_tool_factory.vectara_customer_id,
-                'x-api-key': vectara_tool_factory.vectara_api_key
-                }
-
-                response = requests.request("POST", url, headers=headers, data=payload)
-                response = response.json()
-
-                examples = {}
-
-                for document in response['document']:
-                    for field in document['metadata']:
-                        if field['name'] in examples:
-                            examples[field['name']].add(field['value'])
-                        else:
-                            examples[field['name']] = set([field['value']])
-
-                return examples
-
-def process_filter_string(filter_string) -> str:
-    # Check for any operators that are supported by different names
-    filter_string = filter_string.replace(" nin ", " NOT IN ")
-    filter_string = filter_string.replace(" is_empty ", " IS NULL ")
-
-    # Replace list brackets with parentheses
-    filter_string = re.sub(r"'\[(.*?)\]'", r"(\1)", filter_string)
-
-    return filter_string
 
 class VectaraToolMetadata(ToolMetadata):
     """
@@ -199,29 +123,6 @@ class VectaraTool(FunctionTool):
                 is_equal = False
                 break
         return is_equal
-
-def _build_auto_retriever(
-    query_string: str,
-    index: VectaraIndex,
-    vector_store_info: VectorStoreInfo,
-    llm: LLM,
-    **kwargs: Any,
-) ->  VectaraQueryEngine:
-    auto_retriever = VectaraAutoRetriever(
-        index=index,
-        vector_store_info = vector_store_info,
-        llm=get_llm(LLMRole.TOOL),
-        **kwargs
-    )
-    query_bundle = QueryBundle(query_str=query_string)
-    spec = auto_retriever.generate_retrieval_spec(query_bundle)
-    vectara_retriever, new_query = auto_retriever._build_retriever_from_spec(
-        VectorStoreQuerySpec(
-            query=spec.query, filters=spec.filters
-        )
-    )
-
-    return VectaraQueryEngine.from_args(retriever=vectara_retriever), new_query
 
 class VectaraToolFactory:
     """
@@ -344,6 +245,12 @@ class VectaraToolFactory:
                     type="str"
                 )
             )
+
+        print(f"DEBUG: Creating filter attributes:")
+        for field in vector_store_info.metadata_info:
+            print(f"FIELD NAME {field.name}")
+            print(f"FIELD DESCRIPTION {field.description}")
+            print(f"FIELD TYPE {field.type}")
             
 
         # Dynamically generate the RAG function
@@ -460,10 +367,10 @@ class VectaraToolFactory:
 
         field_names = [metadata_field.name for metadata_field in vector_store_info.metadata_info]
 
-        tool_description += f"""
-        Any call to this tool with a query string that includes a value of a field from {field_names} will be processed by filtering on the value of that field.
-        The tool only supports conjunction between filtering conditions, so please make separate tool calls for disjunction.
-        """
+        # tool_description += f"""
+        # Any call to this tool with a query string that includes a value of a field from {field_names} will be processed by filtering on the value of that field.
+        # The tool only supports conjunction between filtering conditions, so please make separate tool calls for disjunction.
+        # """
 
         # Create the tool
         tool = VectaraTool.from_defaults(
