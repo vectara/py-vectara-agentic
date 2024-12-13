@@ -222,6 +222,11 @@ class VectaraToolFactory:
                 # default to 'doc' if not specified
                 prefix = tool_args_type.get(key, "doc")
 
+                if prefix not in ["doc", "part"]:
+                    raise ValueError(
+                        f'Unrecognized prefix {prefix}. Please make sure to use either "doc" or "part" for the prefix.'
+                    )
+
                 # Check if value contains a known comparison operator at the start
                 val_str = str(value).strip()
                 matched_operator = None
@@ -270,6 +275,8 @@ class VectaraToolFactory:
 
             query = kwargs.pop("query")
             filter_string = _build_filter_string(kwargs, tool_args_type)
+
+            print(f"DEBUG: CREATED FILTER STRING {filter_string}")
 
             vectara_query_engine = vectara.as_query_engine(
                 summary_enabled=True,
