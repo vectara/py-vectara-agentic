@@ -276,8 +276,6 @@ class VectaraToolFactory:
             query = kwargs.pop("query")
             filter_string = _build_filter_string(kwargs, tool_args_type)
 
-            print(f"DEBUG: CREATED FILTER STRING {filter_string}")
-
             vectara_query_engine = vectara.as_query_engine(
                 summary_enabled=True,
                 summary_num_results=summary_num_results,
