@@ -165,8 +165,6 @@ class Agent:
                 _get_llm_compiler_prompt(self.agent.agent_worker.system_prompt_replan, topic, custom_instructions),
                 topic, custom_instructions
             )
-            print(f"DEBUG - LLMCompilerAgentWorker: {self.agent.agent_worker.system_prompt}")
-            print(f"DEBUG - LLMCompilerAgentWorker: {self.agent.agent_worker.system_prompt_replan}")
         elif self.agent_type == AgentType.LATS:
             self.agent = LATSAgentWorker.from_tools(
                 tools=tools,
