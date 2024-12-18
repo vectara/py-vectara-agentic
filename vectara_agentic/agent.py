@@ -166,17 +166,17 @@ class Agent:
                 topic, custom_instructions
             )
         elif self.agent_type == AgentType.LATS:
-            self.agent = LATSAgentWorker.from_tools(
+            agent_worker = LATSAgentWorker.from_tools(
                 tools=tools,
                 llm=self.llm,
-                num_expansions=5,
+                num_expansions=3,
                 max_rollouts=-1,
                 verbose=verbose,
                 callable_manager=callback_manager,
-            ).as_agent()
+            )
             prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
-            self.agent.chat_formatter =  ReActChatFormatter(system_header=prompt)
-
+            agent_worker.chat_formatter = ReActChatFormatter(system_header=prompt)
+            self.agent = agent_worker.as_agent()
         else:
             raise ValueError(f"Unknown agent type: {self.agent_type}")
 
@@ -413,11 +413,22 @@ class Agent:
         try:
             st = time.time()
             agent_response = self.agent.chat(prompt)
+            
+            if self.agent_type == AgentType.LATS:
+                prompt = f"""
+                Given the question '{prompt}', and agent response '{agent_response.response}',
+                Please provide a well formatted final response to the query.
+                final response:
+                """
+                final_response = str(self.llm.complete(prompt))
+            else:
+                final_response = agent_response.response
+
             if self.verbose:
                 print(f"Time taken: {time.time() - st}")
             if self.observability_enabled:
                 eval_fcs()
-            return agent_response.response
+            return final_response
         except Exception as e:
             return f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()}), and can't respond."
 

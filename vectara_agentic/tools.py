@@ -297,16 +297,16 @@ class VectaraToolFactory:
             )
             response = vectara_query_engine.query(query)
 
-            if str(response) == "None":
-                msg = "Tool failed to generate a response due to internal error."
+            if len(response.source_nodes) == 0:
+                msg = "Tool failed to generate a response since no matches were found."
                 return ToolOutput(
                     tool_name=rag_function.__name__,
                     content=msg,
                     raw_input={"args": args, "kwargs": kwargs},
                     raw_output={"response": msg},
                 )
-            if len(response.source_nodes) == 0:
-                msg = "Tool failed to generate a response since no matches were found."
+            if str(response) == "None":
+                msg = "Tool failed to generate a response."
                 return ToolOutput(
                     tool_name=rag_function.__name__,
                     content=msg,
