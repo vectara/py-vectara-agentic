@@ -8,7 +8,7 @@ GENERAL_INSTRUCTIONS = """
 - When using a tool with arguments, simplify the query as much as possible if you use the tool with arguments.
   For example, if the original query is "revenue for apple in 2021", you can use the tool with a query "revenue" with arguments year=2021 and company=apple.
 - If a tool responds with "I do not have enough information", try one of the following:
-  1) Rephrase the question and call the tool again, 
+  1) Rephrase the question and call the tool again,
   For example if asked "what is the revenue of Google?", you can rephrase the question as "Google revenue" or other variations.
   2) Break the question into sub-questions and call the tool for each sub-question, then combine the answers to provide a complete response.
   For example if asked "what is the population of France and Germany", you can call the tool twice, once for each country.
