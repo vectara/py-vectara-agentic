@@ -30,7 +30,7 @@
 
 - Enables easy creation of custom AI assistants and agents.
 - Create a Vectara RAG tool with a single line of code.
-- Supports `ReAct`, `OpenAIAgent` and `LLMCompiler` agent types.
+- Supports `ReAct`, `OpenAIAgent`, `LATS' and `LLMCompiler` agent types.
 - Includes pre-built tools for various domains (e.g., finance, legal).
 - Integrates with various LLM inference services like OpenAI, Anthropic, Gemini, GROQ, Together.AI, Cohere and Fireworks
 - Built-in support for observability with Arize Phoenix
@@ -63,7 +63,7 @@ pip install vectara-agentic
 
 ```python
 import os
-from vectara_agentic import VectaraToolFactory
+from vectara_agentic.tools import VectaraToolFactory
 from pydantic import BaseModel, Field
 
 vec_factory = VectaraToolFactory(
@@ -143,6 +143,7 @@ print(response)
 
 In addition, we include various other tools from LlamaIndex ToolSpecs:
 * Tavily search
+* EXA.AI
 * arxiv
 * neo4j & Kuzu for Graph integration
 * Google tools (including gmail, calendar, and search)
@@ -163,7 +164,7 @@ mult_tool = ToolsFactory().create_tool(mult_func)
 
 Configure `vectara-agentic` using environment variables:
 
-- `VECTARA_AGENTIC_AGENT_TYPE`: valid values are `REACT`, `LLMCOMPILER` or `OPENAI` (default: `OPENAI`)
+- `VECTARA_AGENTIC_AGENT_TYPE`: valid values are `REACT`, `LLMCOMPILER`, `LATS` or `OPENAI` (default: `OPENAI`)
 - `VECTARA_AGENTIC_MAIN_LLM_PROVIDER`: valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `GEMINI` or `FIREWORKS` (default: `OPENAI`)
 - `VECTARA_AGENTIC_MAIN_MODEL_NAME`: agent model name (default depends on provider)
 - `VECTARA_AGENTIC_TOOL_LLM_PROVIDER`: tool LLM provider (default: `OPENAI`)

@@ -16,12 +16,12 @@ from .types import LLMRole, AgentType, ModelProvider
 
 provider_to_default_model_name = {
     ModelProvider.OPENAI: "gpt-4o",
-    ModelProvider.ANTHROPIC: "claude-3-5-sonnet-20240620",
-    ModelProvider.TOGETHER: "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
-    ModelProvider.GROQ: "llama-3.1-70b-versatile",
+    ModelProvider.ANTHROPIC: "claude-3-5-sonnet-20241022",
+    ModelProvider.TOGETHER: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+    ModelProvider.GROQ: "llama-3.3-70b-versatile",
     ModelProvider.FIREWORKS: "accounts/fireworks/models/firefunction-v2",
     ModelProvider.COHERE: "command-r-plus",
-    ModelProvider.GEMINI: "models/gemini-pro",
+    ModelProvider.GEMINI: "models/gemini-1.5-flash",
 }
 
 DEFAULT_MODEL_PROVIDER = ModelProvider.OPENAI
@@ -99,3 +99,11 @@ def get_llm(role: LLMRole) -> LLM:
         raise ValueError(f"Unknown LLM provider: {model_provider}")
 
     return llm
+
+def is_float(value: str) -> bool:
+    """Check if a string can be converted to a float."""
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False

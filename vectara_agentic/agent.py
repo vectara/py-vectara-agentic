@@ -19,6 +19,7 @@ from llama_index.core.tools import FunctionTool
 from llama_index.core.agent import ReActAgent
 from llama_index.core.agent.react.formatter import ReActChatFormatter
 from llama_index.agent.llm_compiler import LLMCompilerAgentWorker
+from llama_index.agent.lats import LATSAgentWorker
 from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
@@ -26,7 +27,7 @@ from llama_index.core.memory import ChatMemoryBuffer
 
 from .types import AgentType, AgentStatusType, LLMRole, ToolType
 from .utils import get_llm, get_tokenizer_for_model
-from ._prompts import REACT_PROMPT_TEMPLATE, GENERAL_PROMPT_TEMPLATE
+from ._prompts import REACT_PROMPT_TEMPLATE, GENERAL_PROMPT_TEMPLATE, GENERAL_INSTRUCTIONS
 from ._callback import AgentCallbackHandler
 from ._observability import setup_observer, eval_fcs
 from .tools import VectaraToolFactory, VectaraTool
@@ -41,7 +42,6 @@ def _get_prompt(prompt_template: str, topic: str, custom_instructions: str):
     Generate a prompt by replacing placeholders with topic and date.
 
     Args:
-
         prompt_template (str): The template for the prompt.
         topic (str): The topic to be included in the prompt.
         custom_instructions(str): The custom instructions to be included in the prompt.
@@ -55,6 +55,23 @@ def _get_prompt(prompt_template: str, topic: str, custom_instructions: str):
         .replace("{custom_instructions}", custom_instructions)
     )
 
+
+def _get_llm_compiler_prompt(prompt: str, topic: str, custom_instructions: str) -> str:
+    """
+    Add custom instructions to the prompt.
+
+    Args:
+        prompt (str): The prompt to which custom instructions should be added.
+
+    Returns:
+        str: The prompt with custom instructions added.
+    """
+    prompt += "\nAdditional Instructions:\n"
+    prompt += f"You have experise in {topic}.\n"
+    prompt += GENERAL_INSTRUCTIONS
+    prompt += custom_instructions
+    prompt += f"Today is {date.today().strftime('%A, %B %d, %Y')}"
+    return prompt
 
 def _retry_if_exception(exception):
     # Define the condition to retry on certain exceptions
@@ -140,6 +157,26 @@ class Agent:
                 verbose=verbose,
                 callable_manager=callback_manager,
             ).as_agent()
+            self.agent.agent_worker.system_prompt = _get_prompt(
+                _get_llm_compiler_prompt(self.agent.agent_worker.system_prompt, topic, custom_instructions),
+                topic, custom_instructions
+            )
+            self.agent.agent_worker.system_prompt_replan = _get_prompt(
+                _get_llm_compiler_prompt(self.agent.agent_worker.system_prompt_replan, topic, custom_instructions),
+                topic, custom_instructions
+            )
+        elif self.agent_type == AgentType.LATS:
+            agent_worker = LATSAgentWorker.from_tools(
+                tools=tools,
+                llm=self.llm,
+                num_expansions=3,
+                max_rollouts=-1,
+                verbose=verbose,
+                callable_manager=callback_manager,
+            )
+            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
+            agent_worker.chat_formatter = ReActChatFormatter(system_header=prompt)
+            self.agent = agent_worker.as_agent()
         else:
             raise ValueError(f"Unknown agent type: {self.agent_type}")
 
@@ -376,11 +413,22 @@ class Agent:
         try:
             st = time.time()
             agent_response = self.agent.chat(prompt)
+            
+            if self.agent_type == AgentType.LATS:
+                prompt = f"""
+                Given the question '{prompt}', and agent response '{agent_response.response}',
+                Please provide a well formatted final response to the query.
+                final response:
+                """
+                final_response = str(self.llm.complete(prompt))
+            else:
+                final_response = agent_response.response
+
             if self.verbose:
                 print(f"Time taken: {time.time() - st}")
             if self.observability_enabled:
                 eval_fcs()
-            return agent_response.response
+            return final_response
         except Exception as e:
             return f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()}), and can't respond."
 

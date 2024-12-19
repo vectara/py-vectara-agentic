@@ -31,15 +31,20 @@ class DBLoadData(DBTool):
             List[text]: a list of text values from the database.
         """
         count_query = f"SELECT COUNT(*) FROM ({query})"
-        count_rows = self.load_data_fn(count_query)
+        try:
+            count_rows = self.load_data_fn(count_query)
+        except Exception as e:
+            return [f"Error ({str(e)}) occurred while counting number of rows"]
         num_rows = int(count_rows[0].text)
         if num_rows > self.max_rows:
             return [
                 f"The query is expected to return more than {self.max_rows} rows. "
                 "Please refine your query to make it return less rows."
             ]
-
-        res = self.load_data_fn(query)
+        try:
+            res = self.load_data_fn(query)
+        except Exception as e:
+            return [f"Error ({str(e)}) occurred while executing the query {query}"]
         return [d.text for d in res]
 
 class DBLoadSampleData(DBTool):
@@ -59,7 +64,11 @@ class DBLoadSampleData(DBTool):
         Returns:
             Any: The result of the database query.
         """
-        return self.load_data_fn(f"SELECT * FROM {table_name} LIMIT {num_rows}")
+        try:
+            res = self.load_data_fn(f"SELECT * FROM {table_name} LIMIT {num_rows}")
+        except Exception as e:
+            return [f"Error ({str(e)}) occurred while loading sample data for table {table_name}"]
+        return res
 
 class DBLoadUniqueValues(DBTool):
     """
@@ -78,7 +87,10 @@ class DBLoadUniqueValues(DBTool):
             dict: A dictionary containing the unique values for each column.
         """
         res = {}
-        for column in columns:
-            unique_vals = self.load_data_fn(f'SELECT DISTINCT "{column}" FROM {table_name} LIMIT {num_vals}')
-            res[column] = [d.text for d in unique_vals]
+        try:
+            for column in columns:
+                unique_vals = self.load_data_fn(f'SELECT DISTINCT "{column}" FROM {table_name} LIMIT {num_vals}')
+                res[column] = [d.text for d in unique_vals]
+        except Exception as e:
+            return {f"Error ({str(e)}) occurred while loading unique values for table {table_name}"}
         return res

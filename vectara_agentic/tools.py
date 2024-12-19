@@ -20,11 +20,13 @@ from llama_index.core.tools.types import ToolMetadata, ToolOutput
 from .types import ToolType
 from .tools_catalog import summarize_text, rephrase_text, critique_text, get_bad_topics
 from .db_tools import DBLoadSampleData, DBLoadUniqueValues, DBLoadData
+from .utils import is_float
 
 LI_packages = {
     "yahoo_finance": ToolType.QUERY,
     "arxiv": ToolType.QUERY,
     "tavily_research": ToolType.QUERY,
+    "exa": ToolType.QUERY,
     "neo4j": ToolType.QUERY,
     "kuzu": ToolType.QUERY,
     "database": ToolType.QUERY,
@@ -151,6 +153,7 @@ class VectaraToolFactory:
         tool_name: str,
         tool_description: str,
         tool_args_schema: type[BaseModel],
+        tool_args_type: Dict[str, str] = {},
         vectara_summarizer: str = "vectara-summary-ext-24-05-sml",
         summary_num_results: int = 5,
         summary_response_lang: str = "eng",
@@ -164,6 +167,7 @@ class VectaraToolFactory:
         rerank_chain: List[Dict] = None,
         include_citations: bool = True,
         fcs_threshold: float = 0.0,
+        verbose: bool = False,
     ) -> VectaraTool:
         """
         Creates a RAG (Retrieve and Generate) tool.
@@ -172,6 +176,7 @@ class VectaraToolFactory:
             tool_name (str): The name of the tool.
             tool_description (str): The description of the tool.
             tool_args_schema (BaseModel): The schema for the tool arguments.
+            tool_args_type (Dict[str, str], optional): The type of each argument (doc or part).
             vectara_summarizer (str, optional): The Vectara summarizer to use.
             summary_num_results (int, optional): The number of summary results.
             summary_response_lang (str, optional): The response language for the summary.
@@ -186,15 +191,17 @@ class VectaraToolFactory:
                 Each dictionary should specify the "type" of reranker (mmr, slingshot, udf)
                 and any other parameters (e.g. "limit" or "cutoff" for any type,
                 "diversity_bias" for mmr, and "user_function" for udf).
-            If using slingshot/multilingual_reranker_v1, it must be first in the list.
+                If using slingshot/multilingual_reranker_v1, it must be first in the list.
             include_citations (bool, optional): Whether to include citations in the response.
                 If True, uses markdown vectara citations that requires the Vectara scale plan.
             fcs_threshold (float, optional): a threshold for factual consistency.
                 If set above 0, the tool notifies the calling agent that it "cannot respond" if FCS is too low.
+            verbose (bool, optional): Whether to print verbose output.
 
         Returns:
             VectaraTool: A VectaraTool object.
         """
+
         vectara = VectaraIndex(
             vectara_api_key=self.vectara_api_key,
             vectara_customer_id=self.vectara_customer_id,
@@ -202,14 +209,57 @@ class VectaraToolFactory:
             x_source_str="vectara-agentic",
         )
 
-        def _build_filter_string(kwargs):
+        def _build_filter_string(kwargs: Dict[str, Any], tool_args_type: Dict[str, str]) -> str:
             filter_parts = []
+            comparison_operators = [">=", "<=", "!=", ">", "<", "="]
+            numeric_only_ops = {">", "<", ">=", "<="}
+
             for key, value in kwargs.items():
-                if value:
-                    if isinstance(value, str):
-                        filter_parts.append(f"doc.{key}='{value}'")
+                if value is None or value == "":
+                    continue
+
+                # Determine the prefix for the key. Valid values are "doc" or "part"
+                # default to 'doc' if not specified
+                prefix = tool_args_type.get(key, "doc")
+
+                if prefix not in ["doc", "part"]:
+                    raise ValueError(
+                        f'Unrecognized prefix {prefix}. Please make sure to use either "doc" or "part" for the prefix.'
+                    )
+
+                # Check if value contains a known comparison operator at the start
+                val_str = str(value).strip()
+                matched_operator = None
+                for op in comparison_operators:
+                    if val_str.startswith(op):
+                        matched_operator = op
+                        break
+
+                # Break down operator from value
+                # e.g. val_str = ">2022" --> operator = ">", rhs = "2022"
+                if matched_operator:
+                    rhs = val_str[len(matched_operator):].strip()
+
+                    if matched_operator in numeric_only_ops:
+                        # Must be numeric
+                        if not (rhs.isdigit() or is_float(rhs)):
+                            raise ValueError(
+                                f"Operator {matched_operator} requires a numeric operand for {key}: {val_str}"
+                            )
+                        filter_parts.append(f"{prefix}.{key}{matched_operator}{rhs}")
                     else:
-                        filter_parts.append(f"doc.{key}={value}")
+                        # = and != operators can be numeric or string
+                        if rhs.isdigit() or is_float(rhs):
+                            filter_parts.append(f"{prefix}.{key}{matched_operator}{rhs}")
+                        else:
+                            # For string operands, wrap them in quotes
+                            filter_parts.append(f"{prefix}.{key}{matched_operator}'{rhs}'")
+                else:
+                    if val_str.isdigit() or is_float(val_str):
+                        filter_parts.append(f"{prefix}.{key}={val_str}")
+                    else:
+                        filter_parts.append(f"{prefix}.{key}='{val_str}'")
+
             return " AND ".join(filter_parts)
 
         # Dynamically generate the RAG function
@@ -224,7 +274,7 @@ class VectaraToolFactory:
             kwargs = bound_args.arguments
 
             query = kwargs.pop("query")
-            filter_string = _build_filter_string(kwargs)
+            filter_string = _build_filter_string(kwargs, tool_args_type)
 
             vectara_query_engine = vectara.as_query_engine(
                 summary_enabled=True,
@@ -243,19 +293,20 @@ class VectaraToolFactory:
                 citations_style="MARKDOWN" if include_citations else None,
                 citations_url_pattern="{doc.url}" if include_citations else None,
                 x_source_str="vectara-agentic",
+                verbose=verbose,
             )
             response = vectara_query_engine.query(query)
 
-            if str(response) == "None":
-                msg = "Tool failed to generate a response due to internal error."
+            if len(response.source_nodes) == 0:
+                msg = "Tool failed to generate a response since no matches were found."
                 return ToolOutput(
                     tool_name=rag_function.__name__,
                     content=msg,
                     raw_input={"args": args, "kwargs": kwargs},
                     raw_output={"response": msg},
                 )
-            if len(response.source_nodes) == 0:
-                msg = "Tool failed to generate a response since no matches were found."
+            if str(response) == "None":
+                msg = "Tool failed to generate a response."
                 return ToolOutput(
                     tool_name=rag_function.__name__,
                     content=msg,
@@ -337,7 +388,6 @@ class VectaraToolFactory:
             tool_type=ToolType.QUERY,
         )
         return tool
-
 
 class ToolsFactory:
     """
