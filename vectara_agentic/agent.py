@@ -413,7 +413,6 @@ class Agent:
         try:
             st = time.time()
             agent_response = self.agent.chat(prompt)
-            
             if self.agent_type == AgentType.LATS:
                 prompt = f"""
                 Given the question '{prompt}', and agent response '{agent_response.response}',
