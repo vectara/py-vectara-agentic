@@ -379,11 +379,20 @@ class VectaraToolFactory:
         rag_function.__annotations__["return"] = dict[str, Any]
         rag_function.__name__ = "_" + re.sub(r"[^A-Za-z0-9_]", "_", tool_name)
 
+        # Create the tool function signature string
+        fields = []
+        for name, field in tool_args_schema.__fields__.items():
+            annotation = field.annotation
+            type_name = annotation.__name__ if hasattr(annotation, '__name__') else str(annotation)
+            fields.append(f"{name}: {type_name}")
+        args_str = ", ".join(fields)
+        function_str = f"{tool_name}({args_str}) -> str"
+        
         # Create the tool
         tool = VectaraTool.from_defaults(
             fn=rag_function,
             name=tool_name,
-            description=tool_description,
+            description=function_str + ". " + tool_description,
             fn_schema=tool_args_schema,
             tool_type=ToolType.QUERY,
         )
