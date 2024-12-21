@@ -387,7 +387,7 @@ class VectaraToolFactory:
             fields.append(f"{name}: {type_name}")
         args_str = ", ".join(fields)
         function_str = f"{tool_name}({args_str}) -> str"
-        
+
         # Create the tool
         tool = VectaraTool.from_defaults(
             fn=rag_function,
