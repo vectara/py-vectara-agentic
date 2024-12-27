@@ -251,12 +251,16 @@ class VectaraToolFactory:
                         # = and != operators can be numeric or string
                         if rhs.isdigit() or is_float(rhs):
                             filter_parts.append(f"{prefix}.{key}{matched_operator}{rhs}")
+                        elif rhs.lower() in ["true", "false"]:
+                            filter_parts.append(f"{prefix}.{key}{matched_operator}{rhs.lower()}")
                         else:
                             # For string operands, wrap them in quotes
                             filter_parts.append(f"{prefix}.{key}{matched_operator}'{rhs}'")
                 else:
                     if val_str.isdigit() or is_float(val_str):
                         filter_parts.append(f"{prefix}.{key}={val_str}")
+                    elif val_str.lower() in ["true", "false"]:
+                        filter_parts.append(f"{prefix}.{key}={val_str.lower()}")
                     else:
                         filter_parts.append(f"{prefix}.{key}='{val_str}'")
 
