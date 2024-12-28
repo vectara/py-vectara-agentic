@@ -260,6 +260,9 @@ class VectaraToolFactory:
                     if val_str.isdigit() or is_float(val_str):
                         filter_parts.append(f"{prefix}.{key}={val_str}")
                     elif val_str.lower() in ["true", "false"]:
+                        # This is to handle boolean values. 
+                        # This is not complete solution - the best solution would be to test if the field is boolean
+                        # That can be done after we move to APIv2
                         filter_parts.append(f"{prefix}.{key}={val_str.lower()}")
                     else:
                         filter_parts.append(f"{prefix}.{key}='{val_str}'")
