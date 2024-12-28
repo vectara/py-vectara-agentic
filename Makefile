@@ -9,5 +9,4 @@ mypy:
 test:
 	python -m unittest discover -s tests
 
-
 .PHONY: all lint mypy test

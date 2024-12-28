@@ -72,10 +72,18 @@ vec_factory = VectaraToolFactory(
     vectara_corpus_id=os.environ['VECTARA_CORPUS_ID']
 )
 
+years = list(range(2020, 2024))
+tickers = {
+    "AAPL": "Apple Computer",
+    "GOOG": "Google",
+    "AMZN": "Amazon",
+    "SNOW": "Snowflake",
+}
+
 class QueryFinancialReportsArgs(BaseModel):
     query: str = Field(..., description="The user query.")
-    year: int = Field(..., description="The year. An integer between {min(years)} and {max(years)}.")
-    ticker: str = Field(..., description="The company ticker. Must be a valid ticket symbol from the list {tickers.keys()}.")
+    year: int | str = Field(..., description=f"The year this query relates to. An integer between {min(years)} and {max(years)} or a string specifying a condition on the year (example: '>2020').")
+    ticker: str = Field(..., description=f"The company ticker. Must be a valid ticket symbol from the list {tickers.keys()}.")
 
 query_financial_reports_tool = vec_factory.create_rag_tool(
     tool_name="query_financial_reports",
