@@ -19,4 +19,5 @@ disable =
     unused-argument,
     too-many-locals,
     too-many-statements,
+    too-many-branches,
 
