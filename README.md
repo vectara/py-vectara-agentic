@@ -179,7 +179,9 @@ Configure `vectara-agentic` using environment variables:
 - `VECTARA_AGENTIC_TOOL_MODEL_NAME`: tool model name (default depends on provider)
 - `VECTARA_AGENTIC_OBSERVER_TYPE`: valid values are `ARIZE_PHOENIX` or `NONE` (default: `NONE`)
 
-When creating a VectaraToolFactory, you can pass in a `vectara_api_key`, `vectara_customer_id`, and `vectara_corpus_id` to the factory. If not passed in, it will be taken from the environment variables. Note that `VECTARA_CORPUS_ID` can be a single ID or a comma-separated list of IDs (if you want to query multiple corpora).
+When creating a VectaraToolFactory, you can pass in a `vectara_api_key`, `vectara_customer_id`, and `vectara_corpus_id` to the factory. If not passed in, it will be taken from the environment variables (`VECTARA_API_KEY`, `VECTARA_CUSTOMER_ID` and `VECTARA_CORPUS_ID`). Note that `VECTARA_CORPUS_ID` can be a single ID or a comma-separated list of IDs (if you want to query multiple corpora).
+
+You can also pass an `AgentConfig` object when creating your `Agent` to override the environment variables (or if they do not exist).
 
 ## ℹ️ Additional Information
 

@@ -31,6 +31,7 @@ from ._prompts import REACT_PROMPT_TEMPLATE, GENERAL_PROMPT_TEMPLATE, GENERAL_IN
 from ._callback import AgentCallbackHandler
 from ._observability import setup_observer, eval_fcs
 from .tools import VectaraToolFactory, VectaraTool
+from .agent_config import AgentConfig
 
 logger = logging.getLogger("opentelemetry.exporter.otlp.proto.http.trace_exporter")
 logger.setLevel(logging.CRITICAL)
@@ -91,7 +92,7 @@ class Agent:
         verbose: bool = True,
         update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
         agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
-        agent_type: AgentType = None,
+        agent_config: Optional[AgentConfig] = None,
     ) -> None:
         """
         Initialize the agent with the specified type, tools, topic, and system message.
@@ -104,11 +105,13 @@ class Agent:
             verbose (bool, optional): Whether the agent should print its steps. Defaults to True.
             agent_progress_callback (Callable): A callback function the code calls on any agent updates.
                 update_func (Callable): old name for agent_progress_callback. Will be deprecated in future.
-            agent_type (AgentType, optional): The type of agent to be used. Defaults to None.
+            agent_config (AgentConfig, optional): The configuration of the agent. 
+                Defaults to AgentConfig(), which reads from environment variables.
         """
-        self.agent_type = agent_type or AgentType(os.getenv("VECTARA_AGENTIC_AGENT_TYPE", "OPENAI"))
+        self.agent_config = agent_config or AgentConfig()
+        self.agent_type = self.agent_config.agent_type
         self.tools = tools
-        self.llm = get_llm(LLMRole.MAIN)
+        self.llm = get_llm(LLMRole.MAIN, config=self.agent_config)
         self._custom_instructions = custom_instructions
         self._topic = topic
         self.agent_progress_callback = agent_progress_callback if agent_progress_callback else update_func
@@ -181,7 +184,7 @@ class Agent:
             raise ValueError(f"Unknown agent type: {self.agent_type}")
 
         try:
-            self.observability_enabled = setup_observer()
+            self.observability_enabled = setup_observer(self.agent_config)
         except Exception as e:
             print(f"Failed to set up observer ({e}), ignoring")
             self.observability_enabled = False
