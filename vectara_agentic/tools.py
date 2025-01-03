@@ -18,7 +18,7 @@ from llama_index.core.tools.types import ToolMetadata, ToolOutput
 
 
 from .types import ToolType
-from .tools_catalog import summarize_text, rephrase_text, critique_text, get_bad_topics
+from .tools_catalog import summarize_text, rephrase_text, critique_text, get_bad_topics, populate_ppt
 from .db_tools import DBLoadSampleData, DBLoadUniqueValues, DBLoadData
 from .utils import is_float
 
@@ -479,6 +479,12 @@ class ToolsFactory:
         Create a list of guardrail tools to avoid controversial topics.
         """
         return [self.create_tool(get_bad_topics)]
+
+    def populate_document_template_tools(self) -> List[FunctionTool]:
+        """
+        Create a list of tools that populate document templates.
+        """
+        return [self.create_tool(populate_ppt)]
 
     def financial_tools(self):
         """

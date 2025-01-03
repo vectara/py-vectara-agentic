@@ -431,6 +431,31 @@ class Agent:
         except Exception as e:
             return f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()}), and can't respond."
 
+    def act(self, prompt: str) -> Any:
+        """
+        Interact with the agent by telling it to complete an action.
+
+        Args:
+            prompt(str): The instructions for the task the agent has to complete.
+
+        Returns:
+            Any: The desired output based on the action requested.
+        """
+        try:
+            st = time.time()
+            agent_response = self.agent.query(prompt)
+            # if agent_response.tool_output:
+            #     print(f"DEBUG: VECTARA AGENTIC AGENT RECEIVED TOOL OUTPUT OF TYPE {type(agent_response.tool_output)}")
+            #     final_response = agent_response.response
+            if agent_response:
+                print(f"DEBUG: VECTARA AGENTIC AGENT GENERATED RESPONSE {agent_response} OF TYPE {type(agent_response)}")
+                final_response = agent_response.response
+            if self.verbose:
+                print(f"Time taken: {time.time() - st}")
+            return final_response
+        except Exception as e:
+            return f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()}), and can't respond."
+
     # Serialization methods
 
     def dumps(self) -> str:

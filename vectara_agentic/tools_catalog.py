@@ -4,6 +4,8 @@ This module contains the tools catalog for the Vectara Agentic.
 from typing import List
 from functools import lru_cache
 from pydantic import Field
+from pptx import Presentation
+from io import BytesIO
 import requests
 
 from .types import LLMRole
@@ -127,3 +129,61 @@ def get_bad_topics() -> List[str]:
         "adult content",
         "illegal activities",
     ]
+
+#
+# Document Template tools
+#
+def populate_ppt(
+        file_path: str,
+        topic: str
+    ) -> BytesIO:
+    """
+    Fills in a PowerPoint presentation template by asking a series of questions and populating the template based on retrieved answers.
+
+    Args:
+        file_path (str): The file path of the presentation to edit.
+        topic (str): A short description about the topic of the presentation.
+    """
+    ppt = Presentation(file_path)
+
+    # Create the prompt for the LLM
+    prompt_template = "Your job is to answer questions that will be used to populate a presentation template about {topic}."
+    prompt_template += f"\nYou have access to the following tools: {tool_info}"
+    prompt_template += "\n Use these tools to answer the question {question} in a concise manner that will go well in the following paragraph:\n{context}."
+    prompt_template += "\nIf you do not have enough information to answer the question, respond with 'NEEDS REVIEW'."
+    llm = get_llm(LLMRole.TOOL) # This is a problem because the tool LLM does not have access to the other tools.
+    
+    for slide in ppt.slides:
+        for element in slide.shapes:
+            if element.has_text_frame:
+                for paragraph in element.text_frame.paragraphs:
+                    line = paragraph.text
+
+                    # While there are still questions in this paragraph:
+                    while (line.find("{{") != -1) and (line.find("}}") != -1):
+                        print(f"DEBUG: CURRENT PARAGRAPH IS {line}")
+                        # Get the question from the paragraph
+                        question = line[line.find("{{")+2:line.find("}}")]
+
+                        print(f"DEBUG: ANSWERING QUESTION {question}")
+
+                        # Call the main llm to try to answer the question (create a prompt with the question and the context, give instructions for default answer)
+                        prompt = prompt_template.format(topic=topic, question=question, context=line)
+                        response = llm.complete(prompt)
+                        answer = response.text
+
+                        print(f"DEBUG: RECEIVED ANSWER {answer}")
+
+                        # Replace the question with the answer to the question.
+                        # If the "I don't know"-based response is provided, format the text (with highlighting) so that the user knows to review the information themselves.
+                        if 'NEEDS REVIEW' in answer:
+                            paragraph.text = line.replace(f"{{{question}}}", answer) # Leave in one set of {}
+                        else:
+                            paragraph.text = line.replace(f"{{{{{question}}}}}", answer)
+                        line = paragraph.text
+
+    output = BytesIO()
+    ppt.save(output)
+    output.seek(0)
+
+    return output
