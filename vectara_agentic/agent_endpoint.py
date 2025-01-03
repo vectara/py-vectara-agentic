@@ -9,9 +9,9 @@ from pydantic import BaseModel
 import uvicorn
 
 from .agent import Agent
+from .agent_config import AgentConfig
 
 API_KEY_NAME = "X-API-Key"
-API_KEY = os.getenv("VECTARA_AGENTIC_API_KEY", "dev-api-key")
 api_key_header = APIKeyHeader(name=API_KEY_NAME)
 
 class ChatRequest(BaseModel):
@@ -21,13 +21,14 @@ class ChatRequest(BaseModel):
     message: str
 
 
-def create_app(agent: Agent) -> FastAPI:
+def create_app(agent: Agent, config: AgentConfig) -> FastAPI:
     """
     Create a FastAPI application with a chat endpoint.
     """
     app = FastAPI()
     logger = logging.getLogger("uvicorn.error")
     logging.basicConfig(level=logging.INFO)
+    API_KEY = config.endpoint_api_key
 
     @app.get("/chat", summary="Chat with the agent")
     async def chat(message: str, api_key: str = Depends(api_key_header)):
