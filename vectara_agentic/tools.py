@@ -18,7 +18,16 @@ from llama_index.core.tools.types import ToolMetadata, ToolOutput
 
 
 from .types import ToolType
-from .tools_catalog import summarize_text, rephrase_text, critique_text, get_bad_topics, populate_ppt
+from .tools_catalog import (
+    summarize_text,
+    rephrase_text,
+    critique_text,
+    get_bad_topics,
+    get_presentation_from_path,
+    get_presentation_field,
+    fill_presentation_field,
+    get_output_presentation_file
+)
 from .db_tools import DBLoadSampleData, DBLoadUniqueValues, DBLoadData
 from .utils import is_float
 
@@ -484,8 +493,8 @@ class ToolsFactory:
         """
         Create a list of tools that populate document templates.
         """
-        return [self.create_tool(populate_ppt)]
-
+        return [self.create_tool(tool) for tool in [get_presentation_from_path, get_presentation_field, fill_presentation_field, get_output_presentation_file]]
+        
     def financial_tools(self):
         """
         Create a list of financial tools.
