@@ -340,7 +340,7 @@ class VectaraToolFactory:
                     )
                     + ".\n"
                 )
-            fcs = response.metadata["fcs"] if "fcs" in response.metadata else 0.0
+            fcs = response.metadata["fcs"] or 0.0
             if fcs < fcs_threshold:
                 msg = f"Could not answer the query due to suspected hallucination (fcs={fcs})."
                 return ToolOutput(
