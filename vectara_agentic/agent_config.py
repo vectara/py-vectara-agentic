@@ -1,5 +1,5 @@
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 
 from .types import ModelProvider, AgentType, ObserverType
 
@@ -52,3 +52,26 @@ class AgentConfig:
     endpoint_api_key: str = field(
         default_factory=lambda: os.getenv("VECTARA_AGENTIC_API_KEY", "dev-api-key")
     )
+
+    def to_dict(self) -> dict:
+        return {
+            "agent_type": self.agent_type.value,
+            "main_llm_provider": self.main_llm_provider.value,
+            "main_llm_model_name": self.main_llm_model_name,
+            "tool_llm_provider": self.tool_llm_provider.value,
+            "tool_llm_model_name": self.tool_llm_model_name,
+            "observer": self.observer.value,
+            "endpoint_api_key": self.endpoint_api_key
+        }
+    
+    @classmethod
+    def from_dict(cls, config_dict: dict) -> "AgentConfig":
+        return cls(
+            agent_type=AgentType(config_dict["agent_type"]),
+            main_llm_provider=ModelProvider(config_dict["main_llm_provider"]),
+            main_llm_model_name=config_dict["main_llm_model_name"],
+            tool_llm_provider=ModelProvider(config_dict["tool_llm_provider"]),
+            tool_llm_model_name=config_dict["tool_llm_model_name"],
+            observer=ObserverType(config_dict["observer"]),
+            endpoint_api_key=config_dict["endpoint_api_key"]
+        )

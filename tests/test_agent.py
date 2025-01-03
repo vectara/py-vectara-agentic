@@ -68,13 +68,13 @@ class TestAgentPackage(unittest.TestCase):
             tools=tools, 
             topic=topic, 
             custom_instructions=instructions, 
-            config=config
+            agent_config=config
         )
         self.assertEqual(agent.tools, tools)
         self.assertEqual(agent._topic, topic)
         self.assertEqual(agent._custom_instructions, instructions)
         self.assertEqual(agent.agent_type, AgentType.REACT)
-        self.assertEqual(agent.observer, ObserverType.ARIZE_PHOENIX)
+        self.assertEqual(agent.agent_config.observer, ObserverType.ARIZE_PHOENIX)
         self.assertEqual(agent.agent_config.main_llm_provider, ModelProvider.ANTHROPIC)
         self.assertEqual(agent.agent_config.tool_llm_provider, ModelProvider.TOGETHER)
 

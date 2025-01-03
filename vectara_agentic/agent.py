@@ -452,7 +452,7 @@ class Agent:
         for tool in self.tools:
             # Serialize each tool's metadata, function, and dynamic model schema (QueryArgs)
             tool_dict = {
-                "tool_type": tool.tool_type.value,
+                "tool_type": tool.metadata.tool_type.value,
                 "name": tool.metadata.name,
                 "description": tool.metadata.description,
                 "fn": dill.dumps(tool.fn).decode("latin-1") if tool.fn else None,  # Serialize fn
@@ -472,12 +472,13 @@ class Agent:
             "topic": self._topic,
             "custom_instructions": self._custom_instructions,
             "verbose": self.verbose,
+            "agent_config": self.agent_config.to_dict(),
         }
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Agent":
         """Create an Agent instance from a dictionary."""
-        agent_type = AgentType(data["agent_type"])
+        agent_config = AgentConfig.from_dict(data["agent_config"])
         tools = []
 
         json_type_to_python = {
@@ -526,7 +527,7 @@ class Agent:
 
         agent = cls(
             tools=tools,
-            agent_type=agent_type,
+            agent_config=agent_config,
             topic=data["topic"],
             custom_instructions=data["custom_instructions"],
             verbose=data["verbose"],
