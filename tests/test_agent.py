@@ -2,7 +2,8 @@ import unittest
 from datetime import date
 
 from vectara_agentic.agent import _get_prompt, Agent, AgentType, FunctionTool
-
+from vectara_agentic.agent_config import AgentConfig
+from vectara_agentic.types import ModelProvider, ObserverType
 
 class TestAgentPackage(unittest.TestCase):
     def test_get_prompt(self):
@@ -42,6 +43,50 @@ class TestAgentPackage(unittest.TestCase):
             ).replace("$", "\\$"),
             "50",
         )
+
+    def test_agent_config(self):
+        def mult(x, y):
+            return x * y
+
+        tools = [
+            FunctionTool.from_defaults(
+                fn=mult, name="mult", description="Multiplication functions"
+            )
+        ]
+        topic = "AI topic"
+        instructions = "Always do as your father tells you, if your mother agrees!"
+        config = AgentConfig(
+            agent_type=AgentType.REACT, 
+            main_llm_provider=ModelProvider.ANTHROPIC,
+            main_llm_model_name="claude-3-5-sonnet-20241022",
+            tool_llm_provider=ModelProvider.TOGETHER,
+            tool_llm_model_name="meta-llama/Llama-3.3-70B-Instruct-Turbo",
+            observer=ObserverType.ARIZE_PHOENIX
+        )
+
+        agent = Agent(
+            tools=tools, 
+            topic=topic, 
+            custom_instructions=instructions, 
+            config=config
+        )
+        self.assertEqual(agent.tools, tools)
+        self.assertEqual(agent._topic, topic)
+        self.assertEqual(agent._custom_instructions, instructions)
+        self.assertEqual(agent.agent_type, AgentType.REACT)
+        self.assertEqual(agent.observer, ObserverType.ARIZE_PHOENIX)
+        self.assertEqual(agent.agent_config.main_llm_provider, ModelProvider.ANTHROPIC)
+        self.assertEqual(agent.agent_config.tool_llm_provider, ModelProvider.TOGETHER)
+
+        # To run this test, you must have OPENAI_API_KEY in your environment
+        self.assertEqual(
+            agent.chat(
+                "What is 5 times 10. Only give the answer, nothing else"
+            ).replace("$", "\\$"),
+            "50",
+        )
+
+
 
     def test_from_corpus(self):
         agent = Agent.from_corpus(

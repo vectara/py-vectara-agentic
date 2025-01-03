@@ -41,17 +41,6 @@ class AgentConfig:
         default_factory=lambda: os.getenv("VECTARA_AGENTIC_TOOL_LLM_MODEL_NAME", "")
     )
 
-    # Example Vectara-related configs
-    vectara_customer_id: str = field(
-        default_factory=lambda: os.getenv("VECTARA_CUSTOMER_ID", "")
-    )
-    vectara_corpus_id: str = field(
-        default_factory=lambda: os.getenv("VECTARA_CORPUS_ID", "")
-    )
-    vectara_api_key: str = field(
-        default_factory=lambda: os.getenv("VECTARA_API_KEY", "")
-    )
-
     # Observer
     observer: ObserverType = field(
         default_factory=lambda: ObserverType(
