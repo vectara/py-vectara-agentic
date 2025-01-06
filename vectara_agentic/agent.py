@@ -381,7 +381,10 @@ class Agent:
         print(f"Topic = {self._topic}")
         print("Tools:")
         for tool in self.tools:
-            print(f"- {tool.metadata.name}")
+            if hasattr(tool, 'metadata'):
+                print(f"- {tool.metadata.name}")
+            else:
+                print("- tool without metadata")
         print(f"Agent LLM = {get_llm(LLMRole.MAIN).metadata.model_name}")
         print(f"Tool LLM = {get_llm(LLMRole.TOOL).metadata.model_name}")
 
