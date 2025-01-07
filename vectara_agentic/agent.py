@@ -31,6 +31,7 @@ from ._prompts import REACT_PROMPT_TEMPLATE, GENERAL_PROMPT_TEMPLATE, GENERAL_IN
 from ._callback import AgentCallbackHandler
 from ._observability import setup_observer, eval_fcs
 from .tools import VectaraToolFactory, VectaraTool
+from .agent_config import AgentConfig
 
 logger = logging.getLogger("opentelemetry.exporter.otlp.proto.http.trace_exporter")
 logger.setLevel(logging.CRITICAL)
@@ -91,7 +92,7 @@ class Agent:
         verbose: bool = True,
         update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
         agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
-        agent_type: AgentType = None,
+        agent_config: Optional[AgentConfig] = None,
     ) -> None:
         """
         Initialize the agent with the specified type, tools, topic, and system message.
@@ -104,11 +105,13 @@ class Agent:
             verbose (bool, optional): Whether the agent should print its steps. Defaults to True.
             agent_progress_callback (Callable): A callback function the code calls on any agent updates.
                 update_func (Callable): old name for agent_progress_callback. Will be deprecated in future.
-            agent_type (AgentType, optional): The type of agent to be used. Defaults to None.
+            agent_config (AgentConfig, optional): The configuration of the agent. 
+                Defaults to AgentConfig(), which reads from environment variables.
         """
-        self.agent_type = agent_type or AgentType(os.getenv("VECTARA_AGENTIC_AGENT_TYPE", "OPENAI"))
+        self.agent_config = agent_config or AgentConfig()
+        self.agent_type = self.agent_config.agent_type
         self.tools = tools
-        self.llm = get_llm(LLMRole.MAIN)
+        self.llm = get_llm(LLMRole.MAIN, config=self.agent_config)
         self._custom_instructions = custom_instructions
         self._topic = topic
         self.agent_progress_callback = agent_progress_callback if agent_progress_callback else update_func
@@ -181,7 +184,7 @@ class Agent:
             raise ValueError(f"Unknown agent type: {self.agent_type}")
 
         try:
-            self.observability_enabled = setup_observer()
+            self.observability_enabled = setup_observer(self.agent_config)
         except Exception as e:
             print(f"Failed to set up observer ({e}), ignoring")
             self.observability_enabled = False
@@ -378,7 +381,10 @@ class Agent:
         print(f"Topic = {self._topic}")
         print("Tools:")
         for tool in self.tools:
-            print(f"- {tool.metadata.name}")
+            if hasattr(tool, 'metadata'):
+                print(f"- {tool.metadata.name}")
+            else:
+                print("- tool without metadata")
         print(f"Agent LLM = {get_llm(LLMRole.MAIN).metadata.model_name}")
         print(f"Tool LLM = {get_llm(LLMRole.TOOL).metadata.model_name}")
 
@@ -449,7 +455,7 @@ class Agent:
         for tool in self.tools:
             # Serialize each tool's metadata, function, and dynamic model schema (QueryArgs)
             tool_dict = {
-                "tool_type": tool.tool_type.value,
+                "tool_type": tool.metadata.tool_type.value,
                 "name": tool.metadata.name,
                 "description": tool.metadata.description,
                 "fn": dill.dumps(tool.fn).decode("latin-1") if tool.fn else None,  # Serialize fn
@@ -469,12 +475,13 @@ class Agent:
             "topic": self._topic,
             "custom_instructions": self._custom_instructions,
             "verbose": self.verbose,
+            "agent_config": self.agent_config.to_dict(),
         }
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Agent":
         """Create an Agent instance from a dictionary."""
-        agent_type = AgentType(data["agent_type"])
+        agent_config = AgentConfig.from_dict(data["agent_config"])
         tools = []
 
         json_type_to_python = {
@@ -523,7 +530,7 @@ class Agent:
 
         agent = cls(
             tools=tools,
-            agent_type=agent_type,
+            agent_config=agent_config,
             topic=data["topic"],
             custom_instructions=data["custom_instructions"],
             verbose=data["verbose"],

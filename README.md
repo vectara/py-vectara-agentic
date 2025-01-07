@@ -170,16 +170,19 @@ mult_tool = ToolsFactory().create_tool(mult_func)
 
 ## 🛠️ Configuration
 
-Configure `vectara-agentic` using environment variables:
-
+The main way to control the behavior of `vectara-agentic` is by passing an `AgentConfig` object to your `Agent` when creating it.
+This object will include the following items:
 - `VECTARA_AGENTIC_AGENT_TYPE`: valid values are `REACT`, `LLMCOMPILER`, `LATS` or `OPENAI` (default: `OPENAI`)
 - `VECTARA_AGENTIC_MAIN_LLM_PROVIDER`: valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `GEMINI` or `FIREWORKS` (default: `OPENAI`)
 - `VECTARA_AGENTIC_MAIN_MODEL_NAME`: agent model name (default depends on provider)
 - `VECTARA_AGENTIC_TOOL_LLM_PROVIDER`: tool LLM provider (default: `OPENAI`)
 - `VECTARA_AGENTIC_TOOL_MODEL_NAME`: tool model name (default depends on provider)
 - `VECTARA_AGENTIC_OBSERVER_TYPE`: valid values are `ARIZE_PHOENIX` or `NONE` (default: `NONE`)
+- `VECTARA_AGENTIC_API_KEY`: a secret key if using the API endpoint option (defaults to `dev-api-key`)
 
-When creating a VectaraToolFactory, you can pass in a `vectara_api_key`, `vectara_customer_id`, and `vectara_corpus_id` to the factory. If not passed in, it will be taken from the environment variables. Note that `VECTARA_CORPUS_ID` can be a single ID or a comma-separated list of IDs (if you want to query multiple corpora).
+If any of these are not provided, `AgentConfig` first tries to read the values from the OS environment.
+
+When creating a `VectaraToolFactory`, you can pass in a `vectara_api_key`, `vectara_customer_id`, and `vectara_corpus_id` to the factory. If not passed in, it will be taken from the environment variables (`VECTARA_API_KEY`, `VECTARA_CUSTOMER_ID` and `VECTARA_CORPUS_ID`). Note that `VECTARA_CORPUS_ID` can be a single ID or a comma-separated list of IDs (if you want to query multiple corpora).
 
 ## ℹ️ Additional Information
 
@@ -204,7 +207,8 @@ The `Agent` class supports serialization. Use the `dumps()` to serialize and `lo
 ###  Observability
 
 vectara-agentic supports observability via the existing integration of LlamaIndex and Arize Phoenix.
-First, set `os["VECTARA_AGENTIC_OBSERVER_TYPE"] = "ARIZE_PHOENIX"`.
+First, set `VECTARA_AGENTIC_OBSERVER_TYPE` to `ARIZE_PHOENIX` in `AgentConfig` (or env variable).
+
 Then you can use Arize Phoenix in three ways: 
 1. **Locally**. 
    1. If you have a local phoenix server that you've run using e.g. `python -m phoenix.server.main serve`, vectara-agentic will send all traces to it.
@@ -212,7 +216,7 @@ Then you can use Arize Phoenix in three ways:
    3. In both cases, traces will be sent to the local instance, and you can see the dashboard at `http://localhost:6006`
 2. **Hosted Instance**. In this case the traces are sent to the Phoenix instances hosted on Arize.
    1. Go to `https://app.phoenix.arize.com`, setup an account if you don't have one.
-   2. create an API key and put it in the `PHOENIX_API_KEY` variable. This variable indicates you want to use the hosted version.
+   2. create an API key and put it in the `PHOENIX_API_KEY` environment variable - this indicates you want to use the hosted version.
    3. To view the traces go to `https://app.phoenix.arize.com`.
 
 Now when you run your agent, all call traces are sent to Phoenix and recorded. 

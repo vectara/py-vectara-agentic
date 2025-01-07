@@ -6,16 +6,16 @@ import json
 from typing import Optional, Union
 import pandas as pd
 from .types import ObserverType
+from .agent_config import AgentConfig
 
-def setup_observer() -> bool:
+def setup_observer(config: AgentConfig) -> bool:
     '''
     Setup the observer.
     '''
     import phoenix as px
     from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
     from phoenix.otel import register
-    observer = ObserverType(os.getenv("VECTARA_AGENTIC_OBSERVER_TYPE", "NO_OBSERVER"))
-    if observer == ObserverType.ARIZE_PHOENIX:
+    if config.observer == ObserverType.ARIZE_PHOENIX:
         phoenix_endpoint = os.getenv("PHOENIX_ENDPOINT", None)
         if not phoenix_endpoint:
             px.launch_app()
