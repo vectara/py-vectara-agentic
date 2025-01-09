@@ -1,14 +1,20 @@
 from setuptools import setup, find_packages
-
+import os
+import re
 
 def read_requirements():
     with open("requirements.txt") as req:
         return req.read().splitlines()
 
+def read_version():
+    version_file = os.path.join("vectara_agentic", "_version.py")
+    with open(version_file, "r") as vf:
+        content = vf.read()
+    return re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', content).group(1)
 
 setup(
     name="vectara_agentic",
-    version="0.1.23",
+    version=read_version(),
     author="Ofer Mendelevitch",
     author_email="ofer@vectara.com",
     description="A Python package for creating AI Assistants and AI Agents with Vectara",
@@ -25,7 +31,7 @@ setup(
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
         "Topic :: Software Development :: Libraries :: Python Modules",
     ],
-    keywords=["LLM", "NLP", "RAG", "Agentic-RAG"],
+    keywords=["LLM", "NLP", "RAG", "Agentic-RAG", "AI assistant", "AI Agent", "Vectara"],
     project_urls={
         "Documentation": "https://vectara.github.io/vectara-agentic-docs/",
     },
