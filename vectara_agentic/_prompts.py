@@ -31,7 +31,7 @@ GENERAL_INSTRUCTIONS = """
   - Use the x_load_unique_values tool to understand the unique values in each column.
     Sometimes the user may ask for a specific column value, but the actual value in the table may be different, and you will need to use the correct value.
   - Use the x_load_sample_data tool to understand the column names, and typical values in each column.
-- For tool arguments that support conditional logic (such as year='>2022'), use one of these operators: [">=", "<=", "!=", ">", "<", "="], 
+- For tool arguments that support conditional logic (such as year='>2022'), use one of these operators: [">=", "<=", "!=", ">", "<", "="],
   or a range operator, with inclusive or exclusive brackets (such as '[2021,2022]' or '[2021,2023)').
 - Do not mention table names or database names in your response.
 """

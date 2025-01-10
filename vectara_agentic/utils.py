@@ -59,7 +59,7 @@ def _get_llm_params_for_role(
             raise ValueError(
                 "OpenAI agent requested but main model provider is not OpenAI."
             )
-        
+
     return model_provider, model_name
 
 @lru_cache(maxsize=None)
@@ -85,7 +85,7 @@ def get_llm(
     config: Optional[AgentConfig] = None
 ) -> LLM:
     """
-    Get the LLM for the specified role, using the provided config 
+    Get the LLM for the specified role, using the provided config
     or a default if none is provided.
     """
     model_provider, model_name = _get_llm_params_for_role(role, config)

@@ -105,7 +105,7 @@ class Agent:
             verbose (bool, optional): Whether the agent should print its steps. Defaults to True.
             agent_progress_callback (Callable): A callback function the code calls on any agent updates.
                 update_func (Callable): old name for agent_progress_callback. Will be deprecated in future.
-            agent_config (AgentConfig, optional): The configuration of the agent. 
+            agent_config (AgentConfig, optional): The configuration of the agent.
                 Defaults to AgentConfig(), which reads from environment variables.
         """
         self.agent_config = agent_config or AgentConfig()
@@ -255,7 +255,7 @@ class Agent:
         verbose: bool = True,
         update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
         agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
-        agent_type: AgentType = None,
+        agent_config: AgentConfig = AgentConfig(),
     ) -> "Agent":
         """
         Create an agent from tools, agent type, and language model.
@@ -268,7 +268,7 @@ class Agent:
             verbose (bool, optional): Whether the agent should print its steps. Defaults to True.
             agent_progress_callback (Callable): A callback function the code calls on any agent updates.
                 update_func (Callable): old name for agent_progress_callback. Will be deprecated in future.
-            agent_type (AgentType, optional): The type of agent to be used. Defaults to None.
+            agent_config (AgentConfig, optional): The configuration of the agent.
 
         Returns:
             Agent: An instance of the Agent class.
@@ -276,7 +276,7 @@ class Agent:
         return cls(
             tools=tools, topic=topic, custom_instructions=custom_instructions,
             verbose=verbose, agent_progress_callback=agent_progress_callback,
-            update_func=update_func, agent_type=agent_type
+            update_func=update_func, agent_config=agent_config
         )
 
     @classmethod

@@ -1,13 +1,16 @@
-import os
-from dataclasses import dataclass, field, asdict
+"""
+Define the AgentConfig dataclass for the Vectara Agentic utilities.
+"""
 
+import os
+from dataclasses import dataclass, field
 from .types import ModelProvider, AgentType, ObserverType
 
 @dataclass(eq=True, frozen=True)
 class AgentConfig:
     """
     Centralized configuration for the Vectara Agentic utilities.
-    
+
     Each field can default to either a hard-coded value or an environment
     variable. For example, if you have environment variables you want to
     fall back on, you can default to them here.
@@ -54,6 +57,9 @@ class AgentConfig:
     )
 
     def to_dict(self) -> dict:
+        """
+        Convert the AgentConfig to a dictionary.
+        """
         return {
             "agent_type": self.agent_type.value,
             "main_llm_provider": self.main_llm_provider.value,
@@ -63,9 +69,12 @@ class AgentConfig:
             "observer": self.observer.value,
             "endpoint_api_key": self.endpoint_api_key
         }
-    
+
     @classmethod
     def from_dict(cls, config_dict: dict) -> "AgentConfig":
+        """
+        Create an AgentConfig from a dictionary.
+        """
         return cls(
             agent_type=AgentType(config_dict["agent_type"]),
             main_llm_provider=ModelProvider(config_dict["main_llm_provider"]),
