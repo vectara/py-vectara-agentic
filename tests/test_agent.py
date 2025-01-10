@@ -56,7 +56,7 @@ class TestAgentPackage(unittest.TestCase):
         topic = "AI topic"
         instructions = "Always do as your father tells you, if your mother agrees!"
         config = AgentConfig(
-            agent_type=AgentType.REACT, 
+            agent_type=AgentType.REACT,
             main_llm_provider=ModelProvider.ANTHROPIC,
             main_llm_model_name="claude-3-5-sonnet-20241022",
             tool_llm_provider=ModelProvider.TOGETHER,
@@ -65,9 +65,9 @@ class TestAgentPackage(unittest.TestCase):
         )
 
         agent = Agent(
-            tools=tools, 
-            topic=topic, 
-            custom_instructions=instructions, 
+            tools=tools,
+            topic=topic,
+            custom_instructions=instructions,
             agent_config=config
         )
         self.assertEqual(agent.tools, tools)
@@ -85,8 +85,6 @@ class TestAgentPackage(unittest.TestCase):
             ).replace("$", "\\$"),
             "50",
         )
-
-
 
     def test_from_corpus(self):
         agent = Agent.from_corpus(

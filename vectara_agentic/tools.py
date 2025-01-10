@@ -230,8 +230,9 @@ class VectaraToolFactory:
 
                 if value is PydanticUndefined:
                     raise ValueError(
-                        f"Value of argument {key} is undefined, and this is invalid. Please form proper arguments and try again."
-                    ) 
+                        f"Value of argument {key} is undefined, and this is invalid. "
+                        "Please form proper arguments and try again."
+                    )
 
                 # value of the arrgument
                 val_str = str(value).strip()
@@ -241,17 +242,17 @@ class VectaraToolFactory:
                     # Extract the boundary types
                     start_inclusive = val_str.startswith("[")
                     end_inclusive = val_str.endswith("]")
-                    
+
                     # Remove the boundaries and strip whitespace
                     val_str = val_str[1:-1].strip()
-                    
+
                     if "," in val_str:
                         val_str = val_str.split(",")
                         if len(val_str) != 2:
                             raise ValueError(
                                 f"Range operator requires two values for {key}: {value}"
                             )
-                        
+
                         # Validate both bounds as numeric or empty (for unbounded ranges)
                         start_val, end_val = val_str[0].strip(), val_str[1].strip()
                         if start_val and not (start_val.isdigit() or is_float(start_val)):
@@ -262,7 +263,7 @@ class VectaraToolFactory:
                             raise ValueError(
                                 f"Range operator requires numeric operands for {key}: {value}"
                             )
-                        
+
                         # Build the SQL condition
                         range_conditions = []
                         if start_val:
@@ -271,14 +272,14 @@ class VectaraToolFactory:
                         if end_val:
                             operator = "<=" if end_inclusive else "<"
                             range_conditions.append(f"{prefix}.{key} {operator} {end_val}")
-                        
+
                         # Join the range conditions with AND
                         filter_parts.append('( ' + " AND ".join(range_conditions) + ' )')
                         continue
-                    else:
-                        raise ValueError(
-                            f"Range operator requires two values for {key}: {value}"
-                        )
+
+                    raise ValueError(
+                        f"Range operator requires two values for {key}: {value}"
+                    )
 
                 # Check if value contains a known comparison operator at the start
                 matched_operator = None

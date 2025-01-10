@@ -1,7 +1,6 @@
 """
 This module contains functions to start the agent behind an API endpoint.
 """
-import os
 import logging
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security.api_key import APIKeyHeader
@@ -11,8 +10,7 @@ import uvicorn
 from .agent import Agent
 from .agent_config import AgentConfig
 
-API_KEY_NAME = "X-API-Key"
-api_key_header = APIKeyHeader(name=API_KEY_NAME)
+api_key_header = APIKeyHeader(name="X-API-Key")
 
 class ChatRequest(BaseModel):
     """
@@ -28,12 +26,12 @@ def create_app(agent: Agent, config: AgentConfig) -> FastAPI:
     app = FastAPI()
     logger = logging.getLogger("uvicorn.error")
     logging.basicConfig(level=logging.INFO)
-    API_KEY = config.endpoint_api_key
+    endpoint_api_key = config.endpoint_api_key
 
     @app.get("/chat", summary="Chat with the agent")
     async def chat(message: str, api_key: str = Depends(api_key_header)):
         logger.info(f"Received message: {message}")
-        if api_key != API_KEY:
+        if api_key != endpoint_api_key:
             logger.warning("Unauthorized access attempt")
             raise HTTPException(status_code=403, detail="Unauthorized")
 
@@ -60,5 +58,5 @@ def start_app(agent: Agent, host='0.0.0.0', port=8000):
         host (str, optional): The host address for the API. Defaults to '127.0.0.1'.
         port (int, optional): The port for the API. Defaults to 8000.
     """
-    app = create_app(agent)
+    app = create_app(agent, config=AgentConfig())
     uvicorn.run(app, host=host, port=port)

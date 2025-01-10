@@ -20,4 +20,6 @@ disable =
     too-many-locals,
     too-many-statements,
     too-many-branches,
+    too-many-positional-arguments,
+    too-many-instance-attributes,
 
