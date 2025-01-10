@@ -9,6 +9,7 @@ import os
 
 from typing import Callable, List, Dict, Any, Optional, Type
 from pydantic import BaseModel, Field
+from pydantic_core import PydanticUndefined
 
 from llama_index.core.tools import FunctionTool
 from llama_index.core.tools.function_tool import AsyncCallable
@@ -227,8 +228,59 @@ class VectaraToolFactory:
                         f'Unrecognized prefix {prefix}. Please make sure to use either "doc" or "part" for the prefix.'
                     )
 
-                # Check if value contains a known comparison operator at the start
+                if value is PydanticUndefined:
+                    raise ValueError(
+                        f"Value of argument {key} is undefined, and this is invalid. Please form proper arguments and try again."
+                    ) 
+
+                # value of the arrgument
                 val_str = str(value).strip()
+
+                # Special handling for range operator
+                if val_str.startswith(("[", "(")) and val_str.endswith(("]", ")")):
+                    # Extract the boundary types
+                    start_inclusive = val_str.startswith("[")
+                    end_inclusive = val_str.endswith("]")
+                    
+                    # Remove the boundaries and strip whitespace
+                    val_str = val_str[1:-1].strip()
+                    
+                    if "," in val_str:
+                        val_str = val_str.split(",")
+                        if len(val_str) != 2:
+                            raise ValueError(
+                                f"Range operator requires two values for {key}: {value}"
+                            )
+                        
+                        # Validate both bounds as numeric or empty (for unbounded ranges)
+                        start_val, end_val = val_str[0].strip(), val_str[1].strip()
+                        if start_val and not (start_val.isdigit() or is_float(start_val)):
+                            raise ValueError(
+                                f"Range operator requires numeric operands for {key}: {value}"
+                            )
+                        if end_val and not (end_val.isdigit() or is_float(end_val)):
+                            raise ValueError(
+                                f"Range operator requires numeric operands for {key}: {value}"
+                            )
+                        
+                        # Build the SQL condition
+                        range_conditions = []
+                        if start_val:
+                            operator = ">=" if start_inclusive else ">"
+                            range_conditions.append(f"{prefix}.{key} {operator} {start_val}")
+                        if end_val:
+                            operator = "<=" if end_inclusive else "<"
+                            range_conditions.append(f"{prefix}.{key} {operator} {end_val}")
+                        
+                        # Join the range conditions with AND
+                        filter_parts.append('( ' + " AND ".join(range_conditions) + ' )')
+                        continue
+                    else:
+                        raise ValueError(
+                            f"Range operator requires two values for {key}: {value}"
+                        )
+
+                # Check if value contains a known comparison operator at the start
                 matched_operator = None
                 for op in comparison_operators:
                     if val_str.startswith(op):
@@ -281,7 +333,15 @@ class VectaraToolFactory:
             kwargs = bound_args.arguments
 
             query = kwargs.pop("query")
-            filter_string = _build_filter_string(kwargs, tool_args_type)
+            try:
+                filter_string = _build_filter_string(kwargs, tool_args_type)
+            except ValueError as e:
+                return ToolOutput(
+                    tool_name=rag_function.__name__,
+                    content=str(e),
+                    raw_input={"args": args, "kwargs": kwargs},
+                    raw_output={"response": str(e)},
+                )
 
             vectara_query_engine = vectara.as_query_engine(
                 summary_enabled=True,
