@@ -12,6 +12,7 @@ def read_version():
         content = vf.read()
     return re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', content).group(1)
 
+
 setup(
     name="vectara_agentic",
     version=read_version(),
