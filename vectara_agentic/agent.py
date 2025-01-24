@@ -279,33 +279,57 @@ class Agent:
             update_func=update_func, agent_config=agent_config
         )
 
+
+        """
+        max_response_chars: Optional[int] = None,
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
+        frequency_penalty: Optional[float] = None,
+        presence_penalty: Optional[float] = None,
+        save_history: bool = False,
+        fcs_threshold: float = 0.0,
+        verbose: bool = False,
+        """
     @classmethod
     def from_corpus(
         cls,
         tool_name: str,
         data_description: str,
         assistant_specialty: str,
-        vectara_customer_id: str = str(os.environ.get("VECTARA_CUSTOMER_ID", "")),
-        vectara_corpus_id: str = str(os.environ.get("VECTARA_CORPUS_ID", "")),
+        vectara_corpus_key: str = str(os.environ.get("VECTARA_CORPUS_KEY", "")),
         vectara_api_key: str = str(os.environ.get("VECTARA_API_KEY", "")),
         agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
         verbose: bool = False,
         vectara_filter_fields: list[dict] = [],
+        vectara_offset: int = 0,
         vectara_lambda_val: float = 0.005,
+        vectara_semantics: str = "default",
+        vectara_custom_dimensions: Dict = {},
         vectara_reranker: str = "mmr",
         vectara_rerank_k: int = 50,
+        vectara_rerank_limit: Optional[int] = None,
+        vectara_rerank_cutoff: Optional[float] = None,
+        vectara_diversity_bias: float = 0.2,
+        vectara_rerank_chain: List[Dict] = None,
         vectara_n_sentences_before: int = 2,
         vectara_n_sentences_after: int = 2,
         vectara_summary_num_results: int = 10,
         vectara_summarizer: str = "vectara-summary-ext-24-05-sml",
+        vectara_summary_response_language: str = "eng",
+        vectara_summary_prompt_text: Optional[str] = None,
+        vectara_max_response_chars: Optional[int] = None,
+        vectara_max_tokens: Optional[int] = None,
+        vectara_temperature: Optional[float] = None,
+        vectara_frequency_penalty: Optional[float] = None,
+        vectara_presence_penalty: Optional[float] = None,
+        vectara_save_history: bool = False,
     ) -> "Agent":
         """
         Create an agent from a single Vectara corpus
 
         Args:
             tool_name (str): The name of Vectara tool used by the agent
-            vectara_customer_id (str): The Vectara customer ID.
-            vectara_corpus_id (str): The Vectara corpus ID (or comma separated list of IDs).
+            vectara_corpus_key (str): The Vectara corpus key (or comma separated list of keys).
             vectara_api_key (str): The Vectara API key.
             agent_progress_callback (Callable): A callback function the code calls on any agent updates.
             data_description (str): The description of the data.
@@ -313,21 +337,36 @@ class Agent:
             verbose (bool, optional): Whether to print verbose output.
             vectara_filter_fields (List[dict], optional): The filterable attributes
                 (each dict maps field name to Tuple[type, description]).
-            vectara_lambda_val (float, optional): The lambda value for Vectara hybrid search.
+            vectara_offset (int, optional): Number of results to skip. 
+            vectara_lambda_val (float, optional): Lambda value for Vectara hybrid search.
+            vectara_semantics: (str, optional): Indicates whether the query is intended as a query or response.
+            vectara_custom_dimensions: (Dict, optional): Custom dimensions for the query.
             vectara_reranker (str, optional): The Vectara reranker name (default "mmr")
             vectara_rerank_k (int, optional): The number of results to use with reranking.
+            vetara_rerank_limit: (int, optional): The maximum number of results to return after reranking.
+            vectara_rerank_cutoff: (float, optional): The minimum score threshold for results to include after reranking.
+            vectara_diversity_bias (float, optional): The MMR diversity bias.
+            vectara_udf_expression (str, optional): The user defined expression for reranking results.
+            vectara_rerank_chain (List[Dict], optional): A list of Vectara rerankers to be applied sequentially.
             vectara_n_sentences_before (int, optional): The number of sentences before the matching text
             vectara_n_sentences_after (int, optional): The number of sentences after the matching text.
             vectara_summary_num_results (int, optional): The number of results to use in summarization.
             vectara_summarizer (str, optional): The Vectara summarizer name.
+            vectara_summary_response_language (str, optional): The response language for the Vectara summary.
+            vectara_summary_prompt_text (str, optional): The custom prompt, using appropriate prompt variables and functions.
+            vectara_max_response_chars (int, optional): The desired maximum number of characters for the generated summary.
+            vectara_max_tokens (int, optional): The maximum number of tokens to be returned by the LLM.
+            vectara_temperature (float, optional): The sampling temperature; higher values lead to more randomness.
+            vectara_frequency_penalty (float, optional): How much to penalize repeating tokens in the response, reducing likelihood of repeating the same line.
+            vectara_presence_penalty (float, optional): How much to penalize repeating tokens in the response, increasing the diversity of topics.
+            vectara_save_history (bool, optional): Whether to save the query in history.
 
         Returns:
             Agent: An instance of the Agent class.
         """
         vec_factory = VectaraToolFactory(
             vectara_api_key=vectara_api_key,
-            vectara_customer_id=vectara_customer_id,
-            vectara_corpus_id=vectara_corpus_id,
+            vectara_corpus_key=vectara_corpus_key,
         )
         field_definitions = {}
         field_definitions["query"] = (str, Field(description="The user query"))  # type: ignore
@@ -347,11 +386,27 @@ class Agent:
             tool_args_schema=query_args,
             reranker=vectara_reranker,
             rerank_k=vectara_rerank_k,
+            rerank_limit=vectara_rerank_limit,
+            rerank_cutoff=vectara_rerank_cutoff,
+            mmr_diversity_bias=vectara_diversity_bias,
+            udf_expression=vectara_udf_expression,
+            rerank_chain=vectara_rerank_chain,
             n_sentences_before=vectara_n_sentences_before,
             n_sentences_after=vectara_n_sentences_after,
+            offset=vectara_offset,
             lambda_val=vectara_lambda_val,
+            semantics=vectara_semantics,
+            custom_dimensions=vectara_custom_dimensions,
             summary_num_results=vectara_summary_num_results,
             vectara_summarizer=vectara_summarizer,
+            summary_response_lang=vectara_summary_response_language,
+            summary_prompt_text=vectara_summary_prompt_text,
+            max_response_chars=vectara_max_response_chars,
+            max_tokens=vectara_max_tokens,
+            temperature=vectara_temperature,
+            frequency_penalty=vectara_frequency_penalty,
+            presence_penalty=vectara_presence_penalty,
+            save_history=vectara_save_history,
             include_citations=False,
         )
 
