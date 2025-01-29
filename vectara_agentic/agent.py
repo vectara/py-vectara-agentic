@@ -24,6 +24,7 @@ from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
 from llama_index.core.memory import ChatMemoryBuffer
+from llama_index.core.chat_engine.types import AgentChatResponse, StreamingAgentChatResponse
 
 from .types import AgentType, AgentStatusType, LLMRole, ToolType
 from .utils import get_llm, get_tokenizer_for_model
@@ -405,7 +406,7 @@ class Agent:
         stop_max_attempt_number=3,
         wait_fixed=2000,
     )
-    def chat(self, prompt: str) -> str:
+    def chat(self, prompt: str) -> AgentChatResponse:
         """
         Interact with the agent using a chat prompt.
 
@@ -413,7 +414,7 @@ class Agent:
             prompt (str): The chat prompt.
 
         Returns:
-            str: The response from the agent.
+            AgentChatResponse: The response from the agent.
         """
 
         try:
@@ -425,17 +426,52 @@ class Agent:
                 Please provide a well formatted final response to the query.
                 final response:
                 """
-                final_response = str(self.llm.complete(prompt))
-            else:
-                final_response = agent_response.response
+                # Override the response text with the final response and keep metadata
+                agent_response.response = str(self.llm.complete(prompt))
 
             if self.verbose:
                 print(f"Time taken: {time.time() - st}")
             if self.observability_enabled:
                 eval_fcs()
-            return final_response
+            return agent_response
         except Exception as e:
-            return f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()}), and can't respond."
+            raise ValueError(f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()}), and can't respond.")
+
+    async def astream_chat(self, prompt: str) -> StreamingAgentChatResponse:
+        """
+        Interact with the agent using a chat prompt asynchronously with streaming.
+
+        Args:
+            prompt (str): The chat prompt.
+
+        Returns:
+            StreamingAgentChatResponse: The streaming response from the agent.
+        """
+        try:
+            st = time.time()
+            agent_response = await self.agent.astream_chat(prompt)
+
+            if self.agent_type == AgentType.LATS:
+                # Create a reformatted prompt to enhance the streaming response
+                reformat_prompt = f"""
+                Given the question '{prompt}', and the agent's streaming response so far, 
+                Please provide a well formatted final response to the query:
+                """
+                final_response = await self.llm.acomplete(reformat_prompt)
+
+                # Override the response text with the final response and keep metadata
+                agent_response.response = str(final_response)
+
+            if self.verbose:
+                print(f"Time taken: {time.time() - st}")
+            if self.observability_enabled:
+                eval_fcs()
+            return agent_response
+
+        except Exception as e:
+            raise ValueError(
+                f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()}), and can't respond."
+            )
 
     # Serialization methods
 
