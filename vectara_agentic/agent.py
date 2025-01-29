@@ -8,6 +8,7 @@ import time
 import json
 import logging
 import traceback
+import asyncio
 
 import dill
 from dotenv import load_dotenv
@@ -25,12 +26,13 @@ from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
 from llama_index.core.memory import ChatMemoryBuffer
 
-from .types import AgentType, AgentStatusType, LLMRole, ToolType
+from .types import AgentType, AgentStatusType, LLMRole, ToolType, AgentResponse, AgentStreamingResponse
 from .utils import get_llm, get_tokenizer_for_model
 from ._prompts import REACT_PROMPT_TEMPLATE, GENERAL_PROMPT_TEMPLATE, GENERAL_INSTRUCTIONS
 from ._callback import AgentCallbackHandler
 from ._observability import setup_observer, eval_fcs
-from .tools import VectaraToolFactory, VectaraTool
+from .tools import VectaraToolFactory, VectaraTool, ToolsFactory
+from .tools_catalog import get_current_date
 from .agent_config import AgentConfig
 
 logger = logging.getLogger("opentelemetry.exporter.otlp.proto.http.trace_exporter")
@@ -92,6 +94,7 @@ class Agent:
         verbose: bool = True,
         update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
         agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
+        query_logging_callback: Optional[Callable[[str, str], None]] = None,
         agent_config: Optional[AgentConfig] = None,
     ) -> None:
         """
@@ -105,16 +108,18 @@ class Agent:
             verbose (bool, optional): Whether the agent should print its steps. Defaults to True.
             agent_progress_callback (Callable): A callback function the code calls on any agent updates.
                 update_func (Callable): old name for agent_progress_callback. Will be deprecated in future.
+            query_logging_callback (Callable): A callback function the code calls upon completion of a query
             agent_config (AgentConfig, optional): The configuration of the agent.
                 Defaults to AgentConfig(), which reads from environment variables.
         """
         self.agent_config = agent_config or AgentConfig()
         self.agent_type = self.agent_config.agent_type
-        self.tools = tools
+        self.tools = tools + [ToolsFactory().create_tool(get_current_date)]
         self.llm = get_llm(LLMRole.MAIN, config=self.agent_config)
         self._custom_instructions = custom_instructions
         self._topic = topic
         self.agent_progress_callback = agent_progress_callback if agent_progress_callback else update_func
+        self.query_logging_callback = query_logging_callback
 
         main_tok = get_tokenizer_for_model(role=LLMRole.MAIN)
         self.main_token_counter = TokenCountingHandler(tokenizer=main_tok) if main_tok else None
@@ -134,7 +139,7 @@ class Agent:
         if self.agent_type == AgentType.REACT:
             prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
             self.agent = ReActAgent.from_tools(
-                tools=tools,
+                tools=self.tools,
                 llm=self.llm,
                 memory=self.memory,
                 verbose=verbose,
@@ -145,7 +150,7 @@ class Agent:
         elif self.agent_type == AgentType.OPENAI:
             prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, topic, custom_instructions)
             self.agent = OpenAIAgent.from_tools(
-                tools=tools,
+                tools=self.tools,
                 llm=self.llm,
                 memory=self.memory,
                 verbose=verbose,
@@ -154,23 +159,24 @@ class Agent:
                 system_prompt=prompt,
             )
         elif self.agent_type == AgentType.LLMCOMPILER:
-            self.agent = LLMCompilerAgentWorker.from_tools(
-                tools=tools,
+            agent_worker = LLMCompilerAgentWorker.from_tools(
+                tools=self.tools,
                 llm=self.llm,
                 verbose=verbose,
                 callable_manager=callback_manager,
-            ).as_agent()
-            self.agent.agent_worker.system_prompt = _get_prompt(
-                _get_llm_compiler_prompt(self.agent.agent_worker.system_prompt, topic, custom_instructions),
+            )
+            agent_worker.system_prompt = _get_prompt(
+                _get_llm_compiler_prompt(agent_worker.system_prompt, topic, custom_instructions),
                 topic, custom_instructions
             )
-            self.agent.agent_worker.system_prompt_replan = _get_prompt(
-                _get_llm_compiler_prompt(self.agent.agent_worker.system_prompt_replan, topic, custom_instructions),
+            agent_worker.system_prompt_replan = _get_prompt(
+                _get_llm_compiler_prompt(agent_worker.system_prompt_replan, topic, custom_instructions),
                 topic, custom_instructions
             )
+            self.agent = agent_worker.as_agent()
         elif self.agent_type == AgentType.LATS:
             agent_worker = LATSAgentWorker.from_tools(
-                tools=tools,
+                tools=self.tools,
                 llm=self.llm,
                 num_expansions=3,
                 max_rollouts=-1,
@@ -255,6 +261,7 @@ class Agent:
         verbose: bool = True,
         update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
         agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
+        query_logging_callback: Optional[Callable[[str, str], None]] = None,
         agent_config: AgentConfig = AgentConfig(),
     ) -> "Agent":
         """
@@ -268,6 +275,7 @@ class Agent:
             verbose (bool, optional): Whether the agent should print its steps. Defaults to True.
             agent_progress_callback (Callable): A callback function the code calls on any agent updates.
                 update_func (Callable): old name for agent_progress_callback. Will be deprecated in future.
+            query_logging_callback (Callable): A callback function the code calls upon completion of a query
             agent_config (AgentConfig, optional): The configuration of the agent.
 
         Returns:
@@ -276,6 +284,7 @@ class Agent:
         return cls(
             tools=tools, topic=topic, custom_instructions=custom_instructions,
             verbose=verbose, agent_progress_callback=agent_progress_callback,
+            query_logging_callback=query_logging_callback,
             update_func=update_func, agent_config=agent_config
         )
 
@@ -289,6 +298,7 @@ class Agent:
         vectara_corpus_id: str = str(os.environ.get("VECTARA_CORPUS_ID", "")),
         vectara_api_key: str = str(os.environ.get("VECTARA_API_KEY", "")),
         agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
+        query_logging_callback: Optional[Callable[[str, str], None]] = None,
         verbose: bool = False,
         vectara_filter_fields: list[dict] = [],
         vectara_lambda_val: float = 0.005,
@@ -308,6 +318,7 @@ class Agent:
             vectara_corpus_id (str): The Vectara corpus ID (or comma separated list of IDs).
             vectara_api_key (str): The Vectara API key.
             agent_progress_callback (Callable): A callback function the code calls on any agent updates.
+            query_logging_callback (Callable): A callback function the code calls upon completion of a query
             data_description (str): The description of the data.
             assistant_specialty (str): The specialty of the assistant.
             verbose (bool, optional): Whether to print verbose output.
@@ -367,6 +378,7 @@ class Agent:
             custom_instructions=assistant_instructions,
             verbose=verbose,
             agent_progress_callback=agent_progress_callback,
+            query_logging_callback=query_logging_callback,
         )
 
     def report(self) -> None:
@@ -400,12 +412,23 @@ class Agent:
             "tool token count": self.tool_token_counter.total_llm_token_count if self.tool_token_counter else -1,
         }
 
-    @retry(
-        retry_on_exception=_retry_if_exception,
-        stop_max_attempt_number=3,
-        wait_fixed=2000,
-    )
-    def chat(self, prompt: str) -> str:
+    def _format_for_LATS(self, prompt, agent_response):
+        prompt = f"""
+        Given the question '{prompt}', and agent response '{agent_response.response}',
+        Please provide a well formatted final response to the query.
+        final response:
+        """
+        agent_response.response = str(self.llm.complete(prompt))
+
+    async def _aformat_for_LATS(self, prompt, agent_response):
+        prompt = f"""
+        Given the question '{prompt}', and agent response '{agent_response.response}',
+        Please provide a well formatted final response to the query.
+        final response:
+        """
+        agent_response.response = str(self.llm.acomplete(prompt))
+
+    def chat(self, prompt: str) -> AgentResponse: # type: ignore
         """
         Interact with the agent using a chat prompt.
 
@@ -413,32 +436,89 @@ class Agent:
             prompt (str): The chat prompt.
 
         Returns:
-            str: The response from the agent.
+            AgentResponse: The response from the agent.
+        """
+        return asyncio.run(self.achat(prompt))
+
+    @retry(
+        retry_on_exception=_retry_if_exception,
+        stop_max_attempt_number=3,
+        wait_fixed=2000,
+    )
+    async def achat(self, prompt: str) -> AgentResponse: # type: ignore
+        """
+        Interact with the agent using a chat prompt.
+
+        Args:
+            prompt (str): The chat prompt.
+
+        Returns:
+            AgentResponse: The response from the agent.
         """
 
         try:
             st = time.time()
-            agent_response = self.agent.chat(prompt)
+            agent_response = await self.agent.achat(prompt)
             if self.agent_type == AgentType.LATS:
-                prompt = f"""
-                Given the question '{prompt}', and agent response '{agent_response.response}',
-                Please provide a well formatted final response to the query.
-                final response:
-                """
-                final_response = str(self.llm.complete(prompt))
-            else:
-                final_response = agent_response.response
-
+                await self._aformat_for_LATS(prompt, agent_response)
             if self.verbose:
                 print(f"Time taken: {time.time() - st}")
             if self.observability_enabled:
                 eval_fcs()
-            return final_response
+            if self.query_logging_callback:
+                self.query_logging_callback(prompt, agent_response.response)
+            return agent_response
         except Exception as e:
-            return f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()}), and can't respond."
+            return AgentResponse(
+                response = f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()}), and can't respond."
+            )
 
+    def stream_chat(self, prompt: str) -> AgentStreamingResponse:    # type: ignore
+        """
+        Interact with the agent using a chat prompt with streaming.
+        Args:
+            prompt (str): The chat prompt.
+        Returns:
+            AgentStreamingResponse: The streaming response from the agent.
+        """
+        return asyncio.run(self.astream_chat(prompt))
+
+    @retry(
+        retry_on_exception=_retry_if_exception,
+        stop_max_attempt_number=3,
+        wait_fixed=2000,
+    )
+    async def astream_chat(self, prompt: str) -> AgentStreamingResponse:    # type: ignore
+        """
+        Interact with the agent using a chat prompt asynchronously with streaming.
+        Args:
+            prompt (str): The chat prompt.
+        Returns:
+            AgentStreamingResponse: The streaming response from the agent.
+        """
+        try:
+            st = time.time()
+            agent_response = await self.agent.astream_chat(prompt)
+            if self.agent_type == AgentType.LATS:
+                await self._format_for_LATS(prompt, agent_response)
+            if self.verbose:
+                print(f"Time taken: {time.time() - st}")
+            if self.observability_enabled:
+                eval_fcs()
+
+            if self.query_logging_callback:
+                final_response_str = ''.join(token for token in agent_response.response_gen())
+                self.query_logging_callback(prompt, final_response_str)
+            return agent_response
+
+        except Exception as e:
+            raise ValueError(
+                f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()}), and can't respond."
+            )
+
+    #
     # Serialization methods
-
+    #
     def dumps(self) -> str:
         """Serialize the Agent instance to a JSON string."""
         return json.dumps(self.to_dict())

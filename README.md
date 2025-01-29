@@ -32,7 +32,7 @@
 - Create a Vectara RAG tool with a single line of code.
 - Supports `ReAct`, `OpenAIAgent`, `LATS' and `LLMCompiler` agent types.
 - Includes pre-built tools for various domains (e.g., finance, legal).
-- Integrates with various LLM inference services like OpenAI, Anthropic, Gemini, GROQ, Together.AI, Cohere and Fireworks
+- Integrates with various LLM inference services like OpenAI, Anthropic, Gemini, GROQ, Together.AI, Cohere, Bedrock and Fireworks
 - Built-in support for observability with Arize Phoenix
 
 ### 📚 Example AI Assistants
@@ -49,7 +49,7 @@ Check out our example AI assistants:
 - [Vectara account](https://console.vectara.com/signup/?utm_source=github&utm_medium=code&utm_term=DevRel&utm_content=vectara-agentic&utm_campaign=github-code-DevRel-vectara-agentic)
 - A Vectara corpus with an [API key](https://docs.vectara.com/docs/api-keys)
 - [Python 3.10 or higher](https://www.python.org/downloads/)
-- OpenAI API key (or API keys for Anthropic, TOGETHER.AI, Fireworks AI, Cohere, GEMINI or GROQ, if you choose to use them)
+- OpenAI API key (or API keys for Anthropic, TOGETHER.AI, Fireworks AI, Bedrock, Cohere, GEMINI or GROQ, if you choose to use them)
 
 ###  Installation
 
@@ -173,7 +173,7 @@ mult_tool = ToolsFactory().create_tool(mult_func)
 The main way to control the behavior of `vectara-agentic` is by passing an `AgentConfig` object to your `Agent` when creating it.
 This object will include the following items:
 - `VECTARA_AGENTIC_AGENT_TYPE`: valid values are `REACT`, `LLMCOMPILER`, `LATS` or `OPENAI` (default: `OPENAI`)
-- `VECTARA_AGENTIC_MAIN_LLM_PROVIDER`: valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `GEMINI` or `FIREWORKS` (default: `OPENAI`)
+- `VECTARA_AGENTIC_MAIN_LLM_PROVIDER`: valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI` or `FIREWORKS` (default: `OPENAI`)
 - `VECTARA_AGENTIC_MAIN_MODEL_NAME`: agent model name (default depends on provider)
 - `VECTARA_AGENTIC_TOOL_LLM_PROVIDER`: tool LLM provider (default: `OPENAI`)
 - `VECTARA_AGENTIC_TOOL_MODEL_NAME`: tool model name (default depends on provider)
