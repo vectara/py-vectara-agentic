@@ -413,20 +413,20 @@ class Agent:
         }
 
     def _format_for_LATS(self, prompt, agent_response):
-        prompt = f"""
+        llm_prompt = f"""
         Given the question '{prompt}', and agent response '{agent_response.response}',
         Please provide a well formatted final response to the query.
         final response:
         """
-        agent_response.response = str(self.llm.complete(prompt))
+        agent_response.response = str(self.llm.complete(llm_prompt))
 
     async def _aformat_for_LATS(self, prompt, agent_response):
-        prompt = f"""
+        llm_prompt = f"""
         Given the question '{prompt}', and agent response '{agent_response.response}',
         Please provide a well formatted final response to the query.
         final response:
         """
-        agent_response.response = str(self.llm.acomplete(prompt))
+        agent_response.response = str(self.llm.acomplete(llm_prompt))
 
     def chat(self, prompt: str) -> AgentResponse: # type: ignore
         """
@@ -497,20 +497,24 @@ class Agent:
             AgentStreamingResponse: The streaming response from the agent.
         """
         try:
-            st = time.time()
             agent_response = await self.agent.astream_chat(prompt)
-            if self.agent_type == AgentType.LATS:
-                await self._format_for_LATS(prompt, agent_response)
-            if self.verbose:
-                print(f"Time taken: {time.time() - st}")
-            if self.observability_enabled:
-                eval_fcs()
+            original_async_response_gen = agent_response.async_response_gen
 
-            if self.query_logging_callback:
-                final_response_str = ''.join(token for token in agent_response.response_gen())
-                self.query_logging_callback(prompt, final_response_str)
+            # Wrap async_response_gen
+            async def _stream_response_wrapper():
+                async for token in original_async_response_gen():
+                    yield token  # Yield async token to keep streaming behavior
+                
+                # After streaming completes, execute additional logic
+                if self.agent_type == AgentType.LATS:
+                    self._format_for_LATS(prompt, agent_response)
+                if self.query_logging_callback:
+                    self.query_logging_callback(prompt, agent_response.response)
+                if self.observability_enabled:
+                    eval_fcs()
+
+            agent_response.async_response_gen = _stream_response_wrapper  # Override method
             return agent_response
-
         except Exception as e:
             raise ValueError(
                 f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()}), and can't respond."
