@@ -78,7 +78,7 @@ class TestAgentPackage(unittest.TestCase):
         self.assertEqual(agent.agent_config.main_llm_provider, ModelProvider.ANTHROPIC)
         self.assertEqual(agent.agent_config.tool_llm_provider, ModelProvider.TOGETHER)
 
-        # To run this test, you must have OPENAI_API_KEY in your environment
+        # To run this test, you must have ANTHROPIC_API_KEY and TOGETHER_API_KEY in your environment
         self.assertEqual(
             agent.chat(
                 "What is 5 times 10. Only give the answer, nothing else"
@@ -89,8 +89,7 @@ class TestAgentPackage(unittest.TestCase):
     def test_from_corpus(self):
         agent = Agent.from_corpus(
             tool_name="RAG Tool",
-            vectara_customer_id="4584783",
-            vectara_corpus_id="4",
+            vectara_corpus_key="corpus_key",
             vectara_api_key="api_key",
             data_description="information",
             assistant_specialty="question answering",
@@ -102,8 +101,7 @@ class TestAgentPackage(unittest.TestCase):
     def test_serialization(self):
         agent = Agent.from_corpus(
             tool_name="RAG Tool",
-            vectara_customer_id="4584783",
-            vectara_corpus_id="4",
+            vectara_corpus_key="corpus_key",
             vectara_api_key="api_key",
             data_description="information",
             assistant_specialty="question answering",

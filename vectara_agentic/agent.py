@@ -310,6 +310,7 @@ class Agent:
         vectara_rerank_limit: Optional[int] = None,
         vectara_rerank_cutoff: Optional[float] = None,
         vectara_diversity_bias: float = 0.2,
+        vectara_udf_expression: str = None,
         vectara_rerank_chain: List[Dict] = None,
         vectara_n_sentences_before: int = 2,
         vectara_n_sentences_after: int = 2,
