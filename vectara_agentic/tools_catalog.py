@@ -3,8 +3,8 @@ This module contains the tools catalog for the Vectara Agentic.
 """
 from typing import List
 from functools import lru_cache
-import requests
 from datetime import date
+import requests
 
 from pydantic import Field
 

@@ -412,7 +412,7 @@ class Agent:
             "tool token count": self.tool_token_counter.total_llm_token_count if self.tool_token_counter else -1,
         }
 
-    def _format_for_LATS(self, prompt, agent_response):
+    def _format_for_lats(self, prompt, agent_response):
         llm_prompt = f"""
         Given the question '{prompt}', and agent response '{agent_response.response}',
         Please provide a well formatted final response to the query.
@@ -420,7 +420,7 @@ class Agent:
         """
         agent_response.response = str(self.llm.complete(llm_prompt))
 
-    async def _aformat_for_LATS(self, prompt, agent_response):
+    async def _aformat_for_lats(self, prompt, agent_response):
         llm_prompt = f"""
         Given the question '{prompt}', and agent response '{agent_response.response}',
         Please provide a well formatted final response to the query.
@@ -428,7 +428,7 @@ class Agent:
         """
         agent_response.response = str(self.llm.acomplete(llm_prompt))
 
-    def chat(self, prompt: str) -> AgentResponse: # type: ignore
+    def chat(self, prompt: str) -> AgentResponse:           # type: ignore
         """
         Interact with the agent using a chat prompt.
 
@@ -445,7 +445,7 @@ class Agent:
         stop_max_attempt_number=3,
         wait_fixed=2000,
     )
-    async def achat(self, prompt: str) -> AgentResponse: # type: ignore
+    async def achat(self, prompt: str) -> AgentResponse:    # type: ignore
         """
         Interact with the agent using a chat prompt.
 
@@ -460,7 +460,7 @@ class Agent:
             st = time.time()
             agent_response = await self.agent.achat(prompt)
             if self.agent_type == AgentType.LATS:
-                await self._aformat_for_LATS(prompt, agent_response)
+                await self._aformat_for_lats(prompt, agent_response)
             if self.verbose:
                 print(f"Time taken: {time.time() - st}")
             if self.observability_enabled:
@@ -470,7 +470,10 @@ class Agent:
             return agent_response
         except Exception as e:
             return AgentResponse(
-                response = f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()}), and can't respond."
+                response = (
+                    f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()})"
+                    ", and can't respond."
+                )
             )
 
     def stream_chat(self, prompt: str) -> AgentStreamingResponse:    # type: ignore
@@ -504,10 +507,10 @@ class Agent:
             async def _stream_response_wrapper():
                 async for token in original_async_response_gen():
                     yield token  # Yield async token to keep streaming behavior
-                
+
                 # After streaming completes, execute additional logic
                 if self.agent_type == AgentType.LATS:
-                    self._format_for_LATS(prompt, agent_response)
+                    self._format_for_lats(prompt, agent_response)
                 if self.query_logging_callback:
                     self.query_logging_callback(prompt, agent_response.response)
                 if self.observability_enabled:
@@ -518,7 +521,7 @@ class Agent:
         except Exception as e:
             raise ValueError(
                 f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()}), and can't respond."
-            )
+            ) from e
 
     #
     # Serialization methods

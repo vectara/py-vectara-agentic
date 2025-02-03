@@ -56,8 +56,8 @@ class ToolType(Enum):
     QUERY = "query"
     ACTION = "action"
 
-# classes for Agent responses
 
+# classes for Agent responses
 ToolOutput = LI_ToolOutput
 AgentResponse = LI_AgentChatResponse
 AgentStreamingResponse = LI_StreamingAgentChatResponse
