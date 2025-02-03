@@ -30,7 +30,7 @@
 
 - Enables easy creation of custom AI assistants and agents.
 - Create a Vectara RAG tool with a single line of code.
-- Supports `ReAct`, `OpenAIAgent`, `LATS' and `LLMCompiler` agent types.
+- Supports `ReAct`, `OpenAIAgent`, `LATS` and `LLMCompiler` agent types.
 - Includes pre-built tools for various domains (e.g., finance, legal).
 - Integrates with various LLM inference services like OpenAI, Anthropic, Gemini, GROQ, Together.AI, Cohere, Bedrock and Fireworks
 - Built-in support for observability with Arize Phoenix
@@ -42,7 +42,7 @@ Check out our example AI assistants:
 - [Financial Assistant](https://huggingface.co/spaces/vectara/finance-chat)
 - [Justice Harvard Teaching Assistant](https://huggingface.co/spaces/vectara/Justice-Harvard)
 - [Legal Assistant](https://huggingface.co/spaces/vectara/legal-agent)
-
+- [EV Assistant](https://huggingface.co/spaces/vectara/ev-assistant)
 
 ###  Prerequisites
 
@@ -89,6 +89,10 @@ query_financial_reports_tool = vec_factory.create_rag_tool(
     tool_name="query_financial_reports",
     tool_description="Query financial reports for a company and year",
     tool_args_schema=QueryFinancialReportsArgs,
+    lambda_val=0.005,
+    summary_num_results=7, 
+
+    (additional arguments)
 )
 ```
 
@@ -126,6 +130,58 @@ response = agent.chat("What was the revenue for Apple in 2021?")
 print(response)
 ```
 
+Note that `vectara-agentic` also supports `achat()` and two streaming variants `stream_chat()` and `astream_chat()`.
+
+## Vectara RAG tools
+
+`vectara-agentic` provides two helper functions to connect with Vectara RAG
+* `create_rag_tool()` to create an agent tool that connects with a Vectara corpus for querying. 
+* `create_search_tool()` to create a tool to search a Vectara corpus and return a list of matching documents.
+
+See the documentation for the full list of arguments for `create_rag_tool()` and `create_search_tool()`, 
+to understand how to configure Vectara query performed by those tools.
+
+### Creating a Vectara RAG tool
+
+A Vectara RAG tool is often the main workhorse for any Agentic RAG application, and enables the agent to query 
+one or more Vectara RAG corpora. 
+
+The tool generated always includes the `query` argument, followed by 1 or more optional arguments used for 
+metadata filtering, defined by `tool_args_schema`.
+
+For example, in the quickstart example the schema is:
+
+```
+class QueryFinancialReportsArgs(BaseModel):
+    query: str = Field(..., description="The user query.")
+    year: int | str = Field(..., description=f"The year this query relates to. An integer between {min(years)} and {max(years)} or a string specifying a condition on the year (example: '>2020').")
+    ticker: str = Field(..., description=f"The company ticker. Must be a valid ticket symbol from the list {tickers.keys()}.")
+```
+
+The `query` is required and is always the query string.
+The other arguments are optional and will be interpreted as Vectara metadata filters.
+
+For example, in the example above, the agent may call the `query_financial_reports_tool` tool with 
+query='what is the revenue?', year=2022 and ticker='AAPL'. Subsequently the RAG tool will issue
+a Vectara RAG query with the same query, but with metadata filtering (doc.year=2022 and doc.ticker='AAPL').
+
+There are also additional cool features supported here:
+* An argument can be a condition, for example year='>2022' translates to the correct metadata 
+  filtering condition doc.year>2022
+* if `fixed_filter` is defined in the RAG tool, it provides a constant metadata filtering that is always applied.
+  For example, if fixed_filter=`doc.filing_type='10K'` then a query with query='what is the reveue', year=2022
+  and ticker='AAPL' would translate into query='what is the revenue' with metadata filtering condition of
+  "doc.year=2022 AND doc.ticker='AAPL' and doc.filing_type='10K'"
+
+Note that `tool_args_type` is an optional dictionary that indicates the level at which metadata filtering
+is applied for each argument (`doc` or `part`)
+
+### Creating a Vectara search tool
+
+The Vectara search tool allows the agent to list documents that match a query.
+This can be helpful to the agent to answer queries like "how many documents discuss the iPhone?" or other
+similar queries that require a response in terms of a list of matching documents.
+
 ## 🛠️ Agent Tools
 
 `vectara-agentic` provides a few tools out of the box:
@@ -150,10 +206,9 @@ print(response)
 - `load_unique_values`: returns the top unique values for a given column
 
 In addition, we include various other tools from LlamaIndex ToolSpecs:
-* Tavily search
-* EXA.AI
+* Tavily search and EXA.AI
 * arxiv
-* neo4j & Kuzu for Graph integration
+* neo4j & Kuzu for Graph DB integration
 * Google tools (including gmail, calendar, and search)
 * Slack
 
