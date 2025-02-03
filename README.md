@@ -20,7 +20,7 @@
 
 ## ✨ Overview
 
-`vectara-agentic` is a Python library for developing powerful AI assistants and agents using Vectara and Agentic-RAG. It leverages the LlamaIndex Agent framework, customized for use with Vectara.
+`vectara-agentic` is a Python library for developing powerful AI assistants and agents using Vectara and Agentic-RAG. It leverages the LlamaIndex Agent framework and provides helper functions to quickly create tools that connect to Vectara corpora.
 
 <p align="center">
 <img src="https://raw.githubusercontent.com/vectara/py-vectara-agentic/main/.github/assets/diagram1.png" alt="Agentic RAG diagram" width="100%" style="vertical-align: middle;">
@@ -29,7 +29,7 @@
 ###  Features
 
 - Enables easy creation of custom AI assistants and agents.
-- Create a Vectara RAG tool with a single line of code.
+- Create a Vectara RAG tool or search tool with a single line of code.
 - Supports `ReAct`, `OpenAIAgent`, `LATS` and `LLMCompiler` agent types.
 - Includes pre-built tools for various domains (e.g., finance, legal).
 - Integrates with various LLM inference services like OpenAI, Anthropic, Gemini, GROQ, Together.AI, Cohere, Bedrock and Fireworks
@@ -59,18 +59,25 @@ pip install vectara-agentic
 
 ## 🚀 Quick Start
 
-### 1. Create a Vectara RAG tool
+### 1. Initialize the Vectara tool factory
 
 ```python
 import os
 from vectara_agentic.tools import VectaraToolFactory
-from pydantic import BaseModel, Field
 
 vec_factory = VectaraToolFactory(
     vectara_api_key=os.environ['VECTARA_API_KEY'],
     vectara_customer_id=os.environ['VECTARA_CUSTOMER_ID'],
     vectara_corpus_id=os.environ['VECTARA_CORPUS_ID']
 )
+```
+
+### 2. Create a Vectara RAG Tool
+
+A RAG tool calls the full Vectara RAG pipeline to provide summarized responses to queries grounded in data.
+
+```python
+from pydantic import BaseModel, Field
 
 years = list(range(2020, 2024))
 tickers = {
@@ -91,22 +98,20 @@ query_financial_reports_tool = vec_factory.create_rag_tool(
     tool_args_schema=QueryFinancialReportsArgs,
     lambda_val=0.005,
     summary_num_results=7, 
-
-    (additional arguments)
+    # Additional arguments
 )
 ```
 
 See the [docs](https://vectara.github.io/vectara-agentic-docs/) for additional arguments to customize your Vectara RAG tool.
 
-
-### 2. Create other tools (optional)
+### 3. Create other tools (optional)
 
 In addition to RAG tools, you can generate a lot of other types of tools the agent can use. These could be mathematical tools, tools 
 that call other APIs to get more information, or any other type of tool.
 
 See [Agent Tools](#agent-tools) for more information.
 
-### 3. Create your agent
+### 4. Create your agent
 
 ```python
 from vectara_agentic import Agent
@@ -128,7 +133,7 @@ agent = Agent(
 
 See the [docs](https://vectara.github.io/vectara-agentic-docs/) for additional arguments, including `agent_progress_callback` and `query_logging_callback`.
 
-### 4. Run your agent
+### 5. Run your agent
 
 ```python
 response = agent.chat("What was the revenue for Apple in 2021?")
@@ -137,7 +142,7 @@ print(response)
 
 Note that `vectara-agentic` also supports `achat()` and two streaming variants `stream_chat()` and `astream_chat()`.
 
-## Vectara RAG tools
+## 🧰 Vectara tools
 
 `vectara-agentic` provides two helper functions to connect with Vectara RAG
 * `create_rag_tool()` to create an agent tool that connects with a Vectara corpus for querying. 
@@ -187,7 +192,7 @@ The Vectara search tool allows the agent to list documents that match a query.
 This can be helpful to the agent to answer queries like "how many documents discuss the iPhone?" or other
 similar queries that require a response in terms of a list of matching documents.
 
-## 🛠️ Agent Tools
+## 🛠️ Agent Tools at a Glance
 
 `vectara-agentic` provides a few tools out of the box:
 1. **Standard tools**: 
