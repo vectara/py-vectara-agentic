@@ -417,6 +417,7 @@ class VectaraToolFactory:
         tool_args_type: Dict[str, str] = {},
         fixed_filter: str = "",
         vectara_summarizer: str = "vectara-summary-ext-24-05-sml",
+        vectara_prompt_text: str = None,
         summary_num_results: int = 5,
         summary_response_lang: str = "eng",
         n_sentences_before: int = 2,
@@ -441,6 +442,7 @@ class VectaraToolFactory:
             tool_args_type (Dict[str, str], optional): The type of each argument (doc or part).
             fixed_filter (str, optional): A fixed Vectara filter condition to apply to all queries.
             vectara_summarizer (str, optional): The Vectara summarizer to use.
+            vectara_prompt_text (str, optional): The prompt text for the Vectara summarizer.
             summary_num_results (int, optional): The number of summary results.
             summary_response_lang (str, optional): The response language for the summary.
             n_sentences_before (int, optional): Number of sentences before the summary.
@@ -499,6 +501,7 @@ class VectaraToolFactory:
                 summary_num_results=summary_num_results,
                 summary_response_lang=summary_response_lang,
                 summary_prompt_name=vectara_summarizer,
+                prompt_text=vectara_prompt_text,
                 reranker=reranker,
                 rerank_k=rerank_k if rerank_k * self.num_corpora <= 100 else int(100 / self.num_corpora),
                 mmr_diversity_bias=mmr_diversity_bias,

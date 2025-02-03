@@ -96,6 +96,9 @@ query_financial_reports_tool = vec_factory.create_rag_tool(
 )
 ```
 
+See the [docs](https://vectara.github.io/vectara-agentic-docs/) for additional arguments to customize your Vectara RAG tool.
+
+
 ### 2. Create other tools (optional)
 
 In addition to RAG tools, you can generate a lot of other types of tools the agent can use. These could be mathematical tools, tools 
@@ -122,6 +125,8 @@ agent = Agent(
     """
 )
 ```
+
+See the [docs](https://vectara.github.io/vectara-agentic-docs/) for additional arguments, including `agent_progress_callback` and `query_logging_callback`.
 
 ### 4. Run your agent
 
