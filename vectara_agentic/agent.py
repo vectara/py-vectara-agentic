@@ -412,14 +412,6 @@ class Agent:
             "tool token count": self.tool_token_counter.total_llm_token_count if self.tool_token_counter else -1,
         }
 
-    def _format_for_lats(self, prompt, agent_response):
-        llm_prompt = f"""
-        Given the question '{prompt}', and agent response '{agent_response.response}',
-        Please provide a well formatted final response to the query.
-        final response:
-        """
-        agent_response.response = str(self.llm.complete(llm_prompt))
-
     async def _aformat_for_lats(self, prompt, agent_response):
         llm_prompt = f"""
         Given the question '{prompt}', and agent response '{agent_response.response}',
@@ -510,7 +502,7 @@ class Agent:
 
                 # After streaming completes, execute additional logic
                 if self.agent_type == AgentType.LATS:
-                    self._format_for_lats(prompt, agent_response)
+                    await self._aformat_for_lats(prompt, agent_response)
                 if self.query_logging_callback:
                     self.query_logging_callback(prompt, agent_response.response)
                 if self.observability_enabled:
