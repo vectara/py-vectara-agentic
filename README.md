@@ -136,11 +136,15 @@ See the [docs](https://vectara.github.io/vectara-agentic-docs/) for additional a
 ### 5. Run your agent
 
 ```python
-response = agent.chat("What was the revenue for Apple in 2021?")
-print(response)
+res = agent.chat("What was the revenue for Apple in 2021?")
+print(res.response)
 ```
 
-Note that `vectara-agentic` also supports `achat()` and two streaming variants `stream_chat()` and `astream_chat()`.
+Note that:
+1. `vectara-agentic` also supports `achat()` and two streaming variants `stream_chat()` and `astream_chat()`.
+2. The response types from `chat()` and `achat()` are of type `AgentResponse`. If you just need the actual string
+   response it's available as the `response` variable, or just use `str()`. For advanced use-cases you can look 
+   at other `AgentResponse` variables [such as `sources`](https://github.com/run-llama/llama_index/blob/659f9faaafbecebb6e6c65f42143c0bf19274a37/llama-index-core/llama_index/core/chat_engine/types.py#L53).
 
 ## 🧰 Vectara tools
 
