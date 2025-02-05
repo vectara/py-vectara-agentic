@@ -25,7 +25,7 @@ exa-py==1.8.5
 yahoo-finance==1.4.0
 openinference-instrumentation-llama-index==3.1.4
 opentelemetry-proto==1.26.0
-arize-phoenix==5.7.0
+arize-phoenix==7.11.0
 arize-phoenix-otel==0.6.1
 protobuf==4.25.5
 tokenizers>=0.20
