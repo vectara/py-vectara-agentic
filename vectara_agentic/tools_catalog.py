@@ -3,8 +3,10 @@ This module contains the tools catalog for the Vectara Agentic.
 """
 from typing import List
 from functools import lru_cache
-from pydantic import Field
+from datetime import date
 import requests
+
+from pydantic import Field
 
 from .types import LLMRole
 from .utils import get_llm
@@ -19,6 +21,11 @@ get_headers = {
     "Connection": "keep-alive",
 }
 
+def get_current_date() -> str:
+    """
+    Returns: the current date.
+    """
+    return date.today().strftime("%A, %B %d, %Y")
 
 #
 # Standard Tools

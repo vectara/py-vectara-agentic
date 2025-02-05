@@ -31,7 +31,7 @@ class AgentConfig:
     )
 
     main_llm_model_name: str = field(
-        default_factory=lambda: os.getenv("VECTARA_AGENTIC_MAIN_LLM_MODEL_NAME", "")
+        default_factory=lambda: os.getenv("VECTARA_AGENTIC_MAIN_MODEL_NAME", "")
     )
 
     # Tool LLM provider & model name
@@ -41,7 +41,7 @@ class AgentConfig:
         )
     )
     tool_llm_model_name: str = field(
-        default_factory=lambda: os.getenv("VECTARA_AGENTIC_TOOL_LLM_MODEL_NAME", "")
+        default_factory=lambda: os.getenv("VECTARA_AGENTIC_TOOL_MODEL_NAME", "")
     )
 
     # Observer

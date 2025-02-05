@@ -126,6 +126,122 @@ class VectaraTool(FunctionTool):
                 break
         return is_equal
 
+def _build_filter_string(kwargs: Dict[str, Any], tool_args_type: Dict[str, str], fixed_filter: str) -> str:
+    """
+    Build filter string for Vectara from kwargs
+    """
+    filter_parts = []
+    comparison_operators = [">=", "<=", "!=", ">", "<", "="]
+    numeric_only_ops = {">", "<", ">=", "<="}
+
+    for key, value in kwargs.items():
+        if value is None or value == "":
+            continue
+
+        # Determine the prefix for the key. Valid values are "doc" or "part"
+        # default to 'doc' if not specified
+        prefix = tool_args_type.get(key, "doc")
+
+        if prefix not in ["doc", "part"]:
+            raise ValueError(
+                f'Unrecognized prefix {prefix}. Please make sure to use either "doc" or "part" for the prefix.'
+            )
+
+        if value is PydanticUndefined:
+            raise ValueError(
+                f"Value of argument {key} is undefined, and this is invalid. "
+                "Please form proper arguments and try again."
+            )
+
+        # value of the argument
+        val_str = str(value).strip()
+
+        # Special handling for range operator
+        if val_str.startswith(("[", "(")) and val_str.endswith(("]", ")")):
+            # Extract the boundary types
+            start_inclusive = val_str.startswith("[")
+            end_inclusive = val_str.endswith("]")
+
+            # Remove the boundaries and strip whitespace
+            val_str = val_str[1:-1].strip()
+
+            if "," in val_str:
+                val_str = val_str.split(",")
+                if len(val_str) != 2:
+                    raise ValueError(
+                        f"Range operator requires two values for {key}: {value}"
+                    )
+
+                # Validate both bounds as numeric or empty (for unbounded ranges)
+                start_val, end_val = val_str[0].strip(), val_str[1].strip()
+                if start_val and not (start_val.isdigit() or is_float(start_val)):
+                    raise ValueError(
+                        f"Range operator requires numeric operands for {key}: {value}"
+                    )
+                if end_val and not (end_val.isdigit() or is_float(end_val)):
+                    raise ValueError(
+                        f"Range operator requires numeric operands for {key}: {value}"
+                    )
+
+                # Build the SQL condition
+                range_conditions = []
+                if start_val:
+                    operator = ">=" if start_inclusive else ">"
+                    range_conditions.append(f"{prefix}.{key} {operator} {start_val}")
+                if end_val:
+                    operator = "<=" if end_inclusive else "<"
+                    range_conditions.append(f"{prefix}.{key} {operator} {end_val}")
+
+                # Join the range conditions with AND
+                filter_parts.append('( ' + " AND ".join(range_conditions) + ' )')
+                continue
+
+            raise ValueError(
+                f"Range operator requires two values for {key}: {value}"
+            )
+
+        # Check if value contains a known comparison operator at the start
+        matched_operator = None
+        for op in comparison_operators:
+            if val_str.startswith(op):
+                matched_operator = op
+                break
+
+        # Break down operator from value
+        # e.g. val_str = ">2022" --> operator = ">", rhs = "2022"
+        if matched_operator:
+            rhs = val_str[len(matched_operator):].strip()
+
+            if matched_operator in numeric_only_ops:
+                # Must be numeric
+                if not (rhs.isdigit() or is_float(rhs)):
+                    raise ValueError(
+                        f"Operator {matched_operator} requires a numeric operand for {key}: {val_str}"
+                    )
+                filter_parts.append(f"{prefix}.{key}{matched_operator}{rhs}")
+            else:
+                # = and != operators can be numeric or string
+                if rhs.isdigit() or is_float(rhs):
+                    filter_parts.append(f"{prefix}.{key}{matched_operator}{rhs}")
+                elif rhs.lower() in ["true", "false"]:
+                    filter_parts.append(f"{prefix}.{key}{matched_operator}{rhs.lower()}")
+                else:
+                    # For string operands, wrap them in quotes
+                    filter_parts.append(f"{prefix}.{key}{matched_operator}'{rhs}'")
+        else:
+            if val_str.isdigit() or is_float(val_str):
+                filter_parts.append(f"{prefix}.{key}={val_str}")
+            elif val_str.lower() in ["true", "false"]:
+                # This is to handle boolean values.
+                # This is not complete solution - the best solution would be to test if the field is boolean
+                # That can be done after we move to APIv2
+                filter_parts.append(f"{prefix}.{key}={val_str.lower()}")
+            else:
+                filter_parts.append(f"{prefix}.{key}='{val_str}'")
+
+    filter_str = " AND ".join(filter_parts)
+    return f"({fixed_filter}) AND ({filter_str})" if fixed_filter else filter_str
+
 class VectaraToolFactory:
     """
     A factory class for creating Vectara RAG tools.
@@ -149,13 +265,159 @@ class VectaraToolFactory:
         self.vectara_api_key = vectara_api_key
         self.num_corpora = len(vectara_corpus_id.split(","))
 
+    def create_search_tool(
+        self,
+        tool_name: str,
+        tool_description: str,
+        tool_args_schema: type[BaseModel],
+        tool_args_type: Dict[str, str] = {},
+        fixed_filter: str = "",
+        lambda_val: float = 0.005,
+        reranker: str = "mmr",
+        rerank_k: int = 50,
+        mmr_diversity_bias: float = 0.2,
+        udf_expression: str = None,
+        rerank_chain: List[Dict] = None,
+        verbose: bool = False,
+    ) -> VectaraTool:
+        """
+        Creates a Vectara search/retrieval tool
+
+        Args:
+            tool_name (str): The name of the tool.
+            tool_description (str): The description of the tool.
+            tool_args_schema (BaseModel): The schema for the tool arguments.
+            tool_args_type (Dict[str, str], optional): The type of each argument (doc or part).
+            fixed_filter (str, optional): A fixed Vectara filter condition to apply to all queries.
+            lambda_val (float, optional): Lambda value for the Vectara query.
+            reranker (str, optional): The reranker mode.
+            rerank_k (int, optional): Number of top-k documents for reranking.
+            mmr_diversity_bias (float, optional): MMR diversity bias.
+            udf_expression (str, optional): the user defined expression for reranking results.
+            rerank_chain (List[Dict], optional): A list of rerankers to be applied sequentially.
+                Each dictionary should specify the "type" of reranker (mmr, slingshot, udf)
+                and any other parameters (e.g. "limit" or "cutoff" for any type,
+                "diversity_bias" for mmr, and "user_function" for udf).
+                If using slingshot/multilingual_reranker_v1, it must be first in the list.
+            verbose (bool, optional): Whether to print verbose output.
+
+        Returns:
+            VectaraTool: A VectaraTool object.
+        """
+
+        vectara = VectaraIndex(
+            vectara_api_key=self.vectara_api_key,
+            vectara_customer_id=self.vectara_customer_id,
+            vectara_corpus_id=self.vectara_corpus_id,
+            x_source_str="vectara-agentic",
+        )
+
+        # Dynamically generate the search function
+        def search_function(*args, **kwargs) -> ToolOutput:
+            """
+            Dynamically generated function for semantic search Vectara.
+            """
+            # Convert args to kwargs using the function signature
+            sig = inspect.signature(search_function)
+            bound_args = sig.bind_partial(*args, **kwargs)
+            bound_args.apply_defaults()
+            kwargs = bound_args.arguments
+
+            query = kwargs.pop("query")
+            top_k = kwargs.pop("top_k", 10)
+            try:
+                filter_string = _build_filter_string(kwargs, tool_args_type, fixed_filter)
+            except ValueError as e:
+                return ToolOutput(
+                    tool_name=search_function.__name__,
+                    content=str(e),
+                    raw_input={"args": args, "kwargs": kwargs},
+                    raw_output={"response": str(e)},
+                )
+
+            vectara_retriever = vectara.as_retriever(
+                summary_enabled=False,
+                similarity_top_k=top_k,
+                reranker=reranker,
+                rerank_k=rerank_k if rerank_k * self.num_corpora <= 100 else int(100 / self.num_corpora),
+                mmr_diversity_bias=mmr_diversity_bias,
+                udf_expression=udf_expression,
+                rerank_chain=rerank_chain,
+                lambda_val=lambda_val,
+                filter=filter_string,
+                x_source_str="vectara-agentic",
+                verbose=verbose,
+            )
+            response = vectara_retriever.retrieve(query)
+
+            if len(response) == 0:
+                msg = "Vectara Tool failed to retreive any results for the query."
+                return ToolOutput(
+                    tool_name=search_function.__name__,
+                    content=msg,
+                    raw_input={"args": args, "kwargs": kwargs},
+                    raw_output={"response": msg},
+                )
+            tool_output = "Matching documents:\n"
+            unique_ids = set()
+            for doc in response:
+                if doc.id_ in unique_ids:
+                    continue
+                unique_ids.add(doc.id_)
+                tool_output += f"document '{doc.id_}' metadata: {doc.metadata}\n"
+            out = ToolOutput(
+                tool_name=search_function.__name__,
+                content=tool_output,
+                raw_input={"args": args, "kwargs": kwargs},
+                raw_output=response,
+            )
+            return out
+
+        fields = tool_args_schema.model_fields
+        params = [
+            inspect.Parameter(
+                name=field_name,
+                kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                default=field_info.default,
+                annotation=field_info,
+            )
+            for field_name, field_info in fields.items()
+        ]
+
+        # Create a new signature using the extracted parameters
+        sig = inspect.Signature(params)
+        search_function.__signature__ = sig
+        search_function.__annotations__["return"] = dict[str, Any]
+        search_function.__name__ = "_" + re.sub(r"[^A-Za-z0-9_]", "_", tool_name)
+
+        # Create the tool function signature string
+        fields = []
+        for name, field in tool_args_schema.__fields__.items():
+            annotation = field.annotation
+            type_name = annotation.__name__ if hasattr(annotation, '__name__') else str(annotation)
+            fields.append(f"{name}: {type_name}")
+        args_str = ", ".join(fields)
+        function_str = f"{tool_name}({args_str}) -> str"
+
+        # Create the tool
+        tool = VectaraTool.from_defaults(
+            fn=search_function,
+            name=tool_name,
+            description=function_str + ". " + tool_description,
+            fn_schema=tool_args_schema,
+            tool_type=ToolType.QUERY,
+        )
+        return tool
+
     def create_rag_tool(
         self,
         tool_name: str,
         tool_description: str,
         tool_args_schema: type[BaseModel],
         tool_args_type: Dict[str, str] = {},
+        fixed_filter: str = "",
         vectara_summarizer: str = "vectara-summary-ext-24-05-sml",
+        vectara_prompt_text: str = None,
         summary_num_results: int = 5,
         summary_response_lang: str = "eng",
         n_sentences_before: int = 2,
@@ -178,7 +440,9 @@ class VectaraToolFactory:
             tool_description (str): The description of the tool.
             tool_args_schema (BaseModel): The schema for the tool arguments.
             tool_args_type (Dict[str, str], optional): The type of each argument (doc or part).
+            fixed_filter (str, optional): A fixed Vectara filter condition to apply to all queries.
             vectara_summarizer (str, optional): The Vectara summarizer to use.
+            vectara_prompt_text (str, optional): The prompt text for the Vectara summarizer.
             summary_num_results (int, optional): The number of summary results.
             summary_response_lang (str, optional): The response language for the summary.
             n_sentences_before (int, optional): Number of sentences before the summary.
@@ -210,118 +474,6 @@ class VectaraToolFactory:
             x_source_str="vectara-agentic",
         )
 
-        def _build_filter_string(kwargs: Dict[str, Any], tool_args_type: Dict[str, str]) -> str:
-            filter_parts = []
-            comparison_operators = [">=", "<=", "!=", ">", "<", "="]
-            numeric_only_ops = {">", "<", ">=", "<="}
-
-            for key, value in kwargs.items():
-                if value is None or value == "":
-                    continue
-
-                # Determine the prefix for the key. Valid values are "doc" or "part"
-                # default to 'doc' if not specified
-                prefix = tool_args_type.get(key, "doc")
-
-                if prefix not in ["doc", "part"]:
-                    raise ValueError(
-                        f'Unrecognized prefix {prefix}. Please make sure to use either "doc" or "part" for the prefix.'
-                    )
-
-                if value is PydanticUndefined:
-                    raise ValueError(
-                        f"Value of argument {key} is undefined, and this is invalid. "
-                        "Please form proper arguments and try again."
-                    )
-
-                # value of the arrgument
-                val_str = str(value).strip()
-
-                # Special handling for range operator
-                if val_str.startswith(("[", "(")) and val_str.endswith(("]", ")")):
-                    # Extract the boundary types
-                    start_inclusive = val_str.startswith("[")
-                    end_inclusive = val_str.endswith("]")
-
-                    # Remove the boundaries and strip whitespace
-                    val_str = val_str[1:-1].strip()
-
-                    if "," in val_str:
-                        val_str = val_str.split(",")
-                        if len(val_str) != 2:
-                            raise ValueError(
-                                f"Range operator requires two values for {key}: {value}"
-                            )
-
-                        # Validate both bounds as numeric or empty (for unbounded ranges)
-                        start_val, end_val = val_str[0].strip(), val_str[1].strip()
-                        if start_val and not (start_val.isdigit() or is_float(start_val)):
-                            raise ValueError(
-                                f"Range operator requires numeric operands for {key}: {value}"
-                            )
-                        if end_val and not (end_val.isdigit() or is_float(end_val)):
-                            raise ValueError(
-                                f"Range operator requires numeric operands for {key}: {value}"
-                            )
-
-                        # Build the SQL condition
-                        range_conditions = []
-                        if start_val:
-                            operator = ">=" if start_inclusive else ">"
-                            range_conditions.append(f"{prefix}.{key} {operator} {start_val}")
-                        if end_val:
-                            operator = "<=" if end_inclusive else "<"
-                            range_conditions.append(f"{prefix}.{key} {operator} {end_val}")
-
-                        # Join the range conditions with AND
-                        filter_parts.append('( ' + " AND ".join(range_conditions) + ' )')
-                        continue
-
-                    raise ValueError(
-                        f"Range operator requires two values for {key}: {value}"
-                    )
-
-                # Check if value contains a known comparison operator at the start
-                matched_operator = None
-                for op in comparison_operators:
-                    if val_str.startswith(op):
-                        matched_operator = op
-                        break
-
-                # Break down operator from value
-                # e.g. val_str = ">2022" --> operator = ">", rhs = "2022"
-                if matched_operator:
-                    rhs = val_str[len(matched_operator):].strip()
-
-                    if matched_operator in numeric_only_ops:
-                        # Must be numeric
-                        if not (rhs.isdigit() or is_float(rhs)):
-                            raise ValueError(
-                                f"Operator {matched_operator} requires a numeric operand for {key}: {val_str}"
-                            )
-                        filter_parts.append(f"{prefix}.{key}{matched_operator}{rhs}")
-                    else:
-                        # = and != operators can be numeric or string
-                        if rhs.isdigit() or is_float(rhs):
-                            filter_parts.append(f"{prefix}.{key}{matched_operator}{rhs}")
-                        elif rhs.lower() in ["true", "false"]:
-                            filter_parts.append(f"{prefix}.{key}{matched_operator}{rhs.lower()}")
-                        else:
-                            # For string operands, wrap them in quotes
-                            filter_parts.append(f"{prefix}.{key}{matched_operator}'{rhs}'")
-                else:
-                    if val_str.isdigit() or is_float(val_str):
-                        filter_parts.append(f"{prefix}.{key}={val_str}")
-                    elif val_str.lower() in ["true", "false"]:
-                        # This is to handle boolean values.
-                        # This is not complete solution - the best solution would be to test if the field is boolean
-                        # That can be done after we move to APIv2
-                        filter_parts.append(f"{prefix}.{key}={val_str.lower()}")
-                    else:
-                        filter_parts.append(f"{prefix}.{key}='{val_str}'")
-
-            return " AND ".join(filter_parts)
-
         # Dynamically generate the RAG function
         def rag_function(*args, **kwargs) -> ToolOutput:
             """
@@ -335,7 +487,7 @@ class VectaraToolFactory:
 
             query = kwargs.pop("query")
             try:
-                filter_string = _build_filter_string(kwargs, tool_args_type)
+                filter_string = _build_filter_string(kwargs, tool_args_type, fixed_filter)
             except ValueError as e:
                 return ToolOutput(
                     tool_name=rag_function.__name__,
@@ -349,6 +501,7 @@ class VectaraToolFactory:
                 summary_num_results=summary_num_results,
                 summary_response_lang=summary_response_lang,
                 summary_prompt_name=vectara_summarizer,
+                prompt_text=vectara_prompt_text,
                 reranker=reranker,
                 rerank_k=rerank_k if rerank_k * self.num_corpora <= 100 else int(100 / self.num_corpora),
                 mmr_diversity_bias=mmr_diversity_bias,

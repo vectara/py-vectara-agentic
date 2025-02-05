@@ -20,6 +20,7 @@ provider_to_default_model_name = {
     ModelProvider.TOGETHER: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
     ModelProvider.GROQ: "llama-3.3-70b-versatile",
     ModelProvider.FIREWORKS: "accounts/fireworks/models/firefunction-v2",
+    ModelProvider.BEDROCK: "anthropic.claude-3-5-sonnet-20241022-v2:0",
     ModelProvider.COHERE: "command-r-plus",
     ModelProvider.GEMINI: "models/gemini-1.5-flash",
 }
@@ -105,6 +106,9 @@ def get_llm(
     elif model_provider == ModelProvider.FIREWORKS:
         from llama_index.llms.fireworks import Fireworks
         llm = Fireworks(model=model_name, temperature=0)
+    elif model_provider == ModelProvider.BEDROCK:
+        from llama_index.llms.bedrock import Bedrock
+        llm = Bedrock(model=model_name, temperature=0)
     elif model_provider == ModelProvider.COHERE:
         from llama_index.llms.cohere import Cohere
         llm = Cohere(model=model_name, temperature=0)
