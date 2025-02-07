@@ -726,8 +726,7 @@ class ToolsFactory:
             Critique the legal document.
             """
             tc = ToolsCatalog(self.agent_config)
-            critique_text = tc.critique_text(self.agent_config)
-            return critique_text(
+            return tc.critique_text(
                 text,
                 role="judge",
                 point_of_view="""

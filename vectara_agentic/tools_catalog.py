@@ -2,11 +2,12 @@
 This module contains the tools catalog for the Vectara Agentic.
 """
 from typing import List
-from functools import lru_cache, wraps
 from datetime import date
 
 from inspect import signature
 import requests
+
+from pydantic import Field
 
 from .types import LLMRole
 from .agent_config import AgentConfig
@@ -41,11 +42,32 @@ def remove_self_from_signature(func):
     return func
 
 class ToolsCatalog:
+    """
+    A curated set of tools for vectara-agentic
+    """
     def __init__(self, agent_config: AgentConfig):
         self.agent_config = agent_config
 
     @remove_self_from_signature
-    def summarize_text(self, text: str, expertise: str) -> str:
+    def summarize_text(
+        self,
+        text: str = Field(description="the original text."),
+        expertise: str = Field(
+            description="the expertise to apply to the summarization.",
+        ),
+    ) -> str:
+        """
+        This is a helper tool.
+        Use this tool to summarize text using a given expertise
+        with no more than summary_max_length characters.
+
+        Args:
+            text (str): The original text.
+            expertise (str): The expertise to apply to the summarization.
+
+        Returns:
+            str: The summarized text.
+        """
         if not isinstance(expertise, str):
             return "Please provide a valid string for expertise."
         if not isinstance(text, str):
@@ -61,7 +83,23 @@ class ToolsCatalog:
         return response.text
 
     @remove_self_from_signature
-    def rephrase_text(self, text: str, instructions: str) -> str:
+    def rephrase_text(
+        self,
+        text: str = Field(description="the original text."),
+        instructions: str = Field(description="the specific instructions for how to rephrase the text."),
+    ) -> str:
+        """
+        This is a helper tool.
+        Use this tool to rephrase the text according to the provided instructions.
+        For example, instructions could be "as a 5 year old would say it."
+
+        Args:
+            text (str): The original text.
+            instructions (str): The specific instructions for how to rephrase the text.
+
+        Returns:
+            str: The rephrased text.
+        """
         prompt = (
             f"Rephrase the provided text according to the following instructions: {instructions}.\n"
             "If the input is Markdown, keep the output in Markdown as well.\n"
@@ -72,7 +110,24 @@ class ToolsCatalog:
         return response.text
 
     @remove_self_from_signature
-    def critique_text(self, text: str, role: str, point_of_view: str) -> str:
+    def critique_text(
+        self,
+        text: str = Field(description="the original text."),
+        role: str = Field(default=None, description="the role of the person providing critique."),
+        point_of_view: str = Field(default=None, description="the point of view with which to provide critique."),
+    ) -> str:
+        """
+        This is a helper tool.
+        Critique the text from the specified point of view.
+
+        Args:
+            text (str): The original text.
+            role (str): The role of the person providing critique.
+            point_of_view (str): The point of view with which to provide critique.
+
+        Returns:
+            str: The critique of the text.
+        """
         if role:
             prompt = f"As a {role}, critique the provided text from the point of view of {point_of_view}."
         else:
