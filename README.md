@@ -198,11 +198,22 @@ similar queries that require a response in terms of a list of matching documents
 
 ## 🛠️ Agent Tools at a Glance
 
-`vectara-agentic` provides a few tools out of the box:
+`vectara-agentic` provides a few tools out of the box (see ToolsCatalog for details):
+
 1. **Standard tools**: 
 - `summarize_text`: a tool to summarize a long text into a shorter summary (uses LLM)
 - `rephrase_text`: a tool to rephrase a given text, given a set of rephrase instructions (uses LLM)
-  
+These tools use an LLM and so would use the `Tools` LLM specified in your `AgentConfig`.
+To instantiate them:
+
+```python
+from vectara_agentic.tools_catalog import ToolsCatalog
+summarize_text = ToolsCatalog(agent_config).summarize_text
+```
+
+This ensures the summarize_text tool is configured with the proper LLM provider and model as 
+specified in the Agent configuration.
+
 2. **Legal tools**: a set of tools for the legal vertical, such as:
 - `summarize_legal_text`: summarize legal text with a certain point of view
 - `critique_as_judge`: critique a legal text as a judge, providing their perspective
