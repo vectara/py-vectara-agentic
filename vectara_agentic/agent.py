@@ -397,8 +397,8 @@ class Agent:
                 print(f"- {tool.metadata.name}")
             else:
                 print("- tool without metadata")
-        print(f"Agent LLM = {get_llm(LLMRole.MAIN).metadata.model_name}")
-        print(f"Tool LLM = {get_llm(LLMRole.TOOL).metadata.model_name}")
+        print(f"Agent LLM = {get_llm(LLMRole.MAIN, config=self.agent_config).metadata.model_name}")
+        print(f"Tool LLM = {get_llm(LLMRole.TOOL, config=self.agent_config).metadata.model_name}")
 
     def token_counts(self) -> dict:
         """
