@@ -4,9 +4,9 @@ This module contains the tools catalog for the Vectara Agentic.
 from typing import List
 from functools import lru_cache, wraps
 from datetime import date
-import requests
 
-from pydantic import Field
+from inspect import signature
+import requests
 
 from .types import LLMRole
 from .agent_config import AgentConfig
@@ -28,126 +28,60 @@ def get_current_date() -> str:
     """
     return date.today().strftime("%A, %B %d, %Y")
 
-#
-# Standard Tools
-#
-@lru_cache(maxsize=None)
-def _summarize_text(
-    agent_config: AgentConfig = None,
-    text: str = Field(description="the original text."),
-    expertise: str = Field(
-        description="the expertise to apply to the summarization.",
-    ),
-) -> str:
-    """
-    This is a helper tool.
-    Use this tool to summarize text using a given expertise
-    with no more than summary_max_length characters.
 
-    Args:
-        text (str): The original text.
-        expertise (str): The expertise to apply to the summarization.
+def remove_self_from_signature(func):
+    """Decorator to remove 'self' from a method's signature for introspection."""
+    sig = signature(func)
+    params = list(sig.parameters.values())
+    # Remove the first parameter if it is named 'self'
+    if params and params[0].name == "self":
+        params = params[1:]
+    new_sig = sig.replace(parameters=params)
+    func.__signature__ = new_sig
+    return func
 
-    Returns:
-        str: The summarized text.
-    """
-    if not isinstance(expertise, str):
-        return "Please provide a valid string for expertise."
-    if not isinstance(text, str):
-        return "Please provide a valid string for text."
-    expertise = "general" if len(expertise) < 3 else expertise.lower()
-    prompt = f"As an expert in {expertise}, summarize the provided text"
-    prompt += " into a concise summary."
-    prompt += f"\noriginal text: {text}\nsummary:"
-    llm = get_llm(LLMRole.TOOL, config=agent_config)
-    response = llm.complete(prompt)
-    return response.text
+class ToolsCatalog:
+    def __init__(self, agent_config: AgentConfig):
+        self.agent_config = agent_config
 
-def make_summarize_text_tool(agent_config):
-    """
-    This function creates a tool function that summarizes text using the given expertise.
-    """
-    @wraps(_summarize_text)
-    def summarize_text(text: str, expertise: str) -> str:
-        return _summarize_text(agent_config, text, expertise)
-    return summarize_text
+    @remove_self_from_signature
+    def summarize_text(self, text: str, expertise: str) -> str:
+        if not isinstance(expertise, str):
+            return "Please provide a valid string for expertise."
+        if not isinstance(text, str):
+            return "Please provide a valid string for text."
+        expertise = "general" if len(expertise) < 3 else expertise.lower()
+        prompt = (
+            f"As an expert in {expertise}, summarize the provided text "
+            "into a concise summary.\n"
+            f"Original text: {text}\nSummary:"
+        )
+        llm = get_llm(LLMRole.TOOL, config=self.agent_config)
+        response = llm.complete(prompt)
+        return response.text
 
+    @remove_self_from_signature
+    def rephrase_text(self, text: str, instructions: str) -> str:
+        prompt = (
+            f"Rephrase the provided text according to the following instructions: {instructions}.\n"
+            "If the input is Markdown, keep the output in Markdown as well.\n"
+            f"Original text: {text}\nRephrased text:"
+        )
+        llm = get_llm(LLMRole.TOOL, config=self.agent_config)
+        response = llm.complete(prompt)
+        return response.text
 
-@lru_cache(maxsize=None)
-def _rephrase_text(
-    agent_config: AgentConfig = None,
-    text: str = Field(description="the original text."),
-    instructions: str = Field(description="the specific instructions for how to rephrase the text."),
-) -> str:
-    """
-    This is a helper tool.
-    Use this tool to rephrase the text according to the provided instructions.
-    For example, instructions could be "as a 5 year old would say it."
-
-    Args:
-        text (str): The original text.
-        instructions (str): The specific instructions for how to rephrase the text.
-
-    Returns:
-        str: The rephrased text.
-    """
-    prompt = f"""
-    Rephrase the provided text according to the following instructions: {instructions}.
-    If the input is Markdown, keep the output in Markdown as well.
-    original text: {text}
-    rephrased text:
-    """
-    llm = get_llm(LLMRole.TOOL, config=agent_config)
-    response = llm.complete(prompt)
-    return response.text
-
-def make_rephrase_text_tool(agent_config):
-    """
-    This function creates a tool function that rephrases text according to the provided instructions.
-    """
-    @wraps(_rephrase_text)
-    def rephrase_text(text: str, instructions: str) -> str:
-        return _rephrase_text(agent_config, text, instructions)
-    return rephrase_text
-
-
-@lru_cache(maxsize=None)
-def _critique_text(
-    agent_config: AgentConfig = None,
-    text: str = Field(description="the original text."),
-    role: str = Field(default=None, description="the role of the person providing critique."),
-    point_of_view: str = Field(default=None, description="the point of view with which to provide critique."),
-) -> str:
-    """
-    This is a helper tool.
-    Critique the text from the specified point of view.
-
-    Args:
-        text (str): The original text.
-        role (str): The role of the person providing critique.
-        point_of_view (str): The point of view with which to provide critique.
-
-    Returns:
-        str: The critique of the text.
-    """
-    if role:
-        prompt = f"As a {role}, critique the provided text from the point of view of {point_of_view}."
-    else:
-        prompt = f"Critique the provided text from the point of view of {point_of_view}."
-    prompt += "Structure the critique as bullet points.\n"
-    prompt += f"Original text: {text}\nCritique:"
-    llm = get_llm(LLMRole.TOOL, config=agent_config)
-    response = llm.complete(prompt)
-    return response.text
-
-def make_critique_text_tool(agent_config):
-    """
-    This function creates a tool function that critiques text from the specified point of view.
-    """
-    @wraps(_critique_text)
-    def critique_text(text: str, role: str, point_of_view: str) -> str:
-        return _critique_text(agent_config, text, role, point_of_view)
-    return critique_text
+    @remove_self_from_signature
+    def critique_text(self, text: str, role: str, point_of_view: str) -> str:
+        if role:
+            prompt = f"As a {role}, critique the provided text from the point of view of {point_of_view}."
+        else:
+            prompt = f"Critique the provided text from the point of view of {point_of_view}."
+        prompt += "\nStructure the critique as bullet points.\n"
+        prompt += f"Original text: {text}\nCritique:"
+        llm = get_llm(LLMRole.TOOL, config=self.agent_config)
+        response = llm.complete(prompt)
+        return response.text
 
 #
 # Guardrails tool: returns list of topics to avoid
