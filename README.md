@@ -276,7 +276,7 @@ The `AgentConfig` object may include the following items:
 - `agent_type`: the agent type. Valid values are `REACT`, `LLMCOMPILER`, `LATS` or `OPENAI` (default: `OPENAI`).
 - `main_llm_provider` and `tool_llm_provider`: the LLM provider for main agent and for the tools. Valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI` or `FIREWORKS` (default: `OPENAI`).
 - `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider).
-- `observer`: the observer type; valid values are (defaults to None).
+- `observer`: the observer type; should be `ARIZE_PHOENIX` or if undefined no observation framework will be used.
 - `endpoint_api_key`: a secret key if using the API endpoint option (defaults to `dev-api-key`)
 
 If any of these are not provided, `AgentConfig` first tries to read the values from the OS environment.
