@@ -19,9 +19,10 @@ from llama_index.core.tools.types import ToolMetadata, ToolOutput
 
 
 from .types import ToolType
-from .tools_catalog import summarize_text, rephrase_text, critique_text, get_bad_topics
+from .tools_catalog import make_summarize_text_tool, make_rephrase_text_tool, make_critique_text_tool, get_bad_topics
 from .db_tools import DBLoadSampleData, DBLoadUniqueValues, DBLoadData
 from .utils import is_float
+from .agent_config import AgentConfig
 
 LI_packages = {
     "yahoo_finance": ToolType.QUERY,
@@ -624,6 +625,9 @@ class ToolsFactory:
     A factory class for creating agent tools.
     """
 
+    def __init__(self, agent_config: AgentConfig = None) -> None:
+        self.agent_config = agent_config
+
     def create_tool(self, function: Callable, tool_type: ToolType = ToolType.QUERY) -> VectaraTool:
         """
         Create a tool from a function.
@@ -686,7 +690,13 @@ class ToolsFactory:
         """
         Create a list of standard tools.
         """
-        return [self.create_tool(tool) for tool in [summarize_text, rephrase_text]]
+        return [self.create_tool(tool) for tool in
+                [
+                    make_summarize_text_tool(self.agent_config),
+                    make_rephrase_text_tool(self.agent_config),
+                    make_critique_text_tool(self.agent_config)
+                ]
+               ]
 
     def guardrail_tools(self) -> List[FunctionTool]:
         """
@@ -711,6 +721,7 @@ class ToolsFactory:
             """
             Use this tool to summarize legal text with no more than summary_max_length characters.
             """
+            summarize_text = make_summarize_text_tool(self.agent_config)
             return summarize_text(text, expertise="law")
 
         def critique_as_judge(
@@ -719,6 +730,7 @@ class ToolsFactory:
             """
             Critique the legal document.
             """
+            critique_text = make_critique_text_tool(self.agent_config)
             return critique_text(
                 text,
                 role="judge",

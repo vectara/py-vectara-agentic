@@ -239,19 +239,44 @@ mult_tool = ToolsFactory().create_tool(mult_func)
 
 ## 🛠️ Configuration
 
+## Configuring Vectara-agentic
+
 The main way to control the behavior of `vectara-agentic` is by passing an `AgentConfig` object to your `Agent` when creating it.
-This object will include the following items:
-- `VECTARA_AGENTIC_AGENT_TYPE`: valid values are `REACT`, `LLMCOMPILER`, `LATS` or `OPENAI` (default: `OPENAI`)
-- `VECTARA_AGENTIC_MAIN_LLM_PROVIDER`: valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI` or `FIREWORKS` (default: `OPENAI`)
-- `VECTARA_AGENTIC_MAIN_MODEL_NAME`: agent model name (default depends on provider)
-- `VECTARA_AGENTIC_TOOL_LLM_PROVIDER`: tool LLM provider (default: `OPENAI`)
-- `VECTARA_AGENTIC_TOOL_MODEL_NAME`: tool model name (default depends on provider)
-- `VECTARA_AGENTIC_OBSERVER_TYPE`: valid values are `ARIZE_PHOENIX` or `NONE` (default: `NONE`)
-- `VECTARA_AGENTIC_API_KEY`: a secret key if using the API endpoint option (defaults to `dev-api-key`)
+For example:
+
+```python
+agent_config = AgentConfig(
+    agent_type = AgentType.REACT,
+    main_llm_provider = ModelProvider.ANTHROPIC,
+    main_llm_model_name = 'claude-3-5-sonnet-20241022',
+    tool_llm_provider = ModelProvider.TOGETHER,
+    tool_llm_model_name = 'meta-llama/Llama-3.3-70B-Instruct-Turbo'
+)
+
+agent = Agent(
+    tools=[query_financial_reports_tool],
+    topic="10-K financial reports",
+    custom_instructions="You are a helpful financial assistant in conversation with a user.",
+    agent_config=agent_config
+)
+```
+
+The `AgentConfig` object may include the following items:
+- `agent_type`: the agent type. Valid values are `REACT`, `LLMCOMPILER`, `LATS` or `OPENAI` (default: `OPENAI`).
+- `main_llm_provider` and `tool_llm_provider`: the LLM provider for main agent and for the tools. Valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI` or `FIREWORKS` (default: `OPENAI`).
+- `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider).
+- `observer`: the observer type; valid values are (defaults to None).
+- `endpoint_api_key`: a secret key if using the API endpoint option (defaults to `dev-api-key`)
 
 If any of these are not provided, `AgentConfig` first tries to read the values from the OS environment.
 
-When creating a `VectaraToolFactory`, you can pass in a `vectara_api_key`, `vectara_customer_id`, and `vectara_corpus_id` to the factory. If not passed in, it will be taken from the environment variables (`VECTARA_API_KEY`, `VECTARA_CUSTOMER_ID` and `VECTARA_CORPUS_ID`). Note that `VECTARA_CORPUS_ID` can be a single ID or a comma-separated list of IDs (if you want to query multiple corpora).
+## Configuring Vectara RAG or search tools
+
+When creating a `VectaraToolFactory`, you can pass in a `vectara_api_key`, `vectara_customer_id`, and `vectara_corpus_id` to the factory. 
+
+If not passed in, it will be taken from the environment variables (`VECTARA_API_KEY`, `VECTARA_CUSTOMER_ID` and `VECTARA_CORPUS_ID`). Note that `VECTARA_CORPUS_ID` can be a single ID or a comma-separated list of IDs (if you want to query multiple corpora).
+
+These values will be used as credentials when creating Vectara tools - in `create_rag_tool()` and `create_search_tool()`.
 
 ## ℹ️ Additional Information
 

@@ -2,13 +2,14 @@
 This module contains the tools catalog for the Vectara Agentic.
 """
 from typing import List
-from functools import lru_cache
+from functools import lru_cache, wraps
 from datetime import date
 import requests
 
 from pydantic import Field
 
 from .types import LLMRole
+from .agent_config import AgentConfig
 from .utils import get_llm
 
 req_session = requests.Session()
@@ -31,7 +32,8 @@ def get_current_date() -> str:
 # Standard Tools
 #
 @lru_cache(maxsize=None)
-def summarize_text(
+def _summarize_text(
+    agent_config: AgentConfig = None,
     text: str = Field(description="the original text."),
     expertise: str = Field(
         description="the expertise to apply to the summarization.",
@@ -57,13 +59,23 @@ def summarize_text(
     prompt = f"As an expert in {expertise}, summarize the provided text"
     prompt += " into a concise summary."
     prompt += f"\noriginal text: {text}\nsummary:"
-    llm = get_llm(LLMRole.TOOL)
+    llm = get_llm(LLMRole.TOOL, config=agent_config)
     response = llm.complete(prompt)
     return response.text
 
+def make_summarize_text_tool(agent_config):
+    """
+    This function creates a tool function that summarizes text using the given expertise.
+    """
+    @wraps(_summarize_text)
+    def summarize_text(text: str, expertise: str) -> str:
+        return _summarize_text(agent_config, text, expertise)
+    return summarize_text
+
 
 @lru_cache(maxsize=None)
-def rephrase_text(
+def _rephrase_text(
+    agent_config: AgentConfig = None,
     text: str = Field(description="the original text."),
     instructions: str = Field(description="the specific instructions for how to rephrase the text."),
 ) -> str:
@@ -85,13 +97,23 @@ def rephrase_text(
     original text: {text}
     rephrased text:
     """
-    llm = get_llm(LLMRole.TOOL)
+    llm = get_llm(LLMRole.TOOL, config=agent_config)
     response = llm.complete(prompt)
     return response.text
 
+def make_rephrase_text_tool(agent_config):
+    """
+    This function creates a tool function that rephrases text according to the provided instructions.
+    """
+    @wraps(_rephrase_text)
+    def rephrase_text(text: str, instructions: str) -> str:
+        return _rephrase_text(agent_config, text, instructions)
+    return rephrase_text
+
 
 @lru_cache(maxsize=None)
-def critique_text(
+def _critique_text(
+    agent_config: AgentConfig = None,
     text: str = Field(description="the original text."),
     role: str = Field(default=None, description="the role of the person providing critique."),
     point_of_view: str = Field(default=None, description="the point of view with which to provide critique."),
@@ -114,10 +136,18 @@ def critique_text(
         prompt = f"Critique the provided text from the point of view of {point_of_view}."
     prompt += "Structure the critique as bullet points.\n"
     prompt += f"Original text: {text}\nCritique:"
-    llm = get_llm(LLMRole.TOOL)
+    llm = get_llm(LLMRole.TOOL, config=agent_config)
     response = llm.complete(prompt)
     return response.text
 
+def make_critique_text_tool(agent_config):
+    """
+    This function creates a tool function that critiques text from the specified point of view.
+    """
+    @wraps(_critique_text)
+    def critique_text(text: str, role: str, point_of_view: str) -> str:
+        return _critique_text(agent_config, text, role, point_of_view)
+    return critique_text
 
 #
 # Guardrails tool: returns list of topics to avoid
