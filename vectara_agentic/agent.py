@@ -363,7 +363,8 @@ class Agent:
             lambda_val=vectara_lambda_val,
             summary_num_results=vectara_summary_num_results,
             vectara_summarizer=vectara_summarizer,
-            include_citations=False,
+            include_citations=True,
+            verbose=verbose,
         )
 
         assistant_instructions = f"""
