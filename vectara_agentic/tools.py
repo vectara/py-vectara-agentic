@@ -499,6 +499,7 @@ class VectaraToolFactory:
 
             vectara_query_engine = vectara.as_query_engine(
                 summary_enabled=True,
+                similarity_top_k=summary_num_results,
                 summary_num_results=summary_num_results,
                 summary_response_lang=summary_response_lang,
                 summary_prompt_name=vectara_summarizer,
