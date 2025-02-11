@@ -270,12 +270,20 @@ class VectaraToolFactory:
         tool_args_schema: type[BaseModel],
         tool_args_type: Dict[str, str] = {},
         fixed_filter: str = "",
-        lambda_val: float = 0.005,
+        lambda_val: Union[List[float], float] = 0.005,
+        semantics: Union[List[str] | str] = "default",
+        custom_dimensions: Union[List[Dict], Dict] = {},
+        offset: int = 0,
+        n_sentences_before: int = 2,
+        n_sentences_after: int = 2,
         reranker: str = "mmr",
         rerank_k: int = 50,
+        rerank_limit: Optional[int] = None,
+        rerank_cutoff: Optional[float] = None,
         mmr_diversity_bias: float = 0.2,
         udf_expression: str = None,
         rerank_chain: List[Dict] = None,
+        save_history: bool = False,
         verbose: bool = False,
     ) -> VectaraTool:
         """
@@ -287,9 +295,17 @@ class VectaraToolFactory:
             tool_args_schema (BaseModel): The schema for the tool arguments.
             tool_args_type (Dict[str, str], optional): The type of each argument (doc or part).
             fixed_filter (str, optional): A fixed Vectara filter condition to apply to all queries.
-            lambda_val (float, optional): Lambda value for the Vectara query.
+            lambda_val (Union[List[float] | float], optional): Lambda value (or list of values for each corpora) for the Vectara query.
+            semantics (Union[List[str], str], optional): Indicates whether the query is intended as a query or response.
+                Include list if using multiple corpora specifying the query type for each corpus.
+            custom_dimensions (Union[List[Dict] | Dict], optional): Custom dimensions for the query (for each corpora).
+            offset (int, optional): Number of results to skip.
+            n_sentences_before (int, optional): Number of sentences before the matching document part.
+            n_sentences_after (int, optional): Number of sentences after the matching document part.
             reranker (str, optional): The reranker mode.
             rerank_k (int, optional): Number of top-k documents for reranking.
+            rerank_limit (int, optional): Maximum number of results to return after reranking.
+            rerank_cutoff (float, optional): Minimum score threshold for results to include after reranking.
             mmr_diversity_bias (float, optional): MMR diversity bias.
             udf_expression (str, optional): the user defined expression for reranking results.
             rerank_chain (List[Dict], optional): A list of rerankers to be applied sequentially.
@@ -297,6 +313,7 @@ class VectaraToolFactory:
                 and any other parameters (e.g. "limit" or "cutoff" for any type,
                 "diversity_bias" for mmr, and "user_function" for udf).
                 If using slingshot/multilingual_reranker_v1, it must be first in the list.
+            save_history (bool, optional): Whether to save the query in history.
             verbose (bool, optional): Whether to print verbose output.
 
         Returns:
@@ -332,17 +349,25 @@ class VectaraToolFactory:
                     raw_input={"args": args, "kwargs": kwargs},
                     raw_output={"response": str(e)},
                 )
-
+            
             vectara_retriever = vectara.as_retriever(
                 summary_enabled=False,
                 similarity_top_k=top_k,
                 reranker=reranker,
                 rerank_k=rerank_k if rerank_k * self.num_corpora <= 100 else int(100 / self.num_corpora),
+                rerank_limit=rerank_limit,
+                rerank_cutoff=rerank_cutoff,
                 mmr_diversity_bias=mmr_diversity_bias,
                 udf_expression=udf_expression,
                 rerank_chain=rerank_chain,
                 lambda_val=lambda_val,
+                semantics=semantics,
+                custom_dimensions=custom_dimensions,
+                offset=offset,
                 filter=filter_string,
+                n_sentences_before=n_sentences_before,
+                n_sentences_after=n_sentences_after,
+                save_history=save_history,
                 x_source_str="vectara-agentic",
                 verbose=verbose,
             )
@@ -458,7 +483,7 @@ class VectaraToolFactory:
             summary_prompt_text (str, optional): The custom prompt, using appropriate prompt variables and functions.
             n_sentences_before (int, optional): Number of sentences before the summary.
             n_sentences_after (int, optional): Number of sentences after the summary.
-            offset (int, optional): Number of results to skip. 
+            offset (int, optional): Number of results to skip.
             lambda_val (Union[List[float] | float], optional): Lambda value (or list of values for each corpora) for the Vectara query.
             semantics (Union[List[str], str], optional): Indicates whether the query is intended as a query or response.
                 Include list if using multiple corpora specifying the query type for each corpus.
