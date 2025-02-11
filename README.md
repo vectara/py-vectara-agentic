@@ -20,7 +20,7 @@
 
 ## ✨ Overview
 
-`vectara-agentic` is a Python library for developing powerful AI assistants and agents using Vectara and Agentic-RAG. It leverages the LlamaIndex Agent framework, customized for use with Vectara.
+`vectara-agentic` is a Python library for developing powerful AI assistants and agents using Vectara and Agentic-RAG. It leverages the LlamaIndex Agent framework and provides helper functions to quickly create tools that connect to Vectara corpora.
 
 <p align="center">
 <img src="https://raw.githubusercontent.com/vectara/py-vectara-agentic/main/.github/assets/diagram1.png" alt="Agentic RAG diagram" width="100%" style="vertical-align: middle;">
@@ -29,10 +29,10 @@
 ###  Features
 
 - Enables easy creation of custom AI assistants and agents.
-- Create a Vectara RAG tool with a single line of code.
-- Supports `ReAct`, `OpenAIAgent`, `LATS' and `LLMCompiler` agent types.
+- Create a Vectara RAG tool or search tool with a single line of code.
+- Supports `ReAct`, `OpenAIAgent`, `LATS` and `LLMCompiler` agent types.
 - Includes pre-built tools for various domains (e.g., finance, legal).
-- Integrates with various LLM inference services like OpenAI, Anthropic, Gemini, GROQ, Together.AI, Cohere and Fireworks
+- Integrates with various LLM inference services like OpenAI, Anthropic, Gemini, GROQ, Together.AI, Cohere, Bedrock and Fireworks
 - Built-in support for observability with Arize Phoenix
 
 ### 📚 Example AI Assistants
@@ -42,14 +42,14 @@ Check out our example AI assistants:
 - [Financial Assistant](https://huggingface.co/spaces/vectara/finance-chat)
 - [Justice Harvard Teaching Assistant](https://huggingface.co/spaces/vectara/Justice-Harvard)
 - [Legal Assistant](https://huggingface.co/spaces/vectara/legal-agent)
-
+- [EV Assistant](https://huggingface.co/spaces/vectara/ev-assistant)
 
 ###  Prerequisites
 
 - [Vectara account](https://console.vectara.com/signup/?utm_source=github&utm_medium=code&utm_term=DevRel&utm_content=vectara-agentic&utm_campaign=github-code-DevRel-vectara-agentic)
 - A Vectara corpus with an [API key](https://docs.vectara.com/docs/api-keys)
 - [Python 3.10 or higher](https://www.python.org/downloads/)
-- OpenAI API key (or API keys for Anthropic, TOGETHER.AI, Fireworks AI, Cohere, GEMINI or GROQ, if you choose to use them)
+- OpenAI API key (or API keys for Anthropic, TOGETHER.AI, Fireworks AI, Bedrock, Cohere, GEMINI or GROQ, if you choose to use them)
 
 ###  Installation
 
@@ -59,18 +59,25 @@ pip install vectara-agentic
 
 ## 🚀 Quick Start
 
-### 1. Create a Vectara RAG tool
+### 1. Initialize the Vectara tool factory
 
 ```python
 import os
 from vectara_agentic.tools import VectaraToolFactory
-from pydantic import BaseModel, Field
 
 vec_factory = VectaraToolFactory(
     vectara_api_key=os.environ['VECTARA_API_KEY'],
     vectara_customer_id=os.environ['VECTARA_CUSTOMER_ID'],
     vectara_corpus_id=os.environ['VECTARA_CORPUS_ID']
 )
+```
+
+### 2. Create a Vectara RAG Tool
+
+A RAG tool calls the full Vectara RAG pipeline to provide summarized responses to queries grounded in data.
+
+```python
+from pydantic import BaseModel, Field
 
 years = list(range(2020, 2024))
 tickers = {
@@ -89,17 +96,22 @@ query_financial_reports_tool = vec_factory.create_rag_tool(
     tool_name="query_financial_reports",
     tool_description="Query financial reports for a company and year",
     tool_args_schema=QueryFinancialReportsArgs,
+    lambda_val=0.005,
+    summary_num_results=7, 
+    # Additional arguments
 )
 ```
 
-### 2. Create other tools (optional)
+See the [docs](https://vectara.github.io/vectara-agentic-docs/) for additional arguments to customize your Vectara RAG tool.
+
+### 3. Create other tools (optional)
 
 In addition to RAG tools, you can generate a lot of other types of tools the agent can use. These could be mathematical tools, tools 
 that call other APIs to get more information, or any other type of tool.
 
 See [Agent Tools](#agent-tools) for more information.
 
-### 3. Create your agent
+### 4. Create your agent
 
 ```python
 from vectara_agentic import Agent
@@ -119,20 +131,89 @@ agent = Agent(
 )
 ```
 
-### 4. Run your agent
+See the [docs](https://vectara.github.io/vectara-agentic-docs/) for additional arguments, including `agent_progress_callback` and `query_logging_callback`.
+
+### 5. Run your agent
 
 ```python
-response = agent.chat("What was the revenue for Apple in 2021?")
-print(response)
+res = agent.chat("What was the revenue for Apple in 2021?")
+print(res.response)
 ```
 
-## 🛠️ Agent Tools
+Note that:
+1. `vectara-agentic` also supports `achat()` and two streaming variants `stream_chat()` and `astream_chat()`.
+2. The response types from `chat()` and `achat()` are of type `AgentResponse`. If you just need the actual string
+   response it's available as the `response` variable, or just use `str()`. For advanced use-cases you can look 
+   at other `AgentResponse` variables [such as `sources`](https://github.com/run-llama/llama_index/blob/659f9faaafbecebb6e6c65f42143c0bf19274a37/llama-index-core/llama_index/core/chat_engine/types.py#L53).
 
-`vectara-agentic` provides a few tools out of the box:
+## 🧰 Vectara tools
+
+`vectara-agentic` provides two helper functions to connect with Vectara RAG
+* `create_rag_tool()` to create an agent tool that connects with a Vectara corpus for querying. 
+* `create_search_tool()` to create a tool to search a Vectara corpus and return a list of matching documents.
+
+See the documentation for the full list of arguments for `create_rag_tool()` and `create_search_tool()`, 
+to understand how to configure Vectara query performed by those tools.
+
+### Creating a Vectara RAG tool
+
+A Vectara RAG tool is often the main workhorse for any Agentic RAG application, and enables the agent to query 
+one or more Vectara RAG corpora. 
+
+The tool generated always includes the `query` argument, followed by 1 or more optional arguments used for 
+metadata filtering, defined by `tool_args_schema`.
+
+For example, in the quickstart example the schema is:
+
+```
+class QueryFinancialReportsArgs(BaseModel):
+    query: str = Field(..., description="The user query.")
+    year: int | str = Field(..., description=f"The year this query relates to. An integer between {min(years)} and {max(years)} or a string specifying a condition on the year (example: '>2020').")
+    ticker: str = Field(..., description=f"The company ticker. Must be a valid ticket symbol from the list {tickers.keys()}.")
+```
+
+The `query` is required and is always the query string.
+The other arguments are optional and will be interpreted as Vectara metadata filters.
+
+For example, in the example above, the agent may call the `query_financial_reports_tool` tool with 
+query='what is the revenue?', year=2022 and ticker='AAPL'. Subsequently the RAG tool will issue
+a Vectara RAG query with the same query, but with metadata filtering (doc.year=2022 and doc.ticker='AAPL').
+
+There are also additional cool features supported here:
+* An argument can be a condition, for example year='>2022' translates to the correct metadata 
+  filtering condition doc.year>2022
+* if `fixed_filter` is defined in the RAG tool, it provides a constant metadata filtering that is always applied.
+  For example, if fixed_filter=`doc.filing_type='10K'` then a query with query='what is the reveue', year=2022
+  and ticker='AAPL' would translate into query='what is the revenue' with metadata filtering condition of
+  "doc.year=2022 AND doc.ticker='AAPL' and doc.filing_type='10K'"
+
+Note that `tool_args_type` is an optional dictionary that indicates the level at which metadata filtering
+is applied for each argument (`doc` or `part`)
+
+### Creating a Vectara search tool
+
+The Vectara search tool allows the agent to list documents that match a query.
+This can be helpful to the agent to answer queries like "how many documents discuss the iPhone?" or other
+similar queries that require a response in terms of a list of matching documents.
+
+## 🛠️ Agent Tools at a Glance
+
+`vectara-agentic` provides a few tools out of the box (see ToolsCatalog for details):
+
 1. **Standard tools**: 
 - `summarize_text`: a tool to summarize a long text into a shorter summary (uses LLM)
 - `rephrase_text`: a tool to rephrase a given text, given a set of rephrase instructions (uses LLM)
-  
+These tools use an LLM and so would use the `Tools` LLM specified in your `AgentConfig`.
+To instantiate them:
+
+```python
+from vectara_agentic.tools_catalog import ToolsCatalog
+summarize_text = ToolsCatalog(agent_config).summarize_text
+```
+
+This ensures the summarize_text tool is configured with the proper LLM provider and model as 
+specified in the Agent configuration.
+
 2. **Legal tools**: a set of tools for the legal vertical, such as:
 - `summarize_legal_text`: summarize legal text with a certain point of view
 - `critique_as_judge`: critique a legal text as a judge, providing their perspective
@@ -150,10 +231,9 @@ print(response)
 - `load_unique_values`: returns the top unique values for a given column
 
 In addition, we include various other tools from LlamaIndex ToolSpecs:
-* Tavily search
-* EXA.AI
+* Tavily search and EXA.AI
 * arxiv
-* neo4j & Kuzu for Graph integration
+* neo4j & Kuzu for Graph DB integration
 * Google tools (including gmail, calendar, and search)
 * Slack
 
@@ -170,19 +250,44 @@ mult_tool = ToolsFactory().create_tool(mult_func)
 
 ## 🛠️ Configuration
 
+## Configuring Vectara-agentic
+
 The main way to control the behavior of `vectara-agentic` is by passing an `AgentConfig` object to your `Agent` when creating it.
-This object will include the following items:
-- `VECTARA_AGENTIC_AGENT_TYPE`: valid values are `REACT`, `LLMCOMPILER`, `LATS` or `OPENAI` (default: `OPENAI`)
-- `VECTARA_AGENTIC_MAIN_LLM_PROVIDER`: valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `GEMINI` or `FIREWORKS` (default: `OPENAI`)
-- `VECTARA_AGENTIC_MAIN_MODEL_NAME`: agent model name (default depends on provider)
-- `VECTARA_AGENTIC_TOOL_LLM_PROVIDER`: tool LLM provider (default: `OPENAI`)
-- `VECTARA_AGENTIC_TOOL_MODEL_NAME`: tool model name (default depends on provider)
-- `VECTARA_AGENTIC_OBSERVER_TYPE`: valid values are `ARIZE_PHOENIX` or `NONE` (default: `NONE`)
-- `VECTARA_AGENTIC_API_KEY`: a secret key if using the API endpoint option (defaults to `dev-api-key`)
+For example:
+
+```python
+agent_config = AgentConfig(
+    agent_type = AgentType.REACT,
+    main_llm_provider = ModelProvider.ANTHROPIC,
+    main_llm_model_name = 'claude-3-5-sonnet-20241022',
+    tool_llm_provider = ModelProvider.TOGETHER,
+    tool_llm_model_name = 'meta-llama/Llama-3.3-70B-Instruct-Turbo'
+)
+
+agent = Agent(
+    tools=[query_financial_reports_tool],
+    topic="10-K financial reports",
+    custom_instructions="You are a helpful financial assistant in conversation with a user.",
+    agent_config=agent_config
+)
+```
+
+The `AgentConfig` object may include the following items:
+- `agent_type`: the agent type. Valid values are `REACT`, `LLMCOMPILER`, `LATS` or `OPENAI` (default: `OPENAI`).
+- `main_llm_provider` and `tool_llm_provider`: the LLM provider for main agent and for the tools. Valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI` or `FIREWORKS` (default: `OPENAI`).
+- `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider).
+- `observer`: the observer type; should be `ARIZE_PHOENIX` or if undefined no observation framework will be used.
+- `endpoint_api_key`: a secret key if using the API endpoint option (defaults to `dev-api-key`)
 
 If any of these are not provided, `AgentConfig` first tries to read the values from the OS environment.
 
-When creating a `VectaraToolFactory`, you can pass in a `vectara_api_key`, `vectara_customer_id`, and `vectara_corpus_id` to the factory. If not passed in, it will be taken from the environment variables (`VECTARA_API_KEY`, `VECTARA_CUSTOMER_ID` and `VECTARA_CORPUS_ID`). Note that `VECTARA_CORPUS_ID` can be a single ID or a comma-separated list of IDs (if you want to query multiple corpora).
+## Configuring Vectara RAG or search tools
+
+When creating a `VectaraToolFactory`, you can pass in a `vectara_api_key`, `vectara_customer_id`, and `vectara_corpus_id` to the factory. 
+
+If not passed in, it will be taken from the environment variables (`VECTARA_API_KEY`, `VECTARA_CUSTOMER_ID` and `VECTARA_CORPUS_ID`). Note that `VECTARA_CORPUS_ID` can be a single ID or a comma-separated list of IDs (if you want to query multiple corpora).
+
+These values will be used as credentials when creating Vectara tools - in `create_rag_tool()` and `create_search_tool()`.
 
 ## ℹ️ Additional Information
 
