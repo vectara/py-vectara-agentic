@@ -288,17 +288,6 @@ class Agent:
             update_func=update_func, agent_config=agent_config
         )
 
-
-        """
-        max_response_chars: Optional[int] = None,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
-        frequency_penalty: Optional[float] = None,
-        presence_penalty: Optional[float] = None,
-        save_history: bool = False,
-        fcs_threshold: float = 0.0,
-        verbose: bool = False,
-        """
     @classmethod
     def from_corpus(
         cls,
@@ -419,7 +408,7 @@ class Agent:
             frequency_penalty=vectara_frequency_penalty,
             presence_penalty=vectara_presence_penalty,
             save_history=vectara_save_history,
-            include_citations=False,
+            include_citations=True,
         )
 
         assistant_instructions = f"""
