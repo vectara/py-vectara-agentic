@@ -304,7 +304,7 @@ class Agent:
         vectara_lambda_val: float = 0.005,
         vectara_semantics: str = "default",
         vectara_custom_dimensions: Dict = {},
-        vectara_reranker: str = "mmr",
+        vectara_reranker: str = "slingshot",
         vectara_rerank_k: int = 50,
         vectara_rerank_limit: Optional[int] = None,
         vectara_rerank_cutoff: Optional[float] = None,
@@ -314,7 +314,7 @@ class Agent:
         vectara_n_sentences_before: int = 2,
         vectara_n_sentences_after: int = 2,
         vectara_summary_num_results: int = 10,
-        vectara_summarizer: str = "vectara-summary-ext-24-05-sml",
+        vectara_summarizer: str = "vectara-summary-ext-24-05-med-omni",
         vectara_summary_response_language: str = "eng",
         vectara_summary_prompt_text: Optional[str] = None,
         vectara_max_response_chars: Optional[int] = None,
@@ -342,7 +342,7 @@ class Agent:
             vectara_lambda_val (float, optional): Lambda value for Vectara hybrid search.
             vectara_semantics: (str, optional): Indicates whether the query is intended as a query or response.
             vectara_custom_dimensions: (Dict, optional): Custom dimensions for the query.
-            vectara_reranker (str, optional): The Vectara reranker name (default "mmr")
+            vectara_reranker (str, optional): The Vectara reranker name (default "slingshot")
             vectara_rerank_k (int, optional): The number of results to use with reranking.
             vetara_rerank_limit: (int, optional): The maximum number of results to return after reranking.
             vectara_rerank_cutoff: (float, optional): The minimum score threshold for results to include after reranking.
