@@ -127,7 +127,7 @@ class VectaraTool(FunctionTool):
                 break
         return is_equal
 
-def _build_filter_string(kwargs: Dict[str, Any], tool_args_type: Dict[str, str], fixed_filter: str) -> str:
+def _build_filter_string(kwargs: Dict[str, Any], tool_args_type: Dict[str, dict], fixed_filter: str) -> str:
     """
     Build filter string for Vectara from kwargs
     """
@@ -141,7 +141,9 @@ def _build_filter_string(kwargs: Dict[str, Any], tool_args_type: Dict[str, str],
 
         # Determine the prefix for the key. Valid values are "doc" or "part"
         # default to 'doc' if not specified
-        prefix = tool_args_type.get(key, "doc")
+        tool_args_dict = tool_args_type.get(key, {'type': 'doc', 'is_list': False})
+        prefix = tool_args_dict.get(key, "doc")
+        is_list = tool_args_dict.get('is_list', False)
 
         if prefix not in ["doc", "part"]:
             raise ValueError(
@@ -231,14 +233,23 @@ def _build_filter_string(kwargs: Dict[str, Any], tool_args_type: Dict[str, str],
                     filter_parts.append(f"{prefix}.{key}{matched_operator}'{rhs}'")
         else:
             if val_str.isdigit() or is_float(val_str):
-                filter_parts.append(f"{prefix}.{key}={val_str}")
+                if is_list:
+                    filter_parts.append(f"({val_str} IN {prefix}.{key})")
+                else:
+                    filter_parts.append(f"{prefix}.{key}={val_str}")
             elif val_str.lower() in ["true", "false"]:
                 # This is to handle boolean values.
                 # This is not complete solution - the best solution would be to test if the field is boolean
                 # That can be done after we move to APIv2
-                filter_parts.append(f"{prefix}.{key}={val_str.lower()}")
+                if is_list:
+                    filter_parts.append(f"({val_str.lower()} IN {prefix}.{key})")
+                else:
+                    filter_parts.append(f"{prefix}.{key}={val_str.lower()}")
             else:
-                filter_parts.append(f"{prefix}.{key}='{val_str}'")
+                if is_list:
+                    filter_parts.append(f"('{val_str}' IN {prefix}.{key})")
+                else:
+                    filter_parts.append(f"{prefix}.{key}='{val_str}'")
 
     filter_str = " AND ".join(filter_parts)
     return f"({fixed_filter}) AND ({filter_str})" if fixed_filter else filter_str
@@ -437,7 +448,7 @@ class VectaraToolFactory:
         tool_name: str,
         tool_description: str,
         tool_args_schema: type[BaseModel],
-        tool_args_type: Dict[str, str] = {},
+        tool_args_type: Dict[str, dict] = {},
         fixed_filter: str = "",
         vectara_summarizer: str = "vectara-summary-ext-24-05-med-omni",
         vectara_prompt_text: str = None,
@@ -474,7 +485,10 @@ class VectaraToolFactory:
             tool_name (str): The name of the tool.
             tool_description (str): The description of the tool.
             tool_args_schema (BaseModel): The schema for the tool arguments.
-            tool_args_type (Dict[str, str], optional): The type of each argument (doc or part).
+            tool_args_type (Dict[str, dict], optional): attributes for each argument where they key is the field name
+                and the value is a dictionary with the following keys:
+                - 'type': the type of each filter attribute in Vectara (doc or part).
+                - 'is_list': whether the filterable attribute is a list.
             fixed_filter (str, optional): A fixed Vectara filter condition to apply to all queries.
             vectara_summarizer (str, optional): The Vectara summarizer to use.
             vectara_prompt_text (str, optional): The prompt text for the Vectara summarizer.
