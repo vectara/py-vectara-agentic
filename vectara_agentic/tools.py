@@ -306,7 +306,8 @@ class VectaraToolFactory:
             tool_args_schema (BaseModel): The schema for the tool arguments.
             tool_args_type (Dict[str, str], optional): The type of each argument (doc or part).
             fixed_filter (str, optional): A fixed Vectara filter condition to apply to all queries.
-            lambda_val (Union[List[float] | float], optional): Lambda value (or list of values for each corpora) for the Vectara query.
+            lambda_val (Union[List[float] | float], optional): Lambda value (or list of values for each corpora)
+                for the Vectara query, when using hybrid search.
             semantics (Union[List[str], str], optional): Indicates whether the query is intended as a query or response.
                 Include list if using multiple corpora specifying the query type for each corpus.
             custom_dimensions (Union[List[Dict] | Dict], optional): Custom dimensions for the query (for each corpora).
@@ -333,8 +334,7 @@ class VectaraToolFactory:
 
         vectara = VectaraIndex(
             vectara_api_key=self.vectara_api_key,
-            vectara_customer_id=self.vectara_customer_id,
-            vectara_corpus_id=self.vectara_corpus_id,
+            vectara_corpus_key=self.vectara_corpus_key,
             x_source_str="vectara-agentic",
         )
 
@@ -360,7 +360,7 @@ class VectaraToolFactory:
                     raw_input={"args": args, "kwargs": kwargs},
                     raw_output={"response": str(e)},
                 )
-            
+
             vectara_retriever = vectara.as_retriever(
                 summary_enabled=False,
                 similarity_top_k=top_k,
@@ -454,7 +454,6 @@ class VectaraToolFactory:
         vectara_prompt_text: str = None,
         summary_num_results: int = 5,
         summary_response_lang: str = "eng",
-        summary_prompt_text: Optional[str] = None,
         n_sentences_before: int = 2,
         n_sentences_after: int = 2,
         offset: int = 0,
@@ -498,7 +497,8 @@ class VectaraToolFactory:
             n_sentences_before (int, optional): Number of sentences before the summary.
             n_sentences_after (int, optional): Number of sentences after the summary.
             offset (int, optional): Number of results to skip.
-            lambda_val (Union[List[float] | float], optional): Lambda value (or list of values for each corpora) for the Vectara query.
+            lambda_val (Union[List[float] | float], optional): Lambda value (or list of values for each corpora)
+                for the Vectara query, when using hybrid search.
             semantics (Union[List[str], str], optional): Indicates whether the query is intended as a query or response.
                 Include list if using multiple corpora specifying the query type for each corpus.
             custom_dimensions (Union[List[Dict] | Dict], optional): Custom dimensions for the query (for each corpora).
@@ -516,8 +516,10 @@ class VectaraToolFactory:
             max_response_chars (int, optional): The desired maximum number of characters for the generated summary.
             max_tokens (int, optional): The maximum number of tokens to be returned by the LLM.
             temperature (float, optional): The sampling temperature; higher values lead to more randomness.
-            frequency_penalty (float, optional): How much to penalize repeating tokens in the response, reducing likelihood of repeating the same line.
-            presence_penalty (float, optional): How much to penalize repeating tokens in the response, increasing the diversity of topics.
+            frequency_penalty (float, optional): How much to penalize repeating tokens in the response,
+                higher values reducing likelihood of repeating the same line.
+            presence_penalty (float, optional): How much to penalize repeating tokens in the response,
+                higher values increasing the diversity of topics.
             include_citations (bool, optional): Whether to include citations in the response.
                 If True, uses markdown vectara citations that requires the Vectara scale plan.
             save_history (bool, optional): Whether to save the query in history.

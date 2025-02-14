@@ -338,14 +338,15 @@ class Agent:
             verbose (bool, optional): Whether to print verbose output.
             vectara_filter_fields (List[dict], optional): The filterable attributes
                 (each dict maps field name to Tuple[type, description]).
-            vectara_offset (int, optional): Number of results to skip. 
+            vectara_offset (int, optional): Number of results to skip.
             vectara_lambda_val (float, optional): Lambda value for Vectara hybrid search.
             vectara_semantics: (str, optional): Indicates whether the query is intended as a query or response.
             vectara_custom_dimensions: (Dict, optional): Custom dimensions for the query.
             vectara_reranker (str, optional): The Vectara reranker name (default "slingshot")
             vectara_rerank_k (int, optional): The number of results to use with reranking.
             vetara_rerank_limit: (int, optional): The maximum number of results to return after reranking.
-            vectara_rerank_cutoff: (float, optional): The minimum score threshold for results to include after reranking.
+            vectara_rerank_cutoff: (float, optional): The minimum score threshold for results to include after
+                reranking.
             vectara_diversity_bias (float, optional): The MMR diversity bias.
             vectara_udf_expression (str, optional): The user defined expression for reranking results.
             vectara_rerank_chain (List[Dict], optional): A list of Vectara rerankers to be applied sequentially.
@@ -354,12 +355,16 @@ class Agent:
             vectara_summary_num_results (int, optional): The number of results to use in summarization.
             vectara_summarizer (str, optional): The Vectara summarizer name.
             vectara_summary_response_language (str, optional): The response language for the Vectara summary.
-            vectara_summary_prompt_text (str, optional): The custom prompt, using appropriate prompt variables and functions.
-            vectara_max_response_chars (int, optional): The desired maximum number of characters for the generated summary.
+            vectara_summary_prompt_text (str, optional): The custom prompt, using appropriate prompt variables and
+                functions.
+            vectara_max_response_chars (int, optional): The desired maximum number of characters for the generated
+                summary.
             vectara_max_tokens (int, optional): The maximum number of tokens to be returned by the LLM.
             vectara_temperature (float, optional): The sampling temperature; higher values lead to more randomness.
-            vectara_frequency_penalty (float, optional): How much to penalize repeating tokens in the response, reducing likelihood of repeating the same line.
-            vectara_presence_penalty (float, optional): How much to penalize repeating tokens in the response, increasing the diversity of topics.
+            vectara_frequency_penalty (float, optional): How much to penalize repeating tokens in the response,
+                higher values reducing likelihood of repeating the same line.
+            vectara_presence_penalty (float, optional): How much to penalize repeating tokens in the response,
+                higher values increasing the diversity of topics.
             vectara_save_history (bool, optional): Whether to save the query in history.
 
         Returns:
@@ -401,7 +406,7 @@ class Agent:
             summary_num_results=vectara_summary_num_results,
             vectara_summarizer=vectara_summarizer,
             summary_response_lang=vectara_summary_response_language,
-            summary_prompt_text=vectara_summary_prompt_text,
+            vectara_prompt_text=vectara_summary_prompt_text,
             max_response_chars=vectara_max_response_chars,
             max_tokens=vectara_max_tokens,
             temperature=vectara_temperature,
