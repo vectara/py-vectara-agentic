@@ -585,7 +585,7 @@ class VectaraToolFactory:
                 temperature=temperature,
                 frequency_penalty=frequency_penalty,
                 presence_penalty=presence_penalty,
-                citations_style="MARKDOWN" if include_citations else None,
+                citations_style="markdown" if include_citations else None,
                 citations_url_pattern="{doc.url}" if include_citations else None,
                 save_history=save_history,
                 x_source_str="vectara-agentic",
@@ -630,7 +630,7 @@ class VectaraToolFactory:
                     + ".\n"
                 )
             fcs = response.metadata["fcs"] if "fcs" in response.metadata else 0.0
-            if fcs < fcs_threshold:
+            if fcs and fcs < fcs_threshold:
                 msg = f"Could not answer the query due to suspected hallucination (fcs={fcs})."
                 return ToolOutput(
                     tool_name=rag_function.__name__,

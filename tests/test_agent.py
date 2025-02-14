@@ -24,7 +24,7 @@ class TestAgentPackage(unittest.TestCase):
         def mult(x, y):
             return x * y
 
-        tools =[ToolsFactory().create_tool(mult)]
+        tools = [ToolsFactory().create_tool(mult)]
         topic = "AI"
         custom_instructions = "Always do as your mother tells you!"
         agent = Agent(tools, topic, custom_instructions)
@@ -44,7 +44,7 @@ class TestAgentPackage(unittest.TestCase):
         def mult(x, y):
             return x * y
 
-        tools =[ToolsFactory().create_tool(mult)]
+        tools = [ToolsFactory().create_tool(mult)]
         topic = "AI topic"
         instructions = "Always do as your father tells you, if your mother agrees!"
         config = AgentConfig(
