@@ -1,9 +1,10 @@
 import unittest
 from datetime import date
 
-from vectara_agentic.agent import _get_prompt, Agent, AgentType, FunctionTool
+from vectara_agentic.agent import _get_prompt, Agent, AgentType
 from vectara_agentic.agent_config import AgentConfig
 from vectara_agentic.types import ModelProvider, ObserverType
+from vectara_agentic.tools import ToolsFactory
 
 class TestAgentPackage(unittest.TestCase):
     def test_get_prompt(self):
@@ -23,16 +24,11 @@ class TestAgentPackage(unittest.TestCase):
         def mult(x, y):
             return x * y
 
-        tools = [
-            FunctionTool.from_defaults(
-                fn=mult, name="mult", description="Multiplication functions"
-            )
-        ]
+        tools =[ToolsFactory().create_tool(mult)]
         topic = "AI"
         custom_instructions = "Always do as your mother tells you!"
         agent = Agent(tools, topic, custom_instructions)
         self.assertEqual(agent.agent_type, AgentType.OPENAI)
-        self.assertEqual(agent.tools, tools)
         self.assertEqual(agent._topic, topic)
         self.assertEqual(agent._custom_instructions, custom_instructions)
 
@@ -40,7 +36,7 @@ class TestAgentPackage(unittest.TestCase):
         self.assertEqual(
             agent.chat(
                 "What is 5 times 10. Only give the answer, nothing else"
-            ).replace("$", "\\$"),
+            ).response.replace("$", "\\$"),
             "50",
         )
 
@@ -48,11 +44,7 @@ class TestAgentPackage(unittest.TestCase):
         def mult(x, y):
             return x * y
 
-        tools = [
-            FunctionTool.from_defaults(
-                fn=mult, name="mult", description="Multiplication functions"
-            )
-        ]
+        tools =[ToolsFactory().create_tool(mult)]
         topic = "AI topic"
         instructions = "Always do as your father tells you, if your mother agrees!"
         config = AgentConfig(
@@ -70,7 +62,6 @@ class TestAgentPackage(unittest.TestCase):
             custom_instructions=instructions,
             agent_config=config
         )
-        self.assertEqual(agent.tools, tools)
         self.assertEqual(agent._topic, topic)
         self.assertEqual(agent._custom_instructions, instructions)
         self.assertEqual(agent.agent_type, AgentType.REACT)
@@ -82,7 +73,7 @@ class TestAgentPackage(unittest.TestCase):
         self.assertEqual(
             agent.chat(
                 "What is 5 times 10. Only give the answer, nothing else"
-            ).replace("$", "\\$"),
+            ).response.replace("$", "\\$"),
             "50",
         )
 

@@ -47,8 +47,8 @@ class AgentStatusType(Enum):
 class LLMRole(Enum):
     """Enumeration for different types of LLM roles."""
 
-    MAIN: str = "MAIN"
-    TOOL: str = "TOOL"
+    MAIN = "MAIN"
+    TOOL = "TOOL"
 
 
 class ToolType(Enum):

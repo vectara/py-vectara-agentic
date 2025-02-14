@@ -74,7 +74,7 @@ class DBLoadUniqueValues(DBTool):
     """
     A tool to list all unique values for each column in a set of columns of a database table.
     """
-    def __call__(self, table_name: str, columns: list[str], num_vals: int = 200) -> dict:
+    def __call__(self, table_name: str, columns: list[str], num_vals: int = 200) -> Any:
         """
         Fetches the first num_vals unique values from the specified columns of the database table.
 
@@ -84,7 +84,7 @@ class DBLoadUniqueValues(DBTool):
             num_vals (int): The number of unique values to fetch for each column. Default is 200.
 
         Returns:
-            dict: A dictionary containing the unique values for each column.
+            Any: the result of the database query
         """
         res = {}
         try:
