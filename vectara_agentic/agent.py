@@ -379,7 +379,7 @@ class Agent:
         query_args = create_model("QueryArgs", **field_definitions)  # type: ignore
 
         vectara_tool = vec_factory.create_rag_tool(
-            tool_name=tool_name or f"vectara_{vectara_corpus_id}",
+            tool_name=tool_name or f"vectara_{vectara_corpus_key}",
             tool_description=f"""
             Given a user query,
             returns a response (str) to a user question about {data_description}.
