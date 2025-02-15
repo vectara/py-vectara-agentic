@@ -146,7 +146,8 @@ class AgentCallbackHandler(BaseCallbackHandler):
         if EventPayload.MESSAGES in payload:
             response = str(payload.get(EventPayload.RESPONSE))
             if response and response not in ["None", "assistant: None"]:
-                self.fn(AgentStatusType.AGENT_UPDATE, response)
+                if self.fn:
+                    self.fn(AgentStatusType.AGENT_UPDATE, response)
         else:
             print(f"No messages or prompt found in payload {payload}")
 
@@ -156,23 +157,27 @@ class AgentCallbackHandler(BaseCallbackHandler):
             tool = payload.get(EventPayload.TOOL)
             if tool:
                 tool_name = tool.name
-                self.fn(
-                    AgentStatusType.TOOL_CALL,
-                    f"Executing '{tool_name}' with arguments: {fcall}",
-                )
+                if self.fn:
+                    self.fn(
+                        AgentStatusType.TOOL_CALL,
+                        f"Executing '{tool_name}' with arguments: {fcall}",
+                    )
         elif EventPayload.FUNCTION_OUTPUT in payload:
             response = str(payload.get(EventPayload.FUNCTION_OUTPUT))
-            self.fn(AgentStatusType.TOOL_OUTPUT, response)
+            if self.fn:
+                self.fn(AgentStatusType.TOOL_OUTPUT, response)
         else:
             print(f"No function call or output found in payload {payload}")
 
     def _handle_agent_step(self, payload: dict) -> None:
         if EventPayload.MESSAGES in payload:
             msg = str(payload.get(EventPayload.MESSAGES))
-            self.fn(AgentStatusType.AGENT_STEP, msg)
+            if self.fn:
+                self.fn(AgentStatusType.AGENT_STEP, msg)
         elif EventPayload.RESPONSE in payload:
             response = str(payload.get(EventPayload.RESPONSE))
-            self.fn(AgentStatusType.AGENT_STEP, response)
+            if self.fn:
+                self.fn(AgentStatusType.AGENT_STEP, response)
         else:
             print(f"No messages or prompt found in payload {payload}")
 
@@ -181,10 +186,11 @@ class AgentCallbackHandler(BaseCallbackHandler):
         if EventPayload.MESSAGES in payload:
             response = str(payload.get(EventPayload.RESPONSE))
             if response and response not in ["None", "assistant: None"]:
-                if inspect.iscoroutinefunction(self.fn):
-                    await self.fn(AgentStatusType.AGENT_UPDATE, response)
-                else:
-                    self.fn(AgentStatusType.AGENT_UPDATE, response)
+                if self.fn:
+                    if inspect.iscoroutinefunction(self.fn):
+                        await self.fn(AgentStatusType.AGENT_UPDATE, response)
+                    else:
+                        self.fn(AgentStatusType.AGENT_UPDATE, response)
         else:
             print(f"No messages or prompt found in payload {payload}")
 
@@ -194,37 +200,41 @@ class AgentCallbackHandler(BaseCallbackHandler):
             tool = payload.get(EventPayload.TOOL)
             if tool:
                 tool_name = tool.name
-                if inspect.iscoroutinefunction(self.fn):
-                    await self.fn(
-                        AgentStatusType.TOOL_CALL,
-                        f"Executing '{tool_name}' with arguments: {fcall}",
-                    )
-                else:
-                    self.fn(
-                        AgentStatusType.TOOL_CALL,
-                        f"Executing '{tool_name}' with arguments: {fcall}",
-                    )
+                if self.fn:
+                    if inspect.iscoroutinefunction(self.fn):
+                        await self.fn(
+                            AgentStatusType.TOOL_CALL,
+                            f"Executing '{tool_name}' with arguments: {fcall}",
+                        )
+                    else:
+                        self.fn(
+                            AgentStatusType.TOOL_CALL,
+                            f"Executing '{tool_name}' with arguments: {fcall}",
+                        )
         elif EventPayload.FUNCTION_OUTPUT in payload:
-            response = str(payload.get(EventPayload.FUNCTION_OUTPUT))
-            if inspect.iscoroutinefunction(self.fn):
-                await self.fn(AgentStatusType.TOOL_OUTPUT, response)
-            else:
-                self.fn(AgentStatusType.TOOL_OUTPUT, response)
+            if self.fn:
+                response = str(payload.get(EventPayload.FUNCTION_OUTPUT))
+                if inspect.iscoroutinefunction(self.fn):
+                    await self.fn(AgentStatusType.TOOL_OUTPUT, response)
+                else:
+                    self.fn(AgentStatusType.TOOL_OUTPUT, response)
         else:
             print(f"No function call or output found in payload {payload}")
 
     async def _ahandle_agent_step(self, payload: dict) -> None:
         if EventPayload.MESSAGES in payload:
-            msg = str(payload.get(EventPayload.MESSAGES))
-            if inspect.iscoroutinefunction(self.fn):
-                await self.fn(AgentStatusType.AGENT_STEP, msg)
-            else:
-                self.fn(AgentStatusType.AGENT_STEP, msg)
+            if self.fn:
+                msg = str(payload.get(EventPayload.MESSAGES))
+                if inspect.iscoroutinefunction(self.fn):
+                    await self.fn(AgentStatusType.AGENT_STEP, msg)
+                else:
+                    self.fn(AgentStatusType.AGENT_STEP, msg)
         elif EventPayload.RESPONSE in payload:
-            response = str(payload.get(EventPayload.RESPONSE))
-            if inspect.iscoroutinefunction(self.fn):
-                await self.fn(AgentStatusType.AGENT_STEP, response)
-            else:
-                self.fn(AgentStatusType.AGENT_STEP, response)
+            if self.fn:
+                response = str(payload.get(EventPayload.RESPONSE))
+                if inspect.iscoroutinefunction(self.fn):
+                    await self.fn(AgentStatusType.AGENT_STEP, response)
+                else:
+                    self.fn(AgentStatusType.AGENT_STEP, response)
         else:
             print(f"No messages or prompt found in payload {payload}")

@@ -1,5 +1,5 @@
 llama-index==0.12.11
-llama-index-indices-managed-vectara==0.3.1
+llama-index-indices-managed-vectara==0.4.0
 llama-index-agent-llm-compiler==0.3.0
 llama-index-agent-lats==0.3.0
 llama-index-agent-openai==0.4.3

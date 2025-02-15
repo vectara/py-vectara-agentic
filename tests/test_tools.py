@@ -8,15 +8,13 @@ from llama_index.core.tools import FunctionTool
 
 class TestToolsPackage(unittest.TestCase):
     def test_vectara_tool_factory(self):
-        vectara_customer_id = "4584783"
-        vectara_corpus_id = "4"
+        vectara_corpus_key = "corpus_key"
         vectara_api_key = "api_key"
         vec_factory = VectaraToolFactory(
-            vectara_customer_id, vectara_corpus_id, vectara_api_key
+            vectara_corpus_key, vectara_api_key
         )
 
-        self.assertEqual(vectara_customer_id, vec_factory.vectara_customer_id)
-        self.assertEqual(vectara_corpus_id, vec_factory.vectara_corpus_id)
+        self.assertEqual(vectara_corpus_key, vec_factory.vectara_corpus_key)
         self.assertEqual(vectara_api_key, vec_factory.vectara_api_key)
 
         class QueryToolArgs(BaseModel):
@@ -59,16 +57,14 @@ class TestToolsPackage(unittest.TestCase):
         self.assertEqual(arxiv_tool.metadata.tool_type, ToolType.QUERY)
 
     def test_public_repo(self):
-        vectara_customer_id = "1366999410"
-        vectara_corpus_id = "1"
+        vectara_corpus_key = "vectara-docs_1"
         vectara_api_key = "zqt_UXrBcnI2UXINZkrv4g1tQPhzj02vfdtqYJIDiA"
 
         class QueryToolArgs(BaseModel):
             query: str = Field(description="The user query")
 
         agent = Agent.from_corpus(
-            vectara_customer_id=vectara_customer_id,
-            vectara_corpus_id=vectara_corpus_id,
+            vectara_corpus_key=vectara_corpus_key,
             vectara_api_key=vectara_api_key,
             tool_name="ask_vectara",
             data_description="data from Vectara website",

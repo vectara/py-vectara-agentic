@@ -7,6 +7,6 @@ mypy:
 	mypy vectara_agentic || true
 
 test:
-	python -m unittest discover -s tests
+	python -m unittest discover -s tests -b
 
 .PHONY: all lint mypy test
