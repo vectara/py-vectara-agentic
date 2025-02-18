@@ -3,6 +3,7 @@ This module contains the Agent class for handling different types of agents and 
 """
 from typing import List, Callable, Optional, Dict, Any
 import os
+import re
 from datetime import date
 import time
 import json
@@ -383,6 +384,10 @@ class Agent:
             )  # type: ignore
         query_args = create_model("QueryArgs", **field_definitions)  # type: ignore
 
+        # tool name must be valid Python function name
+        if tool_name:
+            tool_name = re.sub(r"[^A-Za-z0-9_]", "_", tool_name)
+
         vectara_tool = vec_factory.create_rag_tool(
             tool_name=tool_name or f"vectara_{vectara_corpus_key}",
             tool_description=f"""
@@ -627,6 +632,10 @@ class Agent:
             if tool_data.get("fn_schema"):
                 field_definitions = {}
                 for field, values in tool_data["fn_schema"]["properties"].items():
+                    if "type" not in values:
+                        raise ValueError(f"Invalid schema format for tool {tool_data['name']}: argument {field} must have a type.")
+                    if "description" not in values:
+                        raise ValueError(f"Invalid schema format for tool {tool_data['name']}: argument {field} must have a desription.")
                     if "default" in values:
                         field_definitions[field] = (
                             json_type_to_python.get(values["type"], values["type"]),
