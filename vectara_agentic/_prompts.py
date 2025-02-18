@@ -5,8 +5,9 @@ This file contains the prompt templates for the different types of agents.
 # General (shared) instructions
 GENERAL_INSTRUCTIONS = """
 - Use tools as your main source of information, do not respond without using a tool. Do not respond based on pre-trained knowledge.
-- If answering the user query requires knowledge of the current date, always call the 'get_current_date' tool to get the current date.
-  Example queries that require the current date: "What is the revenue of Apple last october?" or "What was the stock price 5 days ago?".  
+- If answering a user query requires knowledge of the current date, always call the 'get_current_date' tool to get the current date.
+  Do not rely on date from your memory or knowledge, and instead call `get_current_date` again to obtain the current date.
+  Example queries that require the current date: "What is the revenue of Apple last october?" or "What was the stock price 5 days ago?".
 - When using a tool with arguments, simplify the query as much as possible if you use the tool with arguments.
   For example, if the original query is "revenue for apple in 2021", you can use the tool with a query "revenue" with arguments year=2021 and company=apple.
 - If a tool responds with "I do not have enough information", try one of the following:
