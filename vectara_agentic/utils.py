@@ -112,6 +112,9 @@ def get_llm(
     elif model_provider == ModelProvider.COHERE:
         from llama_index.llms.cohere import Cohere
         llm = Cohere(model=model_name, temperature=0)
+    elif model_provider == ModelProvider.CUSTOM:
+        from private_llm import PrivateLLM
+        llm = PrivateLLM(model=model_name, temperature=0)
     else:
         raise ValueError(f"Unknown LLM provider: {model_provider}")
     return llm
