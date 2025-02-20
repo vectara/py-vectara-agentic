@@ -11,7 +11,7 @@ import logging
 import traceback
 import asyncio
 
-import dill
+import cloudpickle as pickle
 
 from dotenv import load_dotenv
 
@@ -657,8 +657,8 @@ class Agent:
                 "tool_type": tool.metadata.tool_type.value,
                 "name": tool.metadata.name,
                 "description": tool.metadata.description,
-                "fn": dill.dumps(tool.fn).decode("latin-1") if tool.fn else None,  # Serialize fn
-                "async_fn": dill.dumps(tool.async_fn).decode("latin-1")
+                "fn": pickle.dumps(tool.fn).decode("latin-1") if tool.fn else None,  # Serialize fn
+                "async_fn": pickle.dumps(tool.async_fn).decode("latin-1")
                 if tool.async_fn
                 else None,  # Serialize async_fn
                 "fn_schema": tool.metadata.fn_schema.model_json_schema()
@@ -669,7 +669,7 @@ class Agent:
 
         return {
             "agent_type": self.agent_type.value,
-            "memory": dill.dumps(self.agent.memory).decode("latin-1"),
+            "memory": pickle.dumps(self.agent.memory).decode("latin-1"),
             "tools": tool_info,
             "topic": self._topic,
             "custom_instructions": self._custom_instructions,
@@ -705,8 +705,8 @@ class Agent:
             else:
                 query_args_model = create_model("QueryArgs")
 
-            fn = dill.loads(tool_data["fn"].encode("latin-1")) if tool_data["fn"] else None
-            async_fn = dill.loads(tool_data["async_fn"].encode("latin-1")) if tool_data["async_fn"] else None
+            fn = pickle.loads(tool_data["fn"].encode("latin-1")) if tool_data["fn"] else None
+            async_fn = pickle.loads(tool_data["async_fn"].encode("latin-1")) if tool_data["async_fn"] else None
 
             tool = VectaraTool.from_defaults(
                 name=tool_data["name"],
@@ -725,7 +725,7 @@ class Agent:
             custom_instructions=data["custom_instructions"],
             verbose=data["verbose"],
         )
-        memory = dill.loads(data["memory"].encode("latin-1")) if data.get("memory") else None
+        memory = pickle.loads(data["memory"].encode("latin-1")) if data.get("memory") else None
         if memory:
             agent.agent.memory = memory
         return agent

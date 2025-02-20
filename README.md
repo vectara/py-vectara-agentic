@@ -68,7 +68,7 @@ from vectara_agentic.tools import VectaraToolFactory
 vec_factory = VectaraToolFactory(
     vectara_api_key=os.environ['VECTARA_API_KEY'],
     vectara_customer_id=os.environ['VECTARA_CUSTOMER_ID'],
-    vectara_corpus_id=os.environ['VECTARA_CORPUS_ID']
+    vectara_corpus_key=os.environ['VECTARA_CORPUS_KEY']
 )
 ```
 
@@ -248,6 +248,10 @@ def mult_func(x, y):
 mult_tool = ToolsFactory().create_tool(mult_func)
 ```
 
+Note: When you define your own Python functions as tools, implement them at the top module level,
+and not as nested functions. Nested functions are not supported if you use serialization 
+(dumps/loads or from_dict/to_dict).
+
 ## 🛠️ Configuration
 
 ## Configuring Vectara-agentic
@@ -285,7 +289,7 @@ If any of these are not provided, `AgentConfig` first tries to read the values f
 
 When creating a `VectaraToolFactory`, you can pass in a `vectara_api_key`, `vectara_customer_id`, and `vectara_corpus_id` to the factory. 
 
-If not passed in, it will be taken from the environment variables (`VECTARA_API_KEY`, `VECTARA_CUSTOMER_ID` and `VECTARA_CORPUS_ID`). Note that `VECTARA_CORPUS_ID` can be a single ID or a comma-separated list of IDs (if you want to query multiple corpora).
+If not passed in, it will be taken from the environment variables (`VECTARA_API_KEY` and `VECTARA_CORPUS_KEY`). Note that `VECTARA_CORPUS_KEY` can be a single KEY or a comma-separated list of KEYs (if you want to query multiple corpora).
 
 These values will be used as credentials when creating Vectara tools - in `create_rag_tool()` and `create_search_tool()`.
 
