@@ -432,7 +432,7 @@ class VectaraToolFactory:
 
         # Create the tool function signature string
         fields = []
-        for name, field in tool_args_schema.__fields__.items():
+        for name, field in tool_args_schema.model_fields.items():
             annotation = field.annotation
             type_name = annotation.__name__ if hasattr(annotation, '__name__') else str(annotation)
             fields.append(f"{name}: {type_name}")
@@ -683,7 +683,7 @@ class VectaraToolFactory:
 
         # Create the tool function signature string
         fields = []
-        for name, field in tool_args_schema.__fields__.items():
+        for name, field in tool_args_schema.model_fields.items():
             annotation = field.annotation
             type_name = annotation.__name__ if hasattr(annotation, '__name__') else str(annotation)
             fields.append(f"{name}: {type_name}")

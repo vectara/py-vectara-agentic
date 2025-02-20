@@ -1,7 +1,7 @@
 """
 This module contains the Agent class for handling different types of agents and their interactions.
 """
-from typing import List, Callable, Optional, Dict, Any, Union
+from typing import List, Callable, Optional, Dict, Any, Union, Tuple
 import os
 import re
 from datetime import date
@@ -18,6 +18,8 @@ from dotenv import load_dotenv
 from retrying import retry
 from pydantic import Field, create_model
 
+from llama_index.core.memory import ChatMemoryBuffer
+from llama_index.core.llms import ChatMessage, MessageRole
 from llama_index.core.tools import FunctionTool
 from llama_index.core.agent import ReActAgent
 from llama_index.core.agent.react.formatter import ReActChatFormatter
@@ -26,7 +28,7 @@ from llama_index.agent.lats import LATSAgentWorker
 from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
-from llama_index.core.memory import ChatMemoryBuffer
+
 
 from .types import AgentType, AgentStatusType, LLMRole, ToolType, AgentResponse, AgentStreamingResponse
 from .utils import get_llm, get_tokenizer_for_model
@@ -143,6 +145,7 @@ class Agent:
         agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
         query_logging_callback: Optional[Callable[[str, str], None]] = None,
         agent_config: Optional[AgentConfig] = None,
+        chat_history: Optional[list[Tuple[str, str]]] = None,
     ) -> None:
         """
         Initialize the agent with the specified type, tools, topic, and system message.
@@ -158,6 +161,7 @@ class Agent:
             query_logging_callback (Callable): A callback function the code calls upon completion of a query
             agent_config (AgentConfig, optional): The configuration of the agent.
                 Defaults to AgentConfig(), which reads from environment variables.
+            chat_history (Tuple[str, str], optional): A list of user/agent chat pairs to initialize the agent memory.
         """
         self.agent_config = agent_config or AgentConfig()
         self.agent_type = self.agent_config.agent_type
@@ -184,7 +188,14 @@ class Agent:
         self.llm.callback_manager = callback_manager
         self.verbose = verbose
 
-        self.memory = ChatMemoryBuffer.from_defaults(token_limit=128000)
+        if chat_history:
+            msg_history = []
+            for inx, text in enumerate(chat_history):
+                role = MessageRole.USER if inx % 2 == 0 else MessageRole.ASSISTANT
+                msg_history.append(ChatMessage.from_str(content=text, role=role))
+            self.memory = ChatMemoryBuffer.from_defaults(token_limit=128000, chat_history=msg_history)
+        else:
+            self.memory = ChatMemoryBuffer.from_defaults(token_limit=128000)
         if self.agent_type == AgentType.REACT:
             prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
             self.agent = ReActAgent.from_tools(

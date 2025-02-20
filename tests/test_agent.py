@@ -77,6 +77,24 @@ class TestAgentPackage(unittest.TestCase):
             "50",
         )
 
+    def test_multiturn(self):
+        def mult(x, y):
+            return x * y
+
+        tools = [ToolsFactory().create_tool(mult)]
+        topic = "AI topic"
+        instructions = "Always do as your father tells you, if your mother agrees!"
+        agent = Agent(
+            tools=tools,
+            topic=topic,
+            custom_instructions=instructions,
+        )
+
+        agent.chat("What is 5 times 10. Only give the answer, nothing else")
+        agent.chat("what is 3 times 7. Only give the answer, nothing else")
+        res = agent.chat("multiply the results of the last two questions. Output only the answer.")
+        self.assertEqual(res.response, "1050")
+
     def test_from_corpus(self):
         agent = Agent.from_corpus(
             tool_name="RAG Tool",
