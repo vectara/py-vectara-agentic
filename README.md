@@ -289,6 +289,27 @@ If not passed in, it will be taken from the environment variables (`VECTARA_API_
 
 These values will be used as credentials when creating Vectara tools - in `create_rag_tool()` and `create_search_tool()`.
 
+## Setting up a privately hosted LLM
+
+If you want to setup vectara-agentic to use your own self-hosted LLM endpoint, follow the example below
+
+```python
+        config = AgentConfig(
+            agent_type=AgentType.REACT,
+            main_llm_provider=ModelProvider.PRIVATE,
+            main_llm_model_name="meta-llama/Meta-Llama-3.1-8B-Instruct",
+            private_llm_api_base="http://vllm-server.company.com/v1",
+            private_llm_api_key="TEST_API_KEY",
+        )
+        agent = Agent(agent_config=config, tools=tools, topic=topic,
+                      custom_instructions=custom_instructions)
+```
+
+In this case we specify the Main LLM provider to be privately hosted with Llama-3.1-8B as the model.
+- The `ModelProvider.PRIVATE` specifies a privately hosted LLM.
+- The `private_llm_api_base` specifies the api endpoint to use, and the `private_llm_api_key`
+  specifies the private API key requires to use this service.
+
 ## ℹ️ Additional Information
 
 ### About Custom Instructions for your Agent

@@ -326,6 +326,7 @@ class Agent:
         agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
         query_logging_callback: Optional[Callable[[str, str], None]] = None,
         agent_config: AgentConfig = AgentConfig(),
+        chat_history: Optional[list[Tuple[str, str]]] = None,
     ) -> "Agent":
         """
         Create an agent from tools, agent type, and language model.
@@ -340,6 +341,7 @@ class Agent:
                 update_func (Callable): old name for agent_progress_callback. Will be deprecated in future.
             query_logging_callback (Callable): A callback function the code calls upon completion of a query
             agent_config (AgentConfig, optional): The configuration of the agent.
+            chat_history (Tuple[str, str], optional): A list of user/agent chat pairs to initialize the agent memory.
 
         Returns:
             Agent: An instance of the Agent class.
@@ -348,7 +350,8 @@ class Agent:
             tools=tools, topic=topic, custom_instructions=custom_instructions,
             verbose=verbose, agent_progress_callback=agent_progress_callback,
             query_logging_callback=query_logging_callback,
-            update_func=update_func, agent_config=agent_config
+            update_func=update_func, agent_config=agent_config,
+            chat_history=chat_history,
         )
 
     @classmethod
