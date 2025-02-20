@@ -99,9 +99,15 @@ class TestAgentPackage(unittest.TestCase):
         )
 
         agent_reloaded = agent.loads(agent.dumps())
+        agent_reloaded_again = agent_reloaded.loads(agent_reloaded.dumps())
+
         self.assertIsInstance(agent_reloaded, Agent)
         self.assertEqual(agent, agent_reloaded)
+        self.assertEqual(agent.agent_type, agent_reloaded.agent_type)
 
+        self.assertIsInstance(agent_reloaded, Agent)
+        self.assertEqual(agent, agent_reloaded_again)
+        self.assertEqual(agent.agent_type, agent_reloaded_again.agent_type)
 
 if __name__ == "__main__":
     unittest.main()
