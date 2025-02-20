@@ -33,6 +33,7 @@ class ModelProvider(Enum):
     COHERE = "COHERE"
     GEMINI = "GEMINI"
     BEDROCK = "BEDROCK"
+    PRIVATE = "PRIVATE"
 
 
 class AgentStatusType(Enum):

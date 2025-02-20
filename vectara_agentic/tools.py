@@ -110,6 +110,9 @@ class VectaraTool(FunctionTool):
         if self.metadata.tool_type != other.metadata.tool_type:
             return False
 
+        if self.metadata.name != other.metadata.name or self.metadata.description != other.metadata.description:
+            return False
+
         # Check if fn_schema is an instance of a BaseModel or a class itself (metaclass)
         self_schema_dict = self.metadata.fn_schema.model_fields
         other_schema_dict = other.metadata.fn_schema.model_fields
@@ -252,7 +255,10 @@ def _build_filter_string(kwargs: Dict[str, Any], tool_args_type: Dict[str, dict]
                     filter_parts.append(f"{prefix}.{key}='{val_str}'")
 
     filter_str = " AND ".join(filter_parts)
-    return f"({fixed_filter}) AND ({filter_str})" if fixed_filter else filter_str
+    if fixed_filter and filter_str:
+        return f"({fixed_filter}) AND ({filter_str})"
+    else:
+        return fixed_filter or filter_str
 
 class VectaraToolFactory:
     """

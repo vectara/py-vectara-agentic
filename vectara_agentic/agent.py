@@ -38,13 +38,18 @@ from .tools_catalog import get_current_date
 from .agent_config import AgentConfig
 
 class IgnoreUnpickleableAttributeFilter(logging.Filter):
+    '''
+    Filter to ignore log messages that contain certain strings
+    '''
     def filter(self, record):
         msgs_to_ignore = [
             "Removing unpickleable private attribute _chunking_tokenizer_fn",
             "Removing unpickleable private attribute _split_fns",
             "Removing unpickleable private attribute _sub_sentence_split_fns",
         ]
-        return all(msg not in record.getMessage() for msg in msgs_to_ignore)    
+        return all(msg not in record.getMessage() for msg in msgs_to_ignore)
+
+
 logging.getLogger().addFilter(IgnoreUnpickleableAttributeFilter())
 
 logger = logging.getLogger("opentelemetry.exporter.otlp.proto.http.trace_exporter")
@@ -156,7 +161,9 @@ class Agent:
         """
         self.agent_config = agent_config or AgentConfig()
         self.agent_type = self.agent_config.agent_type
-        self.tools = tools + [ToolsFactory().create_tool(get_current_date)]
+        self.tools = tools
+        if any([tool.metadata.name == 'get_current_date' for tool in self.tools]):
+            self.tools += [ToolsFactory().create_tool(get_current_date)]
         self.llm = get_llm(LLMRole.MAIN, config=self.agent_config)
         self._custom_instructions = custom_instructions
         self._topic = topic
@@ -261,7 +268,10 @@ class Agent:
 
         # Compare tools
         if self.tools != other.tools:
-            print(f"Comparison failed: tools differ. (self.tools: {self.tools}, other.tools: {other.tools})")
+            print(
+                "Comparison failed: tools differ."
+                f"(self.tools: {[t.metadata.name for t in self.tools]}, "
+                f"other.tools: {[t.metadata.name for t in other.tools]})")
             return False
 
         # Compare topic

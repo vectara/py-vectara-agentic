@@ -90,6 +90,7 @@ def get_llm(
     or a default if none is provided.
     """
     model_provider, model_name = _get_llm_params_for_role(role, config)
+    print(f"DEBUG model_provider={model_provider}, model_name={model_name}")
     if model_provider == ModelProvider.OPENAI:
         llm = OpenAI(model=model_name, temperature=0, is_function_calling_model=True)
     elif model_provider == ModelProvider.ANTHROPIC:
@@ -112,9 +113,10 @@ def get_llm(
     elif model_provider == ModelProvider.COHERE:
         from llama_index.llms.cohere import Cohere
         llm = Cohere(model=model_name, temperature=0)
-    elif model_provider == ModelProvider.CUSTOM:
-        from private_llm import PrivateLLM
-        llm = PrivateLLM(model=model_name, temperature=0)
+    elif model_provider == ModelProvider.PRIVATE:
+        from llama_index.llms.openai_like import OpenAILike
+        llm = OpenAILike(model=model_name, temperature=0, is_function_calling_model=True,is_chat_model=True,
+                         api_base=config.private_llm_api_base, api_key=config.private_llm_api_key)
     else:
         raise ValueError(f"Unknown LLM provider: {model_provider}")
     return llm

@@ -72,7 +72,7 @@ class TestToolsPackage(unittest.TestCase):
             vectara_summarizer="mockingbird-1.0-2024-07-16"
         )
 
-        self.assertIn("Vectara is an end-to-end platform", agent.chat("What is Vectara?"))
+        self.assertIn("Vectara is an end-to-end platform", str(agent.chat("What is Vectara?")))
 
 
 if __name__ == "__main__":
