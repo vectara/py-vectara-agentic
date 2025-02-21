@@ -4,7 +4,6 @@ from vectara_agentic.agent_endpoint import start_app
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
-#customer_id = '1366999410'
 corpus_key = 'vectara-docs_1'
 api_key = 'zqt_UXrBcnI2UXINZkrv4g1tQPhzj02vfdtqYJIDiA'
 
