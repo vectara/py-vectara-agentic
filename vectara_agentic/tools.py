@@ -300,7 +300,7 @@ class VectaraToolFactory:
         mmr_diversity_bias: float = 0.2,
         udf_expression: str = None,
         rerank_chain: List[Dict] = None,
-        save_history: bool = False,
+        save_history: bool = True,
         verbose: bool = False,
     ) -> VectaraTool:
         """

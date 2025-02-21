@@ -386,7 +386,7 @@ class Agent:
         vectara_temperature: Optional[float] = None,
         vectara_frequency_penalty: Optional[float] = None,
         vectara_presence_penalty: Optional[float] = None,
-        vectara_save_history: bool = False,
+        vectara_save_history: bool = True,
     ) -> "Agent":
         """
         Create an agent from a single Vectara corpus
@@ -482,6 +482,7 @@ class Agent:
             presence_penalty=vectara_presence_penalty,
             save_history=vectara_save_history,
             include_citations=True,
+            verbose=verbose,
         )
 
         assistant_instructions = f"""
