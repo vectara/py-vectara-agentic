@@ -1,7 +1,7 @@
 """
 This module contains the Agent class for handling different types of agents and their interactions.
 """
-from typing import List, Callable, Optional, Dict, Any
+from typing import List, Callable, Optional, Dict, Any, Union, Tuple
 import os
 import re
 from datetime import date
@@ -11,12 +11,15 @@ import logging
 import traceback
 import asyncio
 
-import dill
+import cloudpickle as pickle
+
 from dotenv import load_dotenv
 
 from retrying import retry
 from pydantic import Field, create_model
 
+from llama_index.core.memory import ChatMemoryBuffer
+from llama_index.core.llms import ChatMessage, MessageRole
 from llama_index.core.tools import FunctionTool
 from llama_index.core.agent import ReActAgent
 from llama_index.core.agent.react.formatter import ReActChatFormatter
@@ -25,7 +28,7 @@ from llama_index.agent.lats import LATSAgentWorker
 from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
-from llama_index.core.memory import ChatMemoryBuffer
+
 
 from .types import AgentType, AgentStatusType, LLMRole, ToolType, AgentResponse, AgentStreamingResponse
 from .utils import get_llm, get_tokenizer_for_model
@@ -35,6 +38,21 @@ from ._observability import setup_observer, eval_fcs
 from .tools import VectaraToolFactory, VectaraTool, ToolsFactory
 from .tools_catalog import get_current_date
 from .agent_config import AgentConfig
+
+class IgnoreUnpickleableAttributeFilter(logging.Filter):
+    '''
+    Filter to ignore log messages that contain certain strings
+    '''
+    def filter(self, record):
+        msgs_to_ignore = [
+            "Removing unpickleable private attribute _chunking_tokenizer_fn",
+            "Removing unpickleable private attribute _split_fns",
+            "Removing unpickleable private attribute _sub_sentence_split_fns",
+        ]
+        return all(msg not in record.getMessage() for msg in msgs_to_ignore)
+
+
+logging.getLogger().addFilter(IgnoreUnpickleableAttributeFilter())
 
 logger = logging.getLogger("opentelemetry.exporter.otlp.proto.http.trace_exporter")
 logger.setLevel(logging.CRITICAL)
@@ -82,6 +100,34 @@ def _retry_if_exception(exception):
     return isinstance(exception, (TimeoutError))
 
 
+def get_field_type(field_schema: dict) -> Any:
+    """
+    Convert a JSON schema field definition to a Python type.
+    Handles 'type' and 'anyOf' cases.
+    """
+    json_type_to_python = {
+        "string": str,
+        "integer": int,
+        "boolean": bool,
+        "array": list,
+        "object": dict,
+        "number": float,
+    }
+    if "anyOf" in field_schema:
+        types = []
+        for option in field_schema["anyOf"]:
+            # If the option has a type, convert it; otherwise, use Any.
+            if "type" in option:
+                types.append(json_type_to_python.get(option["type"], Any))
+            else:
+                types.append(Any)
+        # Return a Union of the types. For example, Union[str, int]
+        return Union[tuple(types)]
+    elif "type" in field_schema:
+        return json_type_to_python.get(field_schema["type"], Any)
+    else:
+        return Any
+
 class Agent:
     """
     Agent class for handling different types of agents and their interactions.
@@ -97,6 +143,7 @@ class Agent:
         agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
         query_logging_callback: Optional[Callable[[str, str], None]] = None,
         agent_config: Optional[AgentConfig] = None,
+        chat_history: Optional[list[Tuple[str, str]]] = None,
     ) -> None:
         """
         Initialize the agent with the specified type, tools, topic, and system message.
@@ -112,10 +159,13 @@ class Agent:
             query_logging_callback (Callable): A callback function the code calls upon completion of a query
             agent_config (AgentConfig, optional): The configuration of the agent.
                 Defaults to AgentConfig(), which reads from environment variables.
+            chat_history (Tuple[str, str], optional): A list of user/agent chat pairs to initialize the agent memory.
         """
         self.agent_config = agent_config or AgentConfig()
         self.agent_type = self.agent_config.agent_type
-        self.tools = tools + [ToolsFactory().create_tool(get_current_date)]
+        self.tools = tools
+        if not any(tool.metadata.name == 'get_current_date' for tool in self.tools):
+            self.tools += [ToolsFactory().create_tool(get_current_date)]
         self.llm = get_llm(LLMRole.MAIN, config=self.agent_config)
         self._custom_instructions = custom_instructions
         self._topic = topic
@@ -136,7 +186,14 @@ class Agent:
         self.llm.callback_manager = callback_manager
         self.verbose = verbose
 
-        self.memory = ChatMemoryBuffer.from_defaults(token_limit=128000)
+        if chat_history:
+            msg_history = []
+            for inx, text in enumerate(chat_history):
+                role = MessageRole.USER if inx % 2 == 0 else MessageRole.ASSISTANT
+                msg_history.append(ChatMessage.from_str(content=text, role=role))
+            self.memory = ChatMemoryBuffer.from_defaults(token_limit=128000, chat_history=msg_history)
+        else:
+            self.memory = ChatMemoryBuffer.from_defaults(token_limit=128000)
         if self.agent_type == AgentType.REACT:
             prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
             self.agent = ReActAgent.from_tools(
@@ -220,7 +277,10 @@ class Agent:
 
         # Compare tools
         if self.tools != other.tools:
-            print(f"Comparison failed: tools differ. (self.tools: {self.tools}, other.tools: {other.tools})")
+            print(
+                "Comparison failed: tools differ."
+                f"(self.tools: {[t.metadata.name for t in self.tools]}, "
+                f"other.tools: {[t.metadata.name for t in other.tools]})")
             return False
 
         # Compare topic
@@ -264,6 +324,7 @@ class Agent:
         agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
         query_logging_callback: Optional[Callable[[str, str], None]] = None,
         agent_config: AgentConfig = AgentConfig(),
+        chat_history: Optional[list[Tuple[str, str]]] = None,
     ) -> "Agent":
         """
         Create an agent from tools, agent type, and language model.
@@ -278,6 +339,7 @@ class Agent:
                 update_func (Callable): old name for agent_progress_callback. Will be deprecated in future.
             query_logging_callback (Callable): A callback function the code calls upon completion of a query
             agent_config (AgentConfig, optional): The configuration of the agent.
+            chat_history (Tuple[str, str], optional): A list of user/agent chat pairs to initialize the agent memory.
 
         Returns:
             Agent: An instance of the Agent class.
@@ -286,7 +348,8 @@ class Agent:
             tools=tools, topic=topic, custom_instructions=custom_instructions,
             verbose=verbose, agent_progress_callback=agent_progress_callback,
             query_logging_callback=query_logging_callback,
-            update_func=update_func, agent_config=agent_config
+            update_func=update_func, agent_config=agent_config,
+            chat_history=chat_history,
         )
 
     @classmethod
@@ -323,7 +386,7 @@ class Agent:
         vectara_temperature: Optional[float] = None,
         vectara_frequency_penalty: Optional[float] = None,
         vectara_presence_penalty: Optional[float] = None,
-        vectara_save_history: bool = False,
+        vectara_save_history: bool = True,
     ) -> "Agent":
         """
         Create an agent from a single Vectara corpus
@@ -419,6 +482,7 @@ class Agent:
             presence_penalty=vectara_presence_penalty,
             save_history=vectara_save_history,
             include_citations=True,
+            verbose=verbose,
         )
 
         assistant_instructions = f"""
@@ -588,12 +652,13 @@ class Agent:
 
         for tool in self.tools:
             # Serialize each tool's metadata, function, and dynamic model schema (QueryArgs)
+            # TODO: deal with tools that have weakref (e.g. db_tools); for now those cannot be serialized.
             tool_dict = {
                 "tool_type": tool.metadata.tool_type.value,
                 "name": tool.metadata.name,
                 "description": tool.metadata.description,
-                "fn": dill.dumps(tool.fn).decode("latin-1") if tool.fn else None,  # Serialize fn
-                "async_fn": dill.dumps(tool.async_fn).decode("latin-1")
+                "fn": pickle.dumps(tool.fn).decode("latin-1") if tool.fn else None,  # Serialize fn
+                "async_fn": pickle.dumps(tool.async_fn).decode("latin-1")
                 if tool.async_fn
                 else None,  # Serialize async_fn
                 "fn_schema": tool.metadata.fn_schema.model_json_schema()
@@ -604,7 +669,7 @@ class Agent:
 
         return {
             "agent_type": self.agent_type.value,
-            "memory": dill.dumps(self.agent.memory).decode("latin-1"),
+            "memory": pickle.dumps(self.agent.memory).decode("latin-1"),
             "tools": tool_info,
             "topic": self._topic,
             "custom_instructions": self._custom_instructions,
@@ -618,43 +683,30 @@ class Agent:
         agent_config = AgentConfig.from_dict(data["agent_config"])
         tools = []
 
-        json_type_to_python = {
-            "string": str,
-            "integer": int,
-            "boolean": bool,
-            "array": list,
-            "object": dict,
-            "number": float,
-        }
-
         for tool_data in data["tools"]:
             # Recreate the dynamic model using the schema info
             if tool_data.get("fn_schema"):
                 field_definitions = {}
                 for field, values in tool_data["fn_schema"]["properties"].items():
-                    if "type" not in values:
-                        raise ValueError(f"Invalid schema format for tool {tool_data['name']}: argument {field} must have a type.")
-                    if "description" not in values:
-                        raise ValueError(f"Invalid schema format for tool {tool_data['name']}: argument {field} must have a desription.")
+                    # Instead of checking for 'type', use the helper:
+                    field_type = get_field_type(values)
+                    # If there's a default value, include it.
                     if "default" in values:
                         field_definitions[field] = (
-                            json_type_to_python.get(values["type"], values["type"]),
-                            Field(
-                                description=values["description"],
-                                default=values["default"],
-                            ),
-                        )  # type: ignore
+                            field_type,
+                            Field(description=values.get("description", ""), default=values["default"]),
+                        )
                     else:
                         field_definitions[field] = (
-                            json_type_to_python.get(values["type"], values["type"]),
-                            Field(description=values["description"]),
-                        )  # type: ignore
+                            field_type,
+                            Field(description=values.get("description", "")),
+                        )
                 query_args_model = create_model("QueryArgs", **field_definitions)  # type: ignore
             else:
                 query_args_model = create_model("QueryArgs")
 
-            fn = dill.loads(tool_data["fn"].encode("latin-1")) if tool_data["fn"] else None
-            async_fn = dill.loads(tool_data["async_fn"].encode("latin-1")) if tool_data["async_fn"] else None
+            fn = pickle.loads(tool_data["fn"].encode("latin-1")) if tool_data["fn"] else None
+            async_fn = pickle.loads(tool_data["async_fn"].encode("latin-1")) if tool_data["async_fn"] else None
 
             tool = VectaraTool.from_defaults(
                 name=tool_data["name"],
@@ -673,7 +725,7 @@ class Agent:
             custom_instructions=data["custom_instructions"],
             verbose=data["verbose"],
         )
-        memory = dill.loads(data["memory"].encode("latin-1")) if data.get("memory") else None
+        memory = pickle.loads(data["memory"].encode("latin-1")) if data.get("memory") else None
         if memory:
             agent.agent.memory = memory
         return agent

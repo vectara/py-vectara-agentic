@@ -112,6 +112,10 @@ def get_llm(
     elif model_provider == ModelProvider.COHERE:
         from llama_index.llms.cohere import Cohere
         llm = Cohere(model=model_name, temperature=0)
+    elif model_provider == ModelProvider.PRIVATE:
+        from llama_index.llms.openai_like import OpenAILike
+        llm = OpenAILike(model=model_name, temperature=0, is_function_calling_model=True,is_chat_model=True,
+                         api_base=config.private_llm_api_base, api_key=config.private_llm_api_key)
     else:
         raise ValueError(f"Unknown LLM provider: {model_provider}")
     return llm

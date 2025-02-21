@@ -44,6 +44,15 @@ class AgentConfig:
         default_factory=lambda: os.getenv("VECTARA_AGENTIC_TOOL_MODEL_NAME", "")
     )
 
+    # Params for Private LLM endpoint if used
+    private_llm_api_base: str = field(
+        default_factory=lambda: os.getenv("VECTARA_AGENTIC_PRIVATE_LLM_API_BASE",
+                                          "http://private-endpoint.company.com:5000/v1")
+    )
+    private_llm_api_key: str = field(
+        default_factory=lambda: os.getenv("VECTARA_AGENTIC_PRIVATE_LLM_API_KEY", "<private-api-key>")
+    )
+
     # Observer
     observer: ObserverType = field(
         default_factory=lambda: ObserverType(

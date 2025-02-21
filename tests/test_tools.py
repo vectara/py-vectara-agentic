@@ -1,8 +1,11 @@
 import unittest
 
+from pydantic import Field, BaseModel
+
 from vectara_agentic.tools import VectaraTool, VectaraToolFactory, ToolsFactory, ToolType
 from vectara_agentic.agent import Agent
-from pydantic import Field, BaseModel
+from vectara_agentic.agent_config import AgentConfig
+
 from llama_index.core.tools import FunctionTool
 
 
@@ -60,9 +63,6 @@ class TestToolsPackage(unittest.TestCase):
         vectara_corpus_key = "vectara-docs_1"
         vectara_api_key = "zqt_UXrBcnI2UXINZkrv4g1tQPhzj02vfdtqYJIDiA"
 
-        class QueryToolArgs(BaseModel):
-            query: str = Field(description="The user query")
-
         agent = Agent.from_corpus(
             vectara_corpus_key=vectara_corpus_key,
             vectara_api_key=vectara_api_key,
@@ -72,7 +72,34 @@ class TestToolsPackage(unittest.TestCase):
             vectara_summarizer="mockingbird-1.0-2024-07-16"
         )
 
-        self.assertIn("Vectara is an end-to-end platform", agent.chat("What is Vectara?"))
+        self.assertIn("Vectara is an end-to-end platform", str(agent.chat("What is Vectara?")))
+
+    def test_class_method_as_tool(self):
+        class TestClass:
+            def __init__(self):
+                pass
+
+            def mult(self, x, y):
+                return x * y
+
+        test_class = TestClass()
+        tools = [ToolsFactory().create_tool(test_class.mult)]
+        topic = "AI topic"
+        instructions = "Always do as your father tells you, if your mother agrees!"
+        config = AgentConfig()
+        agent = Agent(
+            tools=tools,
+            topic=topic,
+            custom_instructions=instructions,
+            agent_config=config
+        )
+
+        self.assertEqual(
+            agent.chat(
+                "What is 5 times 10. Only give the answer, nothing else"
+            ).response.replace("$", "\\$"),
+            "50",
+        )
 
 
 if __name__ == "__main__":
