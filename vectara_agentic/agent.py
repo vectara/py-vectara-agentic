@@ -652,6 +652,7 @@ class Agent:
 
         for tool in self.tools:
             # Serialize each tool's metadata, function, and dynamic model schema (QueryArgs)
+            # TODO: deal with tools that have weakref (e.g. db_tools); for now those cannot be serialized.
             tool_dict = {
                 "tool_type": tool.metadata.tool_type.value,
                 "name": tool.metadata.name,
