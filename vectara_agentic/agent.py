@@ -57,7 +57,6 @@ logging.getLogger().addFilter(IgnoreUnpickleableAttributeFilter())
 logger = logging.getLogger("opentelemetry.exporter.otlp.proto.http.trace_exporter")
 logger.setLevel(logging.CRITICAL)
 
-
 load_dotenv(override=True)
 
 def _get_prompt(prompt_template: str, topic: str, custom_instructions: str):
@@ -166,7 +165,7 @@ class Agent:
         self.agent_config = agent_config or AgentConfig()
         self.agent_type = self.agent_config.agent_type
         self.tools = tools
-        if any([tool.metadata.name == 'get_current_date' for tool in self.tools]):
+        if not any([tool.metadata.name == 'get_current_date' for tool in self.tools]):
             self.tools += [ToolsFactory().create_tool(get_current_date)]
         self.llm = get_llm(LLMRole.MAIN, config=self.agent_config)
         self._custom_instructions = custom_instructions
