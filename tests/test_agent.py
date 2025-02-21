@@ -127,5 +127,6 @@ class TestAgentPackage(unittest.TestCase):
         self.assertEqual(agent, agent_reloaded_again)
         self.assertEqual(agent.agent_type, agent_reloaded_again.agent_type)
 
+
 if __name__ == "__main__":
     unittest.main()

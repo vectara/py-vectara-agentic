@@ -3,7 +3,7 @@ import unittest
 from pydantic import Field, BaseModel
 
 from vectara_agentic.tools import VectaraTool, VectaraToolFactory, ToolsFactory, ToolType
-from vectara_agentic.agent import Agent, AgentType
+from vectara_agentic.agent import Agent
 from vectara_agentic.agent_config import AgentConfig
 
 from llama_index.core.tools import FunctionTool
@@ -100,6 +100,7 @@ class TestToolsPackage(unittest.TestCase):
             ).response.replace("$", "\\$"),
             "50",
         )
+
 
 if __name__ == "__main__":
     unittest.main()
