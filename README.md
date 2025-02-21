@@ -334,6 +334,8 @@ The `Agent` class defines a few helpful methods to help you understand the inter
 
 The `Agent` class supports serialization. Use the `dumps()` to serialize and `loads()` to read back from a serialized stream.
 
+Note: due to cloudpickle limitations, if a tool contains Python `weakref` objects, serialization won't work and an exception will be raised.
+
 ###  Observability
 
 vectara-agentic supports observability via the existing integration of LlamaIndex and Arize Phoenix.
