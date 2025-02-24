@@ -11,6 +11,8 @@ import logging
 import traceback
 import asyncio
 
+from collections import Counter
+
 import cloudpickle as pickle
 
 from dotenv import load_dotenv
@@ -172,11 +174,36 @@ class Agent:
         self.agent_progress_callback = agent_progress_callback if agent_progress_callback else update_func
         self.query_logging_callback = query_logging_callback
 
+        # Validate tools
+        # Check for:
+        # 1. multiple copies of the same tool
+        # 2. Instructions for using tools that do not exist
+        tool_names = [tool.metadata.name for tool in self.tools]
+        duplicates = [tool for tool, count in Counter(tool_names).items() if count > 1]
+        if duplicates:
+            raise ValueError(f"Duplicate tools detected: {', '.join(duplicates)}")
+
+        prompt = f'''
+        Given the following instructions, and a list of tool names,
+        Please identify tools mentioned in the instructions that do not exist in the list.
+        Instructions:
+        {self._custom_instructions}
+        Tool names: {', '.join(tool_names)}
+        Your response should include a comma separated list of tool names that do not exist in the list.
+        Your response should be an empty string if all tools mentioned in the instructions are in the list.
+        '''
+        llm = get_llm(LLMRole.MAIN, config=self.agent_config)
+        bad_tools = llm.complete(prompt).text.split(", ")
+        if bad_tools:
+            raise ValueError(f"The Agent custom instructions mention these invalid tools: {', '.join(bad_tools)}")
+
+        # Create token counters for the main and tool LLMs
         main_tok = get_tokenizer_for_model(role=LLMRole.MAIN)
         self.main_token_counter = TokenCountingHandler(tokenizer=main_tok) if main_tok else None
         tool_tok = get_tokenizer_for_model(role=LLMRole.TOOL)
         self.tool_token_counter = TokenCountingHandler(tokenizer=tool_tok) if tool_tok else None
 
+        # Setup callback manager
         callbacks: list[BaseCallbackHandler] = [AgentCallbackHandler(self.agent_progress_callback)]
         if self.main_token_counter:
             callbacks.append(self.main_token_counter)
