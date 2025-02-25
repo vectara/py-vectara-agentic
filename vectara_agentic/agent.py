@@ -11,6 +11,8 @@ import logging
 import traceback
 import asyncio
 
+from collections import Counter
+
 import cloudpickle as pickle
 
 from dotenv import load_dotenv
@@ -144,6 +146,7 @@ class Agent:
         query_logging_callback: Optional[Callable[[str, str], None]] = None,
         agent_config: Optional[AgentConfig] = None,
         chat_history: Optional[list[Tuple[str, str]]] = None,
+        validate_tools: bool = False,
     ) -> None:
         """
         Initialize the agent with the specified type, tools, topic, and system message.
@@ -160,6 +163,8 @@ class Agent:
             agent_config (AgentConfig, optional): The configuration of the agent.
                 Defaults to AgentConfig(), which reads from environment variables.
             chat_history (Tuple[str, str], optional): A list of user/agent chat pairs to initialize the agent memory.
+            validate_tools (bool, optional): Whether to validate tool inconsistency with instructions. 
+                Defaults to False.
         """
         self.agent_config = agent_config or AgentConfig()
         self.agent_type = self.agent_config.agent_type
@@ -172,11 +177,37 @@ class Agent:
         self.agent_progress_callback = agent_progress_callback if agent_progress_callback else update_func
         self.query_logging_callback = query_logging_callback
 
+        # Validate tools
+        # Check for:
+        # 1. multiple copies of the same tool
+        # 2. Instructions for using tools that do not exist
+        tool_names = [tool.metadata.name for tool in self.tools]
+        duplicates = [tool for tool, count in Counter(tool_names).items() if count > 1]
+        if duplicates:
+            raise ValueError(f"Duplicate tools detected: {', '.join(duplicates)}")
+        
+        if validate_tools:
+            prompt = f'''
+            Given the following instructions, and a list of tool names,
+            Please identify tools mentioned in the instructions that do not exist in the list.
+            Instructions:
+            {self._custom_instructions}
+            Tool names: {', '.join(tool_names)}
+            Your response should include a comma separated list of tool names that do not exist in the list.
+            Your response should be an empty string if all tools mentioned in the instructions are in the list.
+            '''
+            llm = get_llm(LLMRole.MAIN, config=self.agent_config)
+            bad_tools = llm.complete(prompt).text.split(", ")
+            if bad_tools:
+                raise ValueError(f"The Agent custom instructions mention these invalid tools: {', '.join(bad_tools)}")
+
+        # Create token counters for the main and tool LLMs
         main_tok = get_tokenizer_for_model(role=LLMRole.MAIN)
         self.main_token_counter = TokenCountingHandler(tokenizer=main_tok) if main_tok else None
         tool_tok = get_tokenizer_for_model(role=LLMRole.TOOL)
         self.tool_token_counter = TokenCountingHandler(tokenizer=tool_tok) if tool_tok else None
 
+        # Setup callback manager
         callbacks: list[BaseCallbackHandler] = [AgentCallbackHandler(self.agent_progress_callback)]
         if self.main_token_counter:
             callbacks.append(self.main_token_counter)
