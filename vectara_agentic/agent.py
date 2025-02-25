@@ -146,6 +146,7 @@ class Agent:
         query_logging_callback: Optional[Callable[[str, str], None]] = None,
         agent_config: Optional[AgentConfig] = None,
         chat_history: Optional[list[Tuple[str, str]]] = None,
+        validate_tools: bool = False,
     ) -> None:
         """
         Initialize the agent with the specified type, tools, topic, and system message.
@@ -162,6 +163,8 @@ class Agent:
             agent_config (AgentConfig, optional): The configuration of the agent.
                 Defaults to AgentConfig(), which reads from environment variables.
             chat_history (Tuple[str, str], optional): A list of user/agent chat pairs to initialize the agent memory.
+            validate_tools (bool, optional): Whether to validate tool inconsistency with instructions. 
+                Defaults to False.
         """
         self.agent_config = agent_config or AgentConfig()
         self.agent_type = self.agent_config.agent_type
@@ -182,20 +185,21 @@ class Agent:
         duplicates = [tool for tool, count in Counter(tool_names).items() if count > 1]
         if duplicates:
             raise ValueError(f"Duplicate tools detected: {', '.join(duplicates)}")
-
-        prompt = f'''
-        Given the following instructions, and a list of tool names,
-        Please identify tools mentioned in the instructions that do not exist in the list.
-        Instructions:
-        {self._custom_instructions}
-        Tool names: {', '.join(tool_names)}
-        Your response should include a comma separated list of tool names that do not exist in the list.
-        Your response should be an empty string if all tools mentioned in the instructions are in the list.
-        '''
-        llm = get_llm(LLMRole.MAIN, config=self.agent_config)
-        bad_tools = llm.complete(prompt).text.split(", ")
-        if bad_tools:
-            raise ValueError(f"The Agent custom instructions mention these invalid tools: {', '.join(bad_tools)}")
+        
+        if validate_tools:
+            prompt = f'''
+            Given the following instructions, and a list of tool names,
+            Please identify tools mentioned in the instructions that do not exist in the list.
+            Instructions:
+            {self._custom_instructions}
+            Tool names: {', '.join(tool_names)}
+            Your response should include a comma separated list of tool names that do not exist in the list.
+            Your response should be an empty string if all tools mentioned in the instructions are in the list.
+            '''
+            llm = get_llm(LLMRole.MAIN, config=self.agent_config)
+            bad_tools = llm.complete(prompt).text.split(", ")
+            if bad_tools:
+                raise ValueError(f"The Agent custom instructions mention these invalid tools: {', '.join(bad_tools)}")
 
         # Create token counters for the main and tool LLMs
         main_tok = get_tokenizer_for_model(role=LLMRole.MAIN)
