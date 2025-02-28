@@ -23,6 +23,13 @@ class AgentConfig:
         )
     )
 
+    # Fallback Agent type
+    fall_back_agent_type: AgentType = field(
+        default_factory=lambda: AgentType(
+            os.getenv("VECTARA_AGENTIC_FALLBACK_AGENT_TYPE", AgentType.REACT.value)
+        )
+    )
+
     # Main LLM provider & model name
     main_llm_provider: ModelProvider = field(
         default_factory=lambda: ModelProvider(
@@ -34,6 +41,17 @@ class AgentConfig:
         default_factory=lambda: os.getenv("VECTARA_AGENTIC_MAIN_MODEL_NAME", "")
     )
 
+    # Fallback Main LLM provider & model name
+    fallback_main_llm_provider: ModelProvider = field(
+        default_factory=lambda: ModelProvider(
+            os.getenv("VECTARA_AGENTIC_FALLBACK_MAIN_LLM_PROVIDER", ModelProvider.ANTHROPIC.value)
+        )
+    )
+
+    fallback_main_llm_model_name: str = field(
+        default_factory=lambda: os.getenv("VECTARA_AGENTIC_FALLBACK_MAIN_MODEL_NAME", "")
+    )
+
     # Tool LLM provider & model name
     tool_llm_provider: ModelProvider = field(
         default_factory=lambda: ModelProvider(
@@ -42,6 +60,16 @@ class AgentConfig:
     )
     tool_llm_model_name: str = field(
         default_factory=lambda: os.getenv("VECTARA_AGENTIC_TOOL_MODEL_NAME", "")
+    )
+
+    # Fallback Tool LLM provider & model name
+    fallback_tool_llm_provider: ModelProvider = field(
+        default_factory=lambda: ModelProvider(
+            os.getenv("VECTARA_AGENTIC_FALLBACK_TOOL_LLM_PROVIDER", ModelProvider.ANTHROPIC.value)
+        )
+    )
+    fallback_tool_llm_model_name: str = field(
+        default_factory=lambda: os.getenv("VECTARA_AGENTIC_FALLBACK_TOOL_MODEL_NAME", "")
     )
 
     # Params for Private LLM endpoint if used

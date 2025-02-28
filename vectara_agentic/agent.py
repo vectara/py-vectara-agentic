@@ -97,9 +97,46 @@ def _get_llm_compiler_prompt(prompt: str, topic: str, custom_instructions: str) 
     prompt += f"Today is {date.today().strftime('%A, %B %d, %Y')}"
     return prompt
 
+def _fallback_agent_config(agent):
+    agent_config = agent.agent_config
+
+    # Update agent config types
+    agent_config.agent_type = agent_config.fall_back_agent_type
+    agent_config.main_llm_provider = agent_config.fallback_main_llm_provider
+    agent_config.main_llm_model_name = agent_config.fallback_main_llm_model_name
+    agent_config.tool_llm_provider = agent_config.fallback_tool_llm_provider
+    agent_config.tool_llm_model_name = agent_config.fallback_tool_llm_model_name
+
+    # Update agent to reflect changes
+    agent._fallback_initialization(
+        new_config=agent_config
+    )
+
+
 def _retry_if_exception(exception):
     # Define the condition to retry on certain exceptions
     return isinstance(exception, (TimeoutError))
+
+def retry_with_callback():
+    def decorator(func):
+        @retry(
+            retry_on_exception=_retry_if_exception,
+            stop_max_attempt_number=3,
+            wait_fixed=2000,
+        )
+        def wrapper(self, *args):
+            try:
+                return func(self, *args)
+            except Exception as e:
+                _fallback_agent_config(self)
+                return AgentResponse(
+                    response = (
+                        f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()})"
+                        ", initialized new agent with fallback agent configuration."
+                    )
+                )
+        return wrapper
+    return decorator
 
 
 def get_field_type(field_schema: dict) -> Any:
@@ -528,6 +565,90 @@ class Agent:
             query_logging_callback=query_logging_callback,
         )
 
+    # WARNING: THIS INVOLVES A LOT OF COPY AND PASTE CODE FROM __init__()
+    def _fallback_initialization(new_config) -> None:
+        """"
+        Set up the agent again if original agent config caused errors.
+        """
+        self.agent_config=new_config
+        self.agent_type = self.agent_config.agent_type
+        self.llm = get_llm(LLMRole.MAIN, config=self.agent_config)
+
+        # DON'T KNOW HOW TO DEAL WITH VALIDATE TOOLS SINCE IT IS NOT CURRENTLY STORED IN ANY SELF VARIABLE
+
+        main_tok = get_tokenizer_for_model(role=LLMRole.MAIN)
+        self.main_token_counter = TokenCountingHandler(tokenizer=main_tok) if main_tok else None
+        tool_tok = get_tokenizer_for_model(role=LLMRole.TOOL)
+        self.tool_token_counter = TokenCountingHandler(tokenizer=tool_tok) if tool_tok else None
+
+        callbacks: list[BaseCallbackHandler] = [AgentCallbackHandler(self.agent_progress_callback)]
+        if self.main_token_counter:
+            callbacks.append(self.main_token_counter)
+        if self.tool_token_counter:
+            callbacks.append(self.tool_token_counter)
+        callback_manager = CallbackManager(callbacks)  # type: ignore
+        self.llm.callback_manager = callback_manager
+
+        if self.agent_type == AgentType.REACT:
+            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
+            self.agent = ReActAgent.from_tools(
+                tools=self.tools,
+                llm=self.llm,
+                memory=self.memory,
+                verbose=verbose,
+                react_chat_formatter=ReActChatFormatter(system_header=prompt),
+                max_iterations=30,
+                callable_manager=callback_manager,
+            )
+        elif self.agent_type == AgentType.OPENAI:
+            prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, topic, custom_instructions)
+            self.agent = OpenAIAgent.from_tools(
+                tools=self.tools,
+                llm=self.llm,
+                memory=self.memory,
+                verbose=verbose,
+                callable_manager=callback_manager,
+                max_function_calls=20,
+                system_prompt=prompt,
+            )
+        elif self.agent_type == AgentType.LLMCOMPILER:
+            agent_worker = LLMCompilerAgentWorker.from_tools(
+                tools=self.tools,
+                llm=self.llm,
+                verbose=verbose,
+                callable_manager=callback_manager,
+            )
+            agent_worker.system_prompt = _get_prompt(
+                _get_llm_compiler_prompt(agent_worker.system_prompt, topic, custom_instructions),
+                topic, custom_instructions
+            )
+            agent_worker.system_prompt_replan = _get_prompt(
+                _get_llm_compiler_prompt(agent_worker.system_prompt_replan, topic, custom_instructions),
+                topic, custom_instructions
+            )
+            self.agent = agent_worker.as_agent()
+        elif self.agent_type == AgentType.LATS:
+            agent_worker = LATSAgentWorker.from_tools(
+                tools=self.tools,
+                llm=self.llm,
+                num_expansions=3,
+                max_rollouts=-1,
+                verbose=verbose,
+                callable_manager=callback_manager,
+            )
+            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
+            agent_worker.chat_formatter = ReActChatFormatter(system_header=prompt)
+            self.agent = agent_worker.as_agent()
+        else:
+            raise ValueError(f"Unknown agent type: {self.agent_type}")
+
+        try:
+            self.observability_enabled = setup_observer(self.agent_config)
+        except Exception as e:
+            print(f"Failed to set up observer ({e}), ignoring")
+            self.observability_enabled = False
+
+
     def report(self) -> None:
         """
         Get a report from the agent.
@@ -579,11 +700,7 @@ class Agent:
         """
         return asyncio.run(self.achat(prompt))
 
-    @retry(
-        retry_on_exception=_retry_if_exception,
-        stop_max_attempt_number=3,
-        wait_fixed=2000,
-    )
+    @retry_with_callback()
     async def achat(self, prompt: str) -> AgentResponse:    # type: ignore
         """
         Interact with the agent using a chat prompt.
@@ -625,11 +742,7 @@ class Agent:
         """
         return asyncio.run(self.astream_chat(prompt))
 
-    @retry(
-        retry_on_exception=_retry_if_exception,
-        stop_max_attempt_number=3,
-        wait_fixed=2000,
-    )
+    @retry_with_callback()
     async def astream_chat(self, prompt: str) -> AgentStreamingResponse:    # type: ignore
         """
         Interact with the agent using a chat prompt asynchronously with streaming.
