@@ -17,7 +17,6 @@ from llama_index.indices.managed.vectara import VectaraIndex
 from llama_index.core.utilities.sql_wrapper import SQLDatabase
 from llama_index.core.tools.types import ToolMetadata, ToolOutput
 
-
 from .types import ToolType
 from .tools_catalog import ToolsCatalog, get_bad_topics
 from .db_tools import DBLoadSampleData, DBLoadUniqueValues, DBLoadData
@@ -749,9 +748,9 @@ class ToolsFactory:
 
         # Get the tool spec class or function from the module
         tool_spec = getattr(module, tool_spec_name)
-
         func_type = LI_packages[tool_package_name]
         tools = tool_spec(**kwargs).to_tool_list()
+    
         vtools = []
         for tool in tools:
             if len(tool_name_prefix) > 0:

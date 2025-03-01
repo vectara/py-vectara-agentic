@@ -41,6 +41,14 @@ from .tools import VectaraToolFactory, VectaraTool, ToolsFactory
 from .tools_catalog import get_current_date
 from .agent_config import AgentConfig
 
+# Setup custom reducer function for weak references
+import weakref
+import copyreg
+def reduce_weakref(wref):
+    return lambda: None, ()
+copyreg.pickle(weakref.ReferenceType, reduce_weakref)
+
+
 class IgnoreUnpickleableAttributeFilter(logging.Filter):
     '''
     Filter to ignore log messages that contain certain strings
@@ -219,9 +227,9 @@ class Agent:
 
         if chat_history:
             msg_history = []
-            for inx, text in enumerate(chat_history):
-                role = MessageRole.USER if inx % 2 == 0 else MessageRole.ASSISTANT
-                msg_history.append(ChatMessage.from_str(content=text, role=role))
+            for text_pairs in chat_history:
+                msg_history.append(ChatMessage.from_str(content=text_pairs[0], role=MessageRole.USER))
+                msg_history.append(ChatMessage.from_str(content=text_pairs[1], role=MessageRole.ASSISTANT))
             self.memory = ChatMemoryBuffer.from_defaults(token_limit=128000, chat_history=msg_history)
         else:
             self.memory = ChatMemoryBuffer.from_defaults(token_limit=128000)
@@ -683,7 +691,6 @@ class Agent:
 
         for tool in self.tools:
             # Serialize each tool's metadata, function, and dynamic model schema (QueryArgs)
-            # TODO: deal with tools that have weakref (e.g. db_tools); for now those cannot be serialized.
             tool_dict = {
                 "tool_type": tool.metadata.tool_type.value,
                 "name": tool.metadata.name,

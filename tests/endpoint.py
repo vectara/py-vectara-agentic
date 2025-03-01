@@ -1,8 +1,13 @@
 from openai import OpenAI
 from flask import Flask, request, jsonify
+import logging
 from functools import wraps
 
 app = Flask(__name__)
+app.config['TESTING'] = True
+
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
 
 # Set your OpenAI API key (ensure you've set this in your environment)
 
@@ -39,4 +44,4 @@ def chat_completions():
 
 if __name__ == "__main__":
     # Run on port 5000 by default; adjust as needed.
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5000, use_reloader=False)

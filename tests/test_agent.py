@@ -6,6 +6,9 @@ from vectara_agentic.agent_config import AgentConfig
 from vectara_agentic.types import ModelProvider, ObserverType
 from vectara_agentic.tools import ToolsFactory
 
+def mult(x, y):
+    return x * y
+
 class TestAgentPackage(unittest.TestCase):
     def test_get_prompt(self):
         prompt_template = "{chat_topic} on {today} with {custom_instructions}"
@@ -21,9 +24,6 @@ class TestAgentPackage(unittest.TestCase):
         )
 
     def test_agent_init(self):
-        def mult(x, y):
-            return x * y
-
         tools = [ToolsFactory().create_tool(mult)]
         topic = "AI"
         custom_instructions = "Always do as your mother tells you!"
@@ -41,9 +41,6 @@ class TestAgentPackage(unittest.TestCase):
         )
 
     def test_agent_config(self):
-        def mult(x, y):
-            return x * y
-
         tools = [ToolsFactory().create_tool(mult)]
         topic = "AI topic"
         instructions = "Always do as your father tells you, if your mother agrees!"
@@ -78,9 +75,6 @@ class TestAgentPackage(unittest.TestCase):
         )
 
     def test_multiturn(self):
-        def mult(x, y):
-            return x * y
-
         tools = [ToolsFactory().create_tool(mult)]
         topic = "AI topic"
         instructions = "Always do as your father tells you, if your mother agrees!"
@@ -126,6 +120,20 @@ class TestAgentPackage(unittest.TestCase):
         self.assertIsInstance(agent_reloaded, Agent)
         self.assertEqual(agent, agent_reloaded_again)
         self.assertEqual(agent.agent_type, agent_reloaded_again.agent_type)
+
+    def test_chat_history(self):
+        tools = [ToolsFactory().create_tool(mult)]
+        topic = "AI topic"
+        instructions = "Always do as your father tells you, if your mother agrees!"
+        agent = Agent(
+            tools=tools,
+            topic=topic,
+            custom_instructions=instructions,
+            chat_history=[("What is 5 times 10", "50"), ("What is 3 times 7", "21")]
+        )
+
+        res = agent.chat("multiply the results of the last two questions. Output only the answer.")
+        self.assertEqual(res.response, "1050")
 
 
 if __name__ == "__main__":
