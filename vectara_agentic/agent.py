@@ -41,14 +41,6 @@ from .tools import VectaraToolFactory, VectaraTool, ToolsFactory
 from .tools_catalog import get_current_date
 from .agent_config import AgentConfig
 
-# Setup custom reducer function for weak references
-import weakref
-import copyreg
-def reduce_weakref(wref):
-    return lambda: None, ()
-copyreg.pickle(weakref.ReferenceType, reduce_weakref)
-
-
 class IgnoreUnpickleableAttributeFilter(logging.Filter):
     '''
     Filter to ignore log messages that contain certain strings
