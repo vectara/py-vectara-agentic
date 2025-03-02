@@ -1,5 +1,5 @@
 site_name: Vectara Agentic Documentation
-site_url: https://vectara.github.io/vectara-agentic/
+site_url: https://vectara.github.io/py-vectara-agentic/
 nav:
   - Home: index.md
   - Install: installation.md
@@ -14,6 +14,3 @@ theme:
   name: material
 plugins:
   - search
-  - redirects:
-      redirect_maps:
-        vectara-agentic.md: py-vectara-agentic/
