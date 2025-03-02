@@ -17,7 +17,6 @@ from llama_index.indices.managed.vectara import VectaraIndex
 from llama_index.core.utilities.sql_wrapper import SQLDatabase
 from llama_index.core.tools.types import ToolMetadata, ToolOutput
 
-
 from .types import ToolType
 from .tools_catalog import ToolsCatalog, get_bad_topics
 from .db_tools import DBLoadSampleData, DBLoadUniqueValues, DBLoadData
@@ -302,6 +301,8 @@ class VectaraToolFactory:
         rerank_chain: List[Dict] = None,
         save_history: bool = True,
         verbose: bool = False,
+        vectara_base_url: str = "https://api.vectara.io",
+        vectara_verify_ssl: bool = True,
     ) -> VectaraTool:
         """
         Creates a Vectara search/retrieval tool
@@ -333,6 +334,8 @@ class VectaraToolFactory:
                 If using slingshot/multilingual_reranker_v1, it must be first in the list.
             save_history (bool, optional): Whether to save the query in history.
             verbose (bool, optional): Whether to print verbose output.
+            vectara_base_url (str, optional): The base URL for the Vectara API.
+            vectara_verify_ssl (bool, optional): Whether to verify SSL certificates for the Vectara API.
 
         Returns:
             VectaraTool: A VectaraTool object.
@@ -342,6 +345,8 @@ class VectaraToolFactory:
             vectara_api_key=self.vectara_api_key,
             vectara_corpus_key=self.vectara_corpus_key,
             x_source_str="vectara-agentic",
+            base_url=vectara_base_url,
+            verify_ssl=vectara_verify_ssl,
         )
 
         # Dynamically generate the search function
@@ -482,6 +487,8 @@ class VectaraToolFactory:
         save_history: bool = False,
         fcs_threshold: float = 0.0,
         verbose: bool = False,
+        vectara_base_url: str = "https://api.vectara.io",
+        vectara_verify_ssl: bool = True,
     ) -> VectaraTool:
         """
         Creates a RAG (Retrieve and Generate) tool.
@@ -532,6 +539,8 @@ class VectaraToolFactory:
             fcs_threshold (float, optional): A threshold for factual consistency.
                 If set above 0, the tool notifies the calling agent that it "cannot respond" if FCS is too low.
             verbose (bool, optional): Whether to print verbose output.
+            vectara_base_url (str, optional): The base URL for the Vectara API.
+            vectara_verify_ssl (bool, optional): Whether to verify SSL certificates for the Vectara API.
 
         Returns:
             VectaraTool: A VectaraTool object.
@@ -541,6 +550,8 @@ class VectaraToolFactory:
             vectara_api_key=self.vectara_api_key,
             vectara_corpus_key=self.vectara_corpus_key,
             x_source_str="vectara-agentic",
+            base_url=vectara_base_url,
+            verify_ssl=vectara_verify_ssl,
         )
 
         # Dynamically generate the RAG function
@@ -749,9 +760,9 @@ class ToolsFactory:
 
         # Get the tool spec class or function from the module
         tool_spec = getattr(module, tool_spec_name)
-
         func_type = LI_packages[tool_package_name]
         tools = tool_spec(**kwargs).to_tool_list()
+    
         vtools = []
         for tool in tools:
             if len(tool_name_prefix) > 0:
