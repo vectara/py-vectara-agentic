@@ -1,23 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://vectara.github.io/py-vectara-agentic/introduction</loc>
+         <loc>https://vectara.github.io/latest/vectara-agentic/v1/</loc>
          <lastmod>2025-03-02</lastmod>
     </url>
     <url>
-         <loc>https://vectara.github.io/py-vectara-agentic/endpoint/</loc>
+         <loc>https://vectara.github.io/latest/vectara-agentic/v1/endpoint/</loc>
          <lastmod>2025-03-02</lastmod>
     </url>
     <url>
-         <loc>https://vectara.github.io/py-vectara-agentic/installation/</loc>
+         <loc>https://vectara.github.io/latest/vectara-agentic/v1/installation/</loc>
          <lastmod>2025-03-02</lastmod>
     </url>
     <url>
-         <loc>https://vectara.github.io/py-vectara-agentic/tools/</loc>
+         <loc>https://vectara.github.io/latest/vectara-agentic/v1/tools/</loc>
          <lastmod>2025-03-02</lastmod>
     </url>
     <url>
-         <loc>https://vectara.github.io/py-vectara-agentic/usage/</loc>
+         <loc>https://vectara.github.io/latest/vectara-agentic/v1/usage/</loc>
          <lastmod>2025-03-02</lastmod>
     </url>
 </urlset>
