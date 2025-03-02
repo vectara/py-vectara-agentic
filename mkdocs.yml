@@ -14,3 +14,6 @@ theme:
   name: material
 plugins:
   - search
+  - redirects:
+      redirect_maps:
+        vectara-agentic.md: py-vectara-agentic/
