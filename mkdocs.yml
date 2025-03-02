@@ -1,0 +1,16 @@
+site_name: Vectara Agentic Documentation
+site_url: https://vectara.github.io/latest/vectara-agentic/
+nav:
+  - Home: index.md
+  - Install: installation.md
+  - Usage: usage.md
+  - Tools: tools.md
+  - Endpoint: endpoint.md
+extra:
+  version:
+    provider: mike
+    default: latest  # The version that should be considered current
+theme:
+  name: material
+plugins:
+  - search
