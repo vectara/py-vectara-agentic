@@ -163,7 +163,7 @@ class Agent:
             agent_config (AgentConfig, optional): The configuration of the agent.
                 Defaults to AgentConfig(), which reads from environment variables.
             chat_history (Tuple[str, str], optional): A list of user/agent chat pairs to initialize the agent memory.
-            validate_tools (bool, optional): Whether to validate tool inconsistency with instructions. 
+            validate_tools (bool, optional): Whether to validate tool inconsistency with instructions.
                 Defaults to False.
         """
         self.agent_config = agent_config or AgentConfig()
@@ -185,7 +185,7 @@ class Agent:
         duplicates = [tool for tool, count in Counter(tool_names).items() if count > 1]
         if duplicates:
             raise ValueError(f"Duplicate tools detected: {', '.join(duplicates)}")
-        
+
         if validate_tools:
             prompt = f'''
             Given the following instructions, and a list of tool names,

@@ -762,7 +762,7 @@ class ToolsFactory:
         tool_spec = getattr(module, tool_spec_name)
         func_type = LI_packages[tool_package_name]
         tools = tool_spec(**kwargs).to_tool_list()
-    
+
         vtools = []
         for tool in tools:
             if len(tool_name_prefix) > 0:
