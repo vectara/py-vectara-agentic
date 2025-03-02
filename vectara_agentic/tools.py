@@ -99,9 +99,14 @@ class VectaraTool(FunctionTool):
         fn_schema: Optional[Type[BaseModel]] = None,
         async_fn: Optional[AsyncCallable] = None,
         tool_metadata: Optional[ToolMetadata] = None,
+        callback: Optional[Callable[[Any], Any]] = None,
+        async_callback: Optional[AsyncCallable] = None,
         tool_type: ToolType = ToolType.QUERY,
     ) -> "VectaraTool":
-        tool = FunctionTool.from_defaults(fn, name, description, return_direct, fn_schema, async_fn, tool_metadata)
+        tool = FunctionTool.from_defaults(
+            fn, name, description, return_direct, fn_schema, async_fn, tool_metadata,
+            callback, async_callback
+        )
         vectara_tool = cls(tool_type=tool_type, fn=tool.fn, metadata=tool.metadata, async_fn=tool.async_fn)
         return vectara_tool
 
