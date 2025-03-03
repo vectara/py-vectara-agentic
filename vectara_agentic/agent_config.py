@@ -65,6 +65,12 @@ class AgentConfig:
         default_factory=lambda: os.getenv("VECTARA_AGENTIC_API_KEY", "dev-api-key")
     )
 
+    # max reasoning steps
+    # used for both OpenAI and React Agent types
+    max_reasoning_steps: int = field(
+        default_factory=lambda: os.getenv("VECTARA_AGENTIC_MAX_REASONING_STEPS", 50)
+    )
+
     def to_dict(self) -> dict:
         """
         Convert the AgentConfig to a dictionary.

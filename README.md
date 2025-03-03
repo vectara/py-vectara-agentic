@@ -282,6 +282,7 @@ The `AgentConfig` object may include the following items:
 - `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider).
 - `observer`: the observer type; should be `ARIZE_PHOENIX` or if undefined no observation framework will be used.
 - `endpoint_api_key`: a secret key if using the API endpoint option (defaults to `dev-api-key`)
+- `max_reasoning_steps`: the maximum number of reasoning steps (iterations for React and function calls for OpenAI agent, respectively). Defaults to 50.
 
 If any of these are not provided, `AgentConfig` first tries to read the values from the OS environment.
 

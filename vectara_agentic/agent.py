@@ -227,26 +227,24 @@ class Agent:
             self.memory = ChatMemoryBuffer.from_defaults(token_limit=128000)
         if self.agent_type == AgentType.REACT:
             prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
-            MAX_REACT_ITERATIONS = 50
             self.agent = ReActAgent.from_tools(
                 tools=self.tools,
                 llm=self.llm,
                 memory=self.memory,
                 verbose=verbose,
                 react_chat_formatter=ReActChatFormatter(system_header=prompt),
-                max_iterations=MAX_REACT_ITERATIONS,
+                max_iterations=agent_config.max_reasoning_steps,
                 callable_manager=callback_manager,
             )
         elif self.agent_type == AgentType.OPENAI:
             prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, topic, custom_instructions)
-            MAX_OPENAI_FUNC_CALLS = 50
             self.agent = OpenAIAgent.from_tools(
                 tools=self.tools,
                 llm=self.llm,
                 memory=self.memory,
                 verbose=verbose,
                 callable_manager=callback_manager,
-                max_function_calls=MAX_OPENAI_FUNC_CALLS,
+                max_function_calls=agent_config.max_reasoning_steps,
                 system_prompt=prompt,
             )
         elif self.agent_type == AgentType.LLMCOMPILER:
