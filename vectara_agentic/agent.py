@@ -291,9 +291,6 @@ class Agent:
         self.agent.memory.reset()
 
     def __eq__(self, other):
-        """
-        Compare two Agent instances for equality.
-        """
         if not isinstance(other, Agent):
             print(f"Comparison failed: other is not an instance of Agent. (self: {type(self)}, other: {type(other)})")
             return False
@@ -439,7 +436,7 @@ class Agent:
             vectara_custom_dimensions: (Dict, optional): Custom dimensions for the query.
             vectara_reranker (str, optional): The Vectara reranker name (default "slingshot")
             vectara_rerank_k (int, optional): The number of results to use with reranking.
-            vetara_rerank_limit: (int, optional): The maximum number of results to return after reranking.
+            vectara_rerank_limit: (int, optional): The maximum number of results to return after reranking.
             vectara_rerank_cutoff: (float, optional): The minimum score threshold for results to include after
                 reranking.
             vectara_diversity_bias (float, optional): The MMR diversity bias.
