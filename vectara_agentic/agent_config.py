@@ -68,7 +68,7 @@ class AgentConfig:
     # max reasoning steps
     # used for both OpenAI and React Agent types
     max_reasoning_steps: int = field(
-        default_factory=lambda: os.getenv("VECTARA_AGENTIC_MAX_REASONING_STEPS", 50)
+        default_factory=lambda: int(os.getenv("VECTARA_AGENTIC_MAX_REASONING_STEPS", "50"))
     )
 
     def to_dict(self) -> dict:

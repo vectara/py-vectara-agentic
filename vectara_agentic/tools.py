@@ -134,7 +134,7 @@ class VectaraTool(FunctionTool):
                 is_equal = False
                 break
         return is_equal
-    
+
     def call(
         self, *args: Any, ctx: Optional[Context] = None, **kwargs: Any
     ) -> ToolOutput:
@@ -162,7 +162,6 @@ class VectaraTool(FunctionTool):
                 raw_output={"response": str(e)},
             )
             return err_output
-        
 
 def _build_filter_string(kwargs: Dict[str, Any], tool_args_type: Dict[str, dict], fixed_filter: str) -> str:
     """

@@ -193,8 +193,14 @@ on user defined functions for some guidance and inspiration.
 That's it: now the `ask_transcripts` tool is ready to be added to the
 agent.
 
-You can use the `VectaraToolFactory` to generate more than one RAG tool
+Notes:
+- You can use the `VectaraToolFactory` to generate more than one RAG tool
 with different parameters, depending on your needs.
+- `create_rag_tool` and `create_search_tool` both support the `vectara_base_url` 
+  argument. If specified, it allows you to specify a different base URL for Vectara,
+  for example when you have an on-premise installation.
+- If you want to specify a Certificate Authority for a local installation,
+  you can set "export REQUESTS_CA_BUNDLE=/path/to/custom_ca_bundle.pem".
 
 **Vectara Search Tool**
 In most cases, you will likely want to use the Vectara RAG query tool,
