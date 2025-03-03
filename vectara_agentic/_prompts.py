@@ -15,6 +15,7 @@ GENERAL_INSTRUCTIONS = """
   For example if asked "what is the revenue of Google?", you can rephrase the question as "Google revenue" or other variations.
   2) Break the question into sub-questions and call the tool for each sub-question, then combine the answers to provide a complete response.
   For example if asked "what is the population of France and Germany", you can call the tool twice, once for each country.
+- If a tool returns a "Malfunction" error - notify the user that you cannot respond due a tool not operating properly.
 - If a tool provides citations or references in markdown as part of its response, include the references in your response.
 - When providing links in your response, use the name of the website for the displayed text of the link (instead of just 'source').
 - If after retrying you can't get the information or answer the question, respond with "I don't know".

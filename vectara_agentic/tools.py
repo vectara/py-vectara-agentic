@@ -141,15 +141,28 @@ class VectaraTool(FunctionTool):
         try:
             return super().call(*args, ctx=ctx, **kwargs)
         except Exception as e:
-            return ToolOutput(
+            err_output = ToolOutput(
                 tool_name=self.metadata.name,
                 content=f"Tool Malfunction: {str(e)}",
                 raw_input={"args": args, "kwargs": kwargs},
                 raw_output={"response": str(e)},
             )
+            return err_output
 
-
-
+    async def acall(
+        self, *args: Any, ctx: Optional[Context] = None, **kwargs: Any
+    ) -> ToolOutput:
+        try:
+            return super().call(*args, ctx=ctx, **kwargs)
+        except Exception as e:
+            err_output = ToolOutput(
+                tool_name=self.metadata.name,
+                content=f"Tool Malfunction: {str(e)}",
+                raw_input={"args": args, "kwargs": kwargs},
+                raw_output={"response": str(e)},
+            )
+            return err_output
+        
 
 def _build_filter_string(kwargs: Dict[str, Any], tool_args_type: Dict[str, dict], fixed_filter: str) -> str:
     """
