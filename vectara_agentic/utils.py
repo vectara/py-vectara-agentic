@@ -4,6 +4,7 @@ Utilities for the Vectara agentic.
 
 from typing import Tuple, Callable, Optional
 from functools import lru_cache
+from inspect import signature
 
 import tiktoken
 
@@ -127,3 +128,14 @@ def is_float(value: str) -> bool:
         return True
     except ValueError:
         return False
+
+def remove_self_from_signature(func):
+    """Decorator to remove 'self' from a method's signature for introspection."""
+    sig = signature(func)
+    params = list(sig.parameters.values())
+    # Remove the first parameter if it is named 'self'
+    if params and params[0].name == "self":
+        params = params[1:]
+    new_sig = sig.replace(parameters=params)
+    func.__signature__ = new_sig
+    return func

@@ -35,6 +35,17 @@ class TestToolsPackage(unittest.TestCase):
         self.assertIsInstance(query_tool, FunctionTool)
         self.assertEqual(query_tool.metadata.tool_type, ToolType.QUERY)
 
+        search_tool = vec_factory.create_search_tool(
+            tool_name="search_tool",
+            tool_description="""
+            Returns a list of documents (str) that match the user query.
+            """,
+            tool_args_schema=QueryToolArgs,
+        )
+        self.assertIsInstance(search_tool, VectaraTool)
+        self.assertIsInstance(search_tool, FunctionTool)
+        self.assertEqual(search_tool.metadata.tool_type, ToolType.QUERY)
+
     def test_tool_factory(self):
         def mult(x, y):
             return x * y
