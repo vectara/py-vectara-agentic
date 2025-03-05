@@ -32,7 +32,7 @@ from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
 
 
-from .types import AgentType, AgentStatusType, LLMRole, ToolType, AgentResponse, AgentStreamingResponse
+from .types import AgentType, AgentStatusType, LLMRole, ToolType, AgentResponse, AgentStreamingResponse, AgentConfigType
 from .utils import get_llm, get_tokenizer_for_model
 from ._prompts import REACT_PROMPT_TEMPLATE, GENERAL_PROMPT_TEMPLATE, GENERAL_INSTRUCTIONS
 from ._callback import AgentCallbackHandler
@@ -565,88 +565,104 @@ class Agent:
             query_logging_callback=query_logging_callback,
         )
 
-    # WARNING: THIS INVOLVES A LOT OF COPY AND PASTE CODE FROM __init__()
-    def _fallback_initialization(new_config) -> None:
+    def switch_agent_config(config_type: str) -> None:
         """"
-        Set up the agent again if original agent config caused errors.
+        Switch the configuration type of the agent.
+        This is typically used to automatically switch to the fallback agent configuration if the main configuration fails.
+        However, a user can also call this function to explicitly switch the configuration type.
+
+        Args:
+            config_type (str): The agent configuration type, either "default" or "fallback"
         """
-        self.agent_config=new_config
-        self.agent_type = self.agent_config.agent_type
-        self.llm = get_llm(LLMRole.MAIN, config=self.agent_config)
+        if config_type == AgentConfigType.DEFAULT:
+            self.agent_type = self.agent_config.agent_type
+            self.llm = get_llm(LLMRole.MAIN, config=self.agent_config, config_type = AgentConfigType.DEFAULT)
 
-        # DON'T KNOW HOW TO DEAL WITH VALIDATE TOOLS SINCE IT IS NOT CURRENTLY STORED IN ANY SELF VARIABLE
+        elif config_type == AgentConfigType.FALLBACK:
+            self.agent_type = self.agent_config.fallback_agent_type
+            self.llm = get_llm(LLMRole.MAIN, config=self.agent_config, config_type = AgentConfigType.FALLBACK)
 
-        main_tok = get_tokenizer_for_model(role=LLMRole.MAIN)
-        self.main_token_counter = TokenCountingHandler(tokenizer=main_tok) if main_tok else None
-        tool_tok = get_tokenizer_for_model(role=LLMRole.TOOL)
-        self.tool_token_counter = TokenCountingHandler(tokenizer=tool_tok) if tool_tok else None
-
-        callbacks: list[BaseCallbackHandler] = [AgentCallbackHandler(self.agent_progress_callback)]
-        if self.main_token_counter:
-            callbacks.append(self.main_token_counter)
-        if self.tool_token_counter:
-            callbacks.append(self.tool_token_counter)
-        callback_manager = CallbackManager(callbacks)  # type: ignore
-        self.llm.callback_manager = callback_manager
-
-        if self.agent_type == AgentType.REACT:
-            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
-            self.agent = ReActAgent.from_tools(
-                tools=self.tools,
-                llm=self.llm,
-                memory=self.memory,
-                verbose=verbose,
-                react_chat_formatter=ReActChatFormatter(system_header=prompt),
-                max_iterations=30,
-                callable_manager=callback_manager,
-            )
-        elif self.agent_type == AgentType.OPENAI:
-            prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, topic, custom_instructions)
-            self.agent = OpenAIAgent.from_tools(
-                tools=self.tools,
-                llm=self.llm,
-                memory=self.memory,
-                verbose=verbose,
-                callable_manager=callback_manager,
-                max_function_calls=20,
-                system_prompt=prompt,
-            )
-        elif self.agent_type == AgentType.LLMCOMPILER:
-            agent_worker = LLMCompilerAgentWorker.from_tools(
-                tools=self.tools,
-                llm=self.llm,
-                verbose=verbose,
-                callable_manager=callback_manager,
-            )
-            agent_worker.system_prompt = _get_prompt(
-                _get_llm_compiler_prompt(agent_worker.system_prompt, topic, custom_instructions),
-                topic, custom_instructions
-            )
-            agent_worker.system_prompt_replan = _get_prompt(
-                _get_llm_compiler_prompt(agent_worker.system_prompt_replan, topic, custom_instructions),
-                topic, custom_instructions
-            )
-            self.agent = agent_worker.as_agent()
-        elif self.agent_type == AgentType.LATS:
-            agent_worker = LATSAgentWorker.from_tools(
-                tools=self.tools,
-                llm=self.llm,
-                num_expansions=3,
-                max_rollouts=-1,
-                verbose=verbose,
-                callable_manager=callback_manager,
-            )
-            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
-            agent_worker.chat_formatter = ReActChatFormatter(system_header=prompt)
-            self.agent = agent_worker.as_agent()
         else:
-            raise ValueError(f"Unknown agent type: {self.agent_type}")
+            raise ValueError(f'Invalid agent configuration type {config_type}. Valid types are "default" or "fallback".')
 
-        try:
-            self.observability_enabled = setup_observer(self.agent_config)
-        except Exception as e:
-            print(f"Failed to set up observer ({e}), ignoring")
-            self.observability_enabled = False
+
+        # self.agent_config=new_config
+        # self.agent_type = self.agent_config.agent_type
+        # self.llm = get_llm(LLMRole.MAIN, config=self.agent_config)
+
+        # # DON'T KNOW HOW TO DEAL WITH VALIDATE TOOLS SINCE IT IS NOT CURRENTLY STORED IN ANY SELF VARIABLE
+
+        # main_tok = get_tokenizer_for_model(role=LLMRole.MAIN)
+        # self.main_token_counter = TokenCountingHandler(tokenizer=main_tok) if main_tok else None
+        # tool_tok = get_tokenizer_for_model(role=LLMRole.TOOL)
+        # self.tool_token_counter = TokenCountingHandler(tokenizer=tool_tok) if tool_tok else None
+
+        # callbacks: list[BaseCallbackHandler] = [AgentCallbackHandler(self.agent_progress_callback)]
+        # if self.main_token_counter:
+        #     callbacks.append(self.main_token_counter)
+        # if self.tool_token_counter:
+        #     callbacks.append(self.tool_token_counter)
+        # callback_manager = CallbackManager(callbacks)  # type: ignore
+        # self.llm.callback_manager = callback_manager
+
+        # if self.agent_type == AgentType.REACT:
+        #     prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
+        #     self.agent = ReActAgent.from_tools(
+        #         tools=self.tools,
+        #         llm=self.llm,
+        #         memory=self.memory,
+        #         verbose=verbose,
+        #         react_chat_formatter=ReActChatFormatter(system_header=prompt),
+        #         max_iterations=30,
+        #         callable_manager=callback_manager,
+        #     )
+        # elif self.agent_type == AgentType.OPENAI:
+        #     prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, topic, custom_instructions)
+        #     self.agent = OpenAIAgent.from_tools(
+        #         tools=self.tools,
+        #         llm=self.llm,
+        #         memory=self.memory,
+        #         verbose=verbose,
+        #         callable_manager=callback_manager,
+        #         max_function_calls=20,
+        #         system_prompt=prompt,
+        #     )
+        # elif self.agent_type == AgentType.LLMCOMPILER:
+        #     agent_worker = LLMCompilerAgentWorker.from_tools(
+        #         tools=self.tools,
+        #         llm=self.llm,
+        #         verbose=verbose,
+        #         callable_manager=callback_manager,
+        #     )
+        #     agent_worker.system_prompt = _get_prompt(
+        #         _get_llm_compiler_prompt(agent_worker.system_prompt, topic, custom_instructions),
+        #         topic, custom_instructions
+        #     )
+        #     agent_worker.system_prompt_replan = _get_prompt(
+        #         _get_llm_compiler_prompt(agent_worker.system_prompt_replan, topic, custom_instructions),
+        #         topic, custom_instructions
+        #     )
+        #     self.agent = agent_worker.as_agent()
+        # elif self.agent_type == AgentType.LATS:
+        #     agent_worker = LATSAgentWorker.from_tools(
+        #         tools=self.tools,
+        #         llm=self.llm,
+        #         num_expansions=3,
+        #         max_rollouts=-1,
+        #         verbose=verbose,
+        #         callable_manager=callback_manager,
+        #     )
+        #     prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
+        #     agent_worker.chat_formatter = ReActChatFormatter(system_header=prompt)
+        #     self.agent = agent_worker.as_agent()
+        # else:
+        #     raise ValueError(f"Unknown agent type: {self.agent_type}")
+
+        # try:
+        #     self.observability_enabled = setup_observer(self.agent_config)
+        # except Exception as e:
+        #     print(f"Failed to set up observer ({e}), ignoring")
+        #     self.observability_enabled = False
 
 
     def report(self) -> None:
