@@ -1,7 +1,7 @@
 # <img src="https://raw.githubusercontent.com/vectara/py-vectara-agentic/main/.github/assets/Vectara-logo.png" alt="Vectara Logo" width="30" height="30" style="vertical-align: middle;"> vectara-agentic
 
 <p align="center">
-  <a href="https://vectara.github.io/vectara-agentic-docs">Documentation</a> ·
+  <a href="https://vectara.github.io/py-vectara-agentic">Documentation</a> ·
   <a href="#examples">Examples</a> ·
   <a href="https://discord.gg/S9dwgCNEFs">Discord</a>
 </p>
