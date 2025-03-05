@@ -193,8 +193,14 @@ on user defined functions for some guidance and inspiration.
 That's it: now the `ask_transcripts` tool is ready to be added to the
 agent.
 
-You can use the `VectaraToolFactory` to generate more than one RAG tool
+Notes:
+- You can use the `VectaraToolFactory` to generate more than one RAG tool
 with different parameters, depending on your needs.
+- `create_rag_tool` and `create_search_tool` both support the `vectara_base_url` 
+  argument. If specified, it allows you to specify a different base URL for Vectara,
+  for example when you have an on-premise installation.
+- If you want to specify a Certificate Authority for a local installation,
+  you can set "export REQUESTS_CA_BUNDLE=/path/to/custom_ca_bundle.pem".
 
 **Vectara Search Tool**
 In most cases, you will likely want to use the Vectara RAG query tool,
@@ -446,13 +452,19 @@ def update_func(status_type: AgentStatusType, msg: str):
 
 **agent_config**
 The `agent_config` argument is an optional object that you can use to
-explicitly specify the configuration of your agent, including the agent
-type, model names and providers, and API keys. By default, each of these
-parameters will be read from your environment, but you can also
+explicitly specify the configuration of your agent, including the following:
+- `agent_type`: the agent type. Valid values are `REACT`, `LLMCOMPILER`, `LATS` or `OPENAI` (default: `OPENAI`).
+- `main_llm_provider` and `tool_llm_provider`: the LLM provider for main agent and for the tools. Valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI` or `FIREWORKS` (default: `OPENAI`).
+- `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider).
+- `observer`: the observer type; should be `ARIZE_PHOENIX` or if undefined no observation framework will be used.
+- `endpoint_api_key`: a secret key if using the API endpoint option (defaults to `dev-api-key`)
+- `max_reasoning_steps`: the maximum number of reasoning steps (iterations for React and function calls for OpenAI agent, respectively). defaults to 50.
+
+By default, each of these parameters will be read from your environment, but you can also
 explicitly define them with the `AgentConfig` class.
 
 For example, here is how we can define an `AgentConfig` object to create
-a ReAct agent using OPENAI as the LLM for the agent and Cohere as the
+a `ReAct` agent using `OPENAI` as the LLM for the agent and `Cohere` as the
 LLM for the agent's tools:
 
 ``` python

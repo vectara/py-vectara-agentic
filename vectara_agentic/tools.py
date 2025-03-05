@@ -16,6 +16,7 @@ from llama_index.core.tools.function_tool import AsyncCallable
 from llama_index.indices.managed.vectara import VectaraIndex
 from llama_index.core.utilities.sql_wrapper import SQLDatabase
 from llama_index.core.tools.types import ToolMetadata, ToolOutput
+from llama_index.core.workflow.context import Context
 
 from .types import ToolType
 from .tools_catalog import ToolsCatalog, get_bad_topics
@@ -133,6 +134,34 @@ class VectaraTool(FunctionTool):
                 is_equal = False
                 break
         return is_equal
+
+    def call(
+        self, *args: Any, ctx: Optional[Context] = None, **kwargs: Any
+    ) -> ToolOutput:
+        try:
+            return super().call(*args, ctx=ctx, **kwargs)
+        except Exception as e:
+            err_output = ToolOutput(
+                tool_name=self.metadata.name,
+                content=f"Tool Malfunction: {str(e)}",
+                raw_input={"args": args, "kwargs": kwargs},
+                raw_output={"response": str(e)},
+            )
+            return err_output
+
+    async def acall(
+        self, *args: Any, ctx: Optional[Context] = None, **kwargs: Any
+    ) -> ToolOutput:
+        try:
+            return super().call(*args, ctx=ctx, **kwargs)
+        except Exception as e:
+            err_output = ToolOutput(
+                tool_name=self.metadata.name,
+                content=f"Tool Malfunction: {str(e)}",
+                raw_input={"args": args, "kwargs": kwargs},
+                raw_output={"response": str(e)},
+            )
+            return err_output
 
 def _build_filter_string(kwargs: Dict[str, Any], tool_args_type: Dict[str, dict], fixed_filter: str) -> str:
     """
@@ -511,7 +540,6 @@ class VectaraToolFactory:
             vectara_prompt_text (str, optional): The prompt text for the Vectara summarizer.
             summary_num_results (int, optional): The number of summary results.
             summary_response_lang (str, optional): The response language for the summary.
-            summary_prompt_text (str, optional): The custom prompt, using appropriate prompt variables and functions.
             n_sentences_before (int, optional): Number of sentences before the summary.
             n_sentences_after (int, optional): Number of sentences after the summary.
             offset (int, optional): Number of results to skip.

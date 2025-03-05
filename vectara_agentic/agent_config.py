@@ -65,6 +65,12 @@ class AgentConfig:
         default_factory=lambda: os.getenv("VECTARA_AGENTIC_API_KEY", "dev-api-key")
     )
 
+    # max reasoning steps
+    # used for both OpenAI and React Agent types
+    max_reasoning_steps: int = field(
+        default_factory=lambda: int(os.getenv("VECTARA_AGENTIC_MAX_REASONING_STEPS", "50"))
+    )
+
     def to_dict(self) -> dict:
         """
         Convert the AgentConfig to a dictionary.
@@ -76,7 +82,8 @@ class AgentConfig:
             "tool_llm_provider": self.tool_llm_provider.value,
             "tool_llm_model_name": self.tool_llm_model_name,
             "observer": self.observer.value,
-            "endpoint_api_key": self.endpoint_api_key
+            "endpoint_api_key": self.endpoint_api_key,
+            "max_reasoning_steps": self.max_reasoning_steps
         }
 
     @classmethod
@@ -91,5 +98,6 @@ class AgentConfig:
             tool_llm_provider=ModelProvider(config_dict["tool_llm_provider"]),
             tool_llm_model_name=config_dict["tool_llm_model_name"],
             observer=ObserverType(config_dict["observer"]),
-            endpoint_api_key=config_dict["endpoint_api_key"]
+            endpoint_api_key=config_dict["endpoint_api_key"],
+            max_reasoning_steps=config_dict["max_reasoning_steps"]
         )

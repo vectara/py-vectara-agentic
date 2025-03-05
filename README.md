@@ -1,7 +1,7 @@
 # <img src="https://raw.githubusercontent.com/vectara/py-vectara-agentic/main/.github/assets/Vectara-logo.png" alt="Vectara Logo" width="30" height="30" style="vertical-align: middle;"> vectara-agentic
 
 <p align="center">
-  <a href="https://vectara.github.io/vectara-agentic-docs">Documentation</a> ·
+  <a href="https://vectara.github.io/py-vectara-agentic">Documentation</a> ·
   <a href="#examples">Examples</a> ·
   <a href="https://discord.gg/S9dwgCNEFs">Discord</a>
 </p>
@@ -282,6 +282,7 @@ The `AgentConfig` object may include the following items:
 - `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider).
 - `observer`: the observer type; should be `ARIZE_PHOENIX` or if undefined no observation framework will be used.
 - `endpoint_api_key`: a secret key if using the API endpoint option (defaults to `dev-api-key`)
+- `max_reasoning_steps`: the maximum number of reasoning steps (iterations for React and function calls for OpenAI agent, respectively). Defaults to 50.
 
 If any of these are not provided, `AgentConfig` first tries to read the values from the OS environment.
 

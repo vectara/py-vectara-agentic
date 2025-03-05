@@ -233,7 +233,7 @@ class Agent:
                 memory=self.memory,
                 verbose=verbose,
                 react_chat_formatter=ReActChatFormatter(system_header=prompt),
-                max_iterations=30,
+                max_iterations=self.agent_config.max_reasoning_steps,
                 callable_manager=callback_manager,
             )
         elif self.agent_type == AgentType.OPENAI:
@@ -244,7 +244,7 @@ class Agent:
                 memory=self.memory,
                 verbose=verbose,
                 callable_manager=callback_manager,
-                max_function_calls=20,
+                max_function_calls=self.agent_config.max_reasoning_steps,
                 system_prompt=prompt,
             )
         elif self.agent_type == AgentType.LLMCOMPILER:
@@ -291,9 +291,6 @@ class Agent:
         self.agent.memory.reset()
 
     def __eq__(self, other):
-        """
-        Compare two Agent instances for equality.
-        """
         if not isinstance(other, Agent):
             print(f"Comparison failed: other is not an instance of Agent. (self: {type(self)}, other: {type(other)})")
             return False
@@ -439,7 +436,7 @@ class Agent:
             vectara_custom_dimensions: (Dict, optional): Custom dimensions for the query.
             vectara_reranker (str, optional): The Vectara reranker name (default "slingshot")
             vectara_rerank_k (int, optional): The number of results to use with reranking.
-            vetara_rerank_limit: (int, optional): The maximum number of results to return after reranking.
+            vectara_rerank_limit: (int, optional): The maximum number of results to return after reranking.
             vectara_rerank_cutoff: (float, optional): The minimum score threshold for results to include after
                 reranking.
             vectara_diversity_bias (float, optional): The MMR diversity bias.

@@ -4,14 +4,13 @@ This module contains the tools catalog for the Vectara Agentic.
 from typing import List
 from datetime import date
 
-from inspect import signature
 import requests
 
 from pydantic import Field
 
 from .types import LLMRole
 from .agent_config import AgentConfig
-from .utils import get_llm
+from .utils import get_llm, remove_self_from_signature
 
 req_session = requests.Session()
 
@@ -29,17 +28,6 @@ def get_current_date() -> str:
     """
     return date.today().strftime("%A, %B %d, %Y")
 
-
-def remove_self_from_signature(func):
-    """Decorator to remove 'self' from a method's signature for introspection."""
-    sig = signature(func)
-    params = list(sig.parameters.values())
-    # Remove the first parameter if it is named 'self'
-    if params and params[0].name == "self":
-        params = params[1:]
-    new_sig = sig.replace(parameters=params)
-    func.__signature__ = new_sig
-    return func
 
 class ToolsCatalog:
     """

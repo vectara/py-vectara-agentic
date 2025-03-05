@@ -34,7 +34,7 @@ setup(
     ],
     keywords=["LLM", "NLP", "RAG", "Agentic-RAG", "AI assistant", "AI Agent", "Vectara"],
     project_urls={
-        "Documentation": "https://vectara.github.io/vectara-agentic-docs/",
+        "Documentation": "https://vectara.github.io/py-vectara-agentic/",
     },
     python_requires=">=3.10",
 )
