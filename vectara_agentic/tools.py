@@ -379,8 +379,8 @@ class VectaraToolFactory:
             vectara_api_key=self.vectara_api_key,
             vectara_corpus_key=self.vectara_corpus_key,
             x_source_str="vectara-agentic",
-            base_url=vectara_base_url,
-            verify_ssl=vectara_verify_ssl,
+            vectara_base_url=vectara_base_url,
+            vectara_verify_ssl=vectara_verify_ssl,
         )
 
         # Dynamically generate the search function
@@ -583,8 +583,8 @@ class VectaraToolFactory:
             vectara_api_key=self.vectara_api_key,
             vectara_corpus_key=self.vectara_corpus_key,
             x_source_str="vectara-agentic",
-            base_url=vectara_base_url,
-            verify_ssl=vectara_verify_ssl,
+            vectara_base_url=vectara_base_url,
+            vetara_verify_ssl=vectara_verify_ssl,
         )
 
         # Dynamically generate the RAG function
