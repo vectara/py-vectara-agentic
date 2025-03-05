@@ -57,6 +57,11 @@ class ToolType(Enum):
     QUERY = "query"
     ACTION = "action"
 
+class AgentConfigType(Enum):
+    """Enumeration for different types of agent configurations."""
+    DEFAULT = "default"
+    FALLBACK = "fallback"
+
 
 # classes for Agent responses
 ToolOutput = LI_ToolOutput

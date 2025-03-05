@@ -24,7 +24,7 @@ class AgentConfig:
     )
 
     # Fallback Agent type
-    fall_back_agent_type: AgentType = field(
+    fallback_agent_type: AgentType = field(
         default_factory=lambda: AgentType(
             os.getenv("VECTARA_AGENTIC_FALLBACK_AGENT_TYPE", AgentType.REACT.value)
         )
