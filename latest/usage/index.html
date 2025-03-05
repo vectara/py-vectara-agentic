@@ -45,6 +45,8 @@
       
     
     
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
     <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
@@ -399,6 +401,27 @@
   
 
     
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    API Reference
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
@@ -678,8 +701,14 @@ notebook</a>
 on user defined functions for some guidance and inspiration.</p>
 <p>That's it: now the <code>ask_transcripts</code> tool is ready to be added to the
 agent.</p>
-<p>You can use the <code>VectaraToolFactory</code> to generate more than one RAG tool
-with different parameters, depending on your needs.</p>
+<p>Notes:
+- You can use the <code>VectaraToolFactory</code> to generate more than one RAG tool
+with different parameters, depending on your needs.
+- <code>create_rag_tool</code> and <code>create_search_tool</code> both support the <code>vectara_base_url</code> 
+  argument. If specified, it allows you to specify a different base URL for Vectara,
+  for example when you have an on-premise installation.
+- If you want to specify a Certificate Authority for a local installation,
+  you can set "export REQUESTS_CA_BUNDLE=/path/to/custom_ca_bundle.pem".</p>
 <p><strong>Vectara Search Tool</strong>
 In most cases, you will likely want to use the Vectara RAG query tool,
 which generates a summary to return to the agent along with the source
@@ -902,12 +931,17 @@ def update_func(status_type: AgentStatusType, msg: str):
 </code></pre>
 <p><strong>agent_config</strong>
 The <code>agent_config</code> argument is an optional object that you can use to
-explicitly specify the configuration of your agent, including the agent
-type, model names and providers, and API keys. By default, each of these
-parameters will be read from your environment, but you can also
+explicitly specify the configuration of your agent, including the following:
+- <code>agent_type</code>: the agent type. Valid values are <code>REACT</code>, <code>LLMCOMPILER</code>, <code>LATS</code> or <code>OPENAI</code> (default: <code>OPENAI</code>).
+- <code>main_llm_provider</code> and <code>tool_llm_provider</code>: the LLM provider for main agent and for the tools. Valid values are <code>OPENAI</code>, <code>ANTHROPIC</code>, <code>TOGETHER</code>, <code>GROQ</code>, <code>COHERE</code>, <code>BEDROCK</code>, <code>GEMINI</code> or <code>FIREWORKS</code> (default: <code>OPENAI</code>).
+- <code>main_llm_model_name</code> and <code>tool_llm_model_name</code>: agent model name for agent and tools (default depends on provider).
+- <code>observer</code>: the observer type; should be <code>ARIZE_PHOENIX</code> or if undefined no observation framework will be used.
+- <code>endpoint_api_key</code>: a secret key if using the API endpoint option (defaults to <code>dev-api-key</code>)
+- <code>max_reasoning_steps</code>: the maximum number of reasoning steps (iterations for React and function calls for OpenAI agent, respectively). defaults to 50.</p>
+<p>By default, each of these parameters will be read from your environment, but you can also
 explicitly define them with the <code>AgentConfig</code> class.</p>
 <p>For example, here is how we can define an <code>AgentConfig</code> object to create
-a ReAct agent using OPENAI as the LLM for the agent and Cohere as the
+a <code>ReAct</code> agent using <code>OPENAI</code> as the LLM for the agent and <code>Cohere</code> as the
 LLM for the agent's tools:</p>
 <pre><code class="language-python">from vectara_agentic.agent_config import AgentConfig
 
