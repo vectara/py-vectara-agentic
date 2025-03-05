@@ -288,7 +288,7 @@ If any of these are not provided, `AgentConfig` first tries to read the values f
 
 ## Configuring Vectara RAG or search tools
 
-When creating a `VectaraToolFactory`, you can pass in a `vectara_api_key`, `vectara_customer_id`, and `vectara_corpus_id` to the factory. 
+When creating a `VectaraToolFactory`, you can pass in a `vectara_api_key`, and `vectara_corpus_key` to the factory. 
 
 If not passed in, it will be taken from the environment variables (`VECTARA_API_KEY` and `VECTARA_CORPUS_KEY`). Note that `VECTARA_CORPUS_KEY` can be a single KEY or a comma-separated list of KEYs (if you want to query multiple corpora).
 
