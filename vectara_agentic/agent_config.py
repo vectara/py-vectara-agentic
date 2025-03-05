@@ -82,7 +82,8 @@ class AgentConfig:
             "tool_llm_provider": self.tool_llm_provider.value,
             "tool_llm_model_name": self.tool_llm_model_name,
             "observer": self.observer.value,
-            "endpoint_api_key": self.endpoint_api_key
+            "endpoint_api_key": self.endpoint_api_key,
+            "max_reasoning_steps": self.max_reasoning_steps
         }
 
     @classmethod
@@ -97,5 +98,6 @@ class AgentConfig:
             tool_llm_provider=ModelProvider(config_dict["tool_llm_provider"]),
             tool_llm_model_name=config_dict["tool_llm_model_name"],
             observer=ObserverType(config_dict["observer"]),
-            endpoint_api_key=config_dict["endpoint_api_key"]
+            endpoint_api_key=config_dict["endpoint_api_key"],
+            max_reasoning_steps=config_dict["max_reasoning_steps"]
         )

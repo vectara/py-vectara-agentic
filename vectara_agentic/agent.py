@@ -233,7 +233,7 @@ class Agent:
                 memory=self.memory,
                 verbose=verbose,
                 react_chat_formatter=ReActChatFormatter(system_header=prompt),
-                max_iterations=agent_config.max_reasoning_steps,
+                max_iterations=self.agent_config.max_reasoning_steps,
                 callable_manager=callback_manager,
             )
         elif self.agent_type == AgentType.OPENAI:
@@ -244,7 +244,7 @@ class Agent:
                 memory=self.memory,
                 verbose=verbose,
                 callable_manager=callback_manager,
-                max_function_calls=agent_config.max_reasoning_steps,
+                max_function_calls=self.agent_config.max_reasoning_steps,
                 system_prompt=prompt,
             )
         elif self.agent_type == AgentType.LLMCOMPILER:
