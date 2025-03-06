@@ -31,7 +31,6 @@ from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
 
-
 from .types import AgentType, AgentStatusType, LLMRole, ToolType, AgentResponse, AgentStreamingResponse
 from .utils import get_llm, get_tokenizer_for_model
 from ._prompts import REACT_PROMPT_TEMPLATE, GENERAL_PROMPT_TEMPLATE, GENERAL_INSTRUCTIONS
@@ -594,7 +593,6 @@ class Agent:
         Returns:
             AgentResponse: The response from the agent.
         """
-
         try:
             st = time.time()
             agent_response = await self.agent.achat(prompt)
