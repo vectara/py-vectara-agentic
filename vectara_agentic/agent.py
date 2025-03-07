@@ -18,7 +18,7 @@ import cloudpickle as pickle
 from dotenv import load_dotenv
 
 from retrying import retry
-from pydantic import Field, create_model
+from pydantic import Field, create_model, BaseModel
 
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.llms import ChatMessage, MessageRole
@@ -30,6 +30,7 @@ from llama_index.agent.lats import LATSAgentWorker
 from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
+from llama_index.core.workflow import Workflow
 
 from .types import AgentType, AgentStatusType, LLMRole, ToolType, AgentResponse, AgentStreamingResponse
 from .utils import get_llm, get_tokenizer_for_model
