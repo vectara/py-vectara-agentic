@@ -28,7 +28,6 @@ provider_to_default_model_name = {
 
 DEFAULT_MODEL_PROVIDER = ModelProvider.OPENAI
 
-
 @lru_cache(maxsize=None)
 def _get_llm_params_for_role(
     role: LLMRole,
