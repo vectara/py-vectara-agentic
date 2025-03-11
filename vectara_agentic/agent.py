@@ -18,19 +18,19 @@ import cloudpickle as pickle
 from dotenv import load_dotenv
 
 from retrying import retry
-from pydantic import Field, create_model, BaseModel
+from pydantic import Field, create_model
 
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.llms import ChatMessage, MessageRole
 from llama_index.core.tools import FunctionTool
-from llama_index.core.agent import ReActAgent
+from llama_index.core.agent import ReActAgent, StructuredPlannerAgent
 from llama_index.core.agent.react.formatter import ReActChatFormatter
 from llama_index.agent.llm_compiler import LLMCompilerAgentWorker
 from llama_index.agent.lats import LATSAgentWorker
 from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
-from llama_index.core.workflow import Workflow
+
 
 from .types import AgentType, AgentStatusType, LLMRole, ToolType, AgentResponse, AgentStreamingResponse
 from .utils import get_llm, get_tokenizer_for_model
@@ -101,7 +101,6 @@ def _retry_if_exception(exception):
     # Define the condition to retry on certain exceptions
     return isinstance(exception, (TimeoutError))
 
-
 def get_field_type(field_schema: dict) -> Any:
     """
     Convert a JSON schema field definition to a Python type.
@@ -141,6 +140,7 @@ class Agent:
         topic: str = "general",
         custom_instructions: str = "",
         verbose: bool = True,
+        use_structured_planner: bool = False,
         update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
         agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
         query_logging_callback: Optional[Callable[[str, str], None]] = None,
@@ -157,6 +157,8 @@ class Agent:
             topic (str, optional): The topic for the agent. Defaults to 'general'.
             custom_instructions (str, optional): Custom instructions for the agent. Defaults to ''.
             verbose (bool, optional): Whether the agent should print its steps. Defaults to True.
+            use_structured_planner (bool, optional): Whether to use the structured planner agent wrapper.
+                Defaults to False.
             agent_progress_callback (Callable): A callback function the code calls on any agent updates.
                 update_func (Callable): old name for agent_progress_callback. Will be deprecated in future.
             query_logging_callback (Callable): A callback function the code calls upon completion of a query
@@ -168,9 +170,11 @@ class Agent:
         """
         self.agent_config = agent_config or AgentConfig()
         self.agent_type = self.agent_config.agent_type
+        self.use_structured_planner = use_structured_planner
         self.tools = tools
         if not any(tool.metadata.name == 'get_current_date' for tool in self.tools):
             self.tools += [ToolsFactory().create_tool(get_current_date)]
+
         self.llm = get_llm(LLMRole.MAIN, config=self.agent_config)
         self._custom_instructions = custom_instructions
         self._topic = topic
@@ -283,6 +287,14 @@ class Agent:
         except Exception as e:
             print(f"Failed to set up observer ({e}), ignoring")
             self.observability_enabled = False
+
+        # always use structured planner for LLMCompiler or LATS; otherwise based on argument
+        if self.use_structured_planner or self.agent_type in [AgentType.LLMCOMPILER, AgentType.LATS]:
+            self.agent = StructuredPlannerAgent(
+                self.agent.agent_worker,
+                tools=self.tools,
+                verbose=True
+            )
 
     def clear_memory(self) -> None:
         """

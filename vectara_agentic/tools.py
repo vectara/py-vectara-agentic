@@ -443,7 +443,7 @@ class VectaraToolFactory:
                 if doc.id_ in unique_ids:
                     continue
                 unique_ids.add(doc.id_)
-                tool_output += f"document '{doc.id_}' metadata: {doc.metadata}\n"
+                tool_output += f"document_id: '{doc.id_}'\nmetadata: '{doc.metadata}'\n"
             out = ToolOutput(
                 tool_name=search_function.__name__,
                 content=tool_output,

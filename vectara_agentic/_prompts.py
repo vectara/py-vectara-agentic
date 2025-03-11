@@ -5,6 +5,7 @@ This file contains the prompt templates for the different types of agents.
 # General (shared) instructions
 GENERAL_INSTRUCTIONS = """
 - Use tools as your main source of information, do not respond without using a tool. Do not respond based on pre-trained knowledge.
+- Use the 'get_bad_topics' tool to determine the topics you are not allowed to discuss or respond to.
 - Before responding to a user query that requires knowledge of the current date, call the 'get_current_date' tool to get the current date.
   Never rely on previous knowledge of the current date.
   Example queries that require the current date: "What is the revenue of Apple last october?" or "What was the stock price 5 days ago?".
@@ -28,7 +29,6 @@ GENERAL_INSTRUCTIONS = """
 - Be very careful to respond only when you are confident the response is accurate and not a hallucination.
 - If including latex equations in the markdown response, make sure the equations are on a separate line and enclosed in double dollar signs.
 - Always respond in the language of the question, and in text (no images, videos or code).
-- Always call the "get_bad_topics" tool to determine the topics you are not allowed to discuss or respond to.
 - If you are provided with database tools use them for analytical queries (such as counting, calculating max, min, average, sum, or other statistics).
   For each database, the database tools include: x_list_tables, x_load_data, x_describe_tables, and x_load_sample_data, where 'x' in the database name.
   The x_list_tables tool provides a list of available tables in the x database. Always use x_list_tables before using other database tools, to understand valid table names.
