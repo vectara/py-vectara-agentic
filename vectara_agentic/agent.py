@@ -97,22 +97,6 @@ def _get_llm_compiler_prompt(prompt: str, topic: str, custom_instructions: str) 
     prompt += f"Today is {date.today().strftime('%A, %B %d, %Y')}"
     return prompt
 
-def _fallback_agent_config(agent):
-    agent_config = agent.agent_config
-
-    # Update agent config types
-    agent_config.agent_type = agent_config.fall_back_agent_type
-    agent_config.main_llm_provider = agent_config.fallback_main_llm_provider
-    agent_config.main_llm_model_name = agent_config.fallback_main_llm_model_name
-    agent_config.tool_llm_provider = agent_config.fallback_tool_llm_provider
-    agent_config.tool_llm_model_name = agent_config.fallback_tool_llm_model_name
-
-    # Update agent to reflect changes
-    agent._fallback_initialization(
-        new_config=agent_config
-    )
-
-
 def _retry_if_exception(exception):
     # Define the condition to retry on certain exceptions
     return isinstance(exception, (TimeoutError))
@@ -135,20 +119,20 @@ def retry_with_callback():
                 if (self.agent_config_type == AgentConfigType.DEFAULT) and self.fallback_agent_config:
                     if self.verbose:
                         print(f"{func.__name__} failed 3 consecutive times with default agent config. Switching to fallback agent config and calling {func.__name__} again.")
-                    self.switch_agent_config(config_type="fallback")
+                    self._switch_agent_config()
                     try:
                         return func(self, *args)
                     except Exception as e:
                         return AgentResponse(
                             response = (
                                 f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()})"
-                                ",function also failed with fallback agent configuration."
+                                ", function also failed with fallback agent configuration."
                             )
                         )
                 elif self.agent_config_type == AgentConfigType.FALLBACK:
                     if self.verbose:
                         print(f"{func.__name__} failed 3 consecutive times with fallback agent config. Switching to default agent config and calling {func.__name__} again.")
-                    self.switch_agent_config(config_type="default")
+                    self._switch_agent_config()
                     try:
                         return func(self, *args)
                     except Exception as e:
@@ -238,11 +222,11 @@ class Agent:
         """
         self.agent_config = agent_config or AgentConfig()
         self.agent_config_type = AgentConfigType.DEFAULT
-        self.agent_type = self.agent_config.agent_type
+        # self.agent_type = self.agent_config.agent_type
         self.tools = tools
         if not any(tool.metadata.name == 'get_current_date' for tool in self.tools):
             self.tools += [ToolsFactory().create_tool(get_current_date)]
-        self.llm = get_llm(LLMRole.MAIN, config=self.agent_config)
+        # self.llm = get_llm(LLMRole.MAIN, config=self.agent_config)
         self._custom_instructions = custom_instructions
         self._topic = topic
         self.agent_progress_callback = agent_progress_callback if agent_progress_callback else update_func
@@ -285,7 +269,7 @@ class Agent:
         if self.tool_token_counter:
             callbacks.append(self.tool_token_counter)
         callback_manager = CallbackManager(callbacks)  # type: ignore
-        self.llm.callback_manager = callback_manager
+        # self.llm.callback_manager = callback_manager
         self.verbose = verbose
 
         if chat_history:
@@ -296,32 +280,188 @@ class Agent:
             self.memory = ChatMemoryBuffer.from_defaults(token_limit=128000, chat_history=msg_history)
         else:
             self.memory = ChatMemoryBuffer.from_defaults(token_limit=128000)
-        if self.agent_type == AgentType.REACT:
+        
+        # Set up main agent
+        agent_setup_dict = self._create_agent(self.agent_config, callback_manager)
+        self.agent_type = agent_setup_dict.get("agent_type")
+        self.agent = agent_setup_dict.get("agent")
+        self.llm = agent_setup_dict.get("llm")
+        
+        # if self.agent_type == AgentType.REACT:
+        #     prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
+        #     self.agent = ReActAgent.from_tools(
+        #         tools=self.tools,
+        #         llm=self.llm,
+        #         memory=self.memory,
+        #         verbose=verbose,
+        #         react_chat_formatter=ReActChatFormatter(system_header=prompt),
+        #         max_iterations=30,
+        #         callable_manager=callback_manager,
+        #     )
+        # elif self.agent_type == AgentType.OPENAI:
+        #     prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, topic, custom_instructions)
+        #     self.agent = OpenAIAgent.from_tools(
+        #         tools=self.tools,
+        #         llm=self.llm,
+        #         memory=self.memory,
+        #         verbose=verbose,
+        #         callable_manager=callback_manager,
+        #         max_function_calls=20,
+        #         system_prompt=prompt,
+        #     )
+        # elif self.agent_type == AgentType.LLMCOMPILER:
+        #     agent_worker = LLMCompilerAgentWorker.from_tools(
+        #         tools=self.tools,
+        #         llm=self.llm,
+        #         verbose=verbose,
+        #         callable_manager=callback_manager,
+        #     )
+        #     agent_worker.system_prompt = _get_prompt(
+        #         _get_llm_compiler_prompt(agent_worker.system_prompt, topic, custom_instructions),
+        #         topic, custom_instructions
+        #     )
+        #     agent_worker.system_prompt_replan = _get_prompt(
+        #         _get_llm_compiler_prompt(agent_worker.system_prompt_replan, topic, custom_instructions),
+        #         topic, custom_instructions
+        #     )
+        #     self.agent = agent_worker.as_agent()
+        # elif self.agent_type == AgentType.LATS:
+        #     agent_worker = LATSAgentWorker.from_tools(
+        #         tools=self.tools,
+        #         llm=self.llm,
+        #         num_expansions=3,
+        #         max_rollouts=-1,
+        #         verbose=verbose,
+        #         callable_manager=callback_manager,
+        #     )
+        #     prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
+        #     agent_worker.chat_formatter = ReActChatFormatter(system_header=prompt)
+        #     self.agent = agent_worker.as_agent()
+        # else:
+        #     raise ValueError(f"Unknown agent type: {self.agent_type}")
+
+        try:
+            self.observability_enabled = setup_observer(self.agent_config)
+        except Exception as e:
+            print(f"Failed to set up observer ({e}), ignoring")
+            self.observability_enabled = False
+
+        # TODO: Create a helper method that eliminates this code reduancy and returns a dictionary of 
+        # agent_type, llm, agent, observability_enabled
+        # Then parse the output for both the main and fallback agent (if config is provided)
+        
+        # Set up fallback agent config, if provided
+        self.fallback_agent_config = fallback_agent_config
+        
+        if self.fallback_agent_config:
+            fallback_agent_setup_dict = self._create_agent(self.fallback_agent_config, callback_manager)
+            self.fallback_agent_type = fallback_agent_setup_dict.get("agent_type")
+            self.fallback_agent = fallback_agent_setup_dict.get("agent")
+            self.fallback_llm = fallback_agent_setup_dict.get("llm")
+            
+            # self.fallback_agent_type = self.fallback_agent_config.agent_type
+            # self.fallback_llm = get_llm(LLMRole.MAIN, cofig=self.fallback_agent_config)
+            # self.fallback_llm.callback_manager = callback_manager
+
+            # if self.fallback_agent_type == AgentType.REACT:
+            #     prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
+            #     self.fallback_agent = ReActAgent.from_tools(
+            #         tools=self.tools,
+            #         llm=self.fallback_llm,
+            #         memory=self.memory,
+            #         verbose=verbose,
+            #         react_chat_formatter=ReActChatFormatter(system_header=prompt),
+            #         max_iterations=30,
+            #         callable_manager=callback_manager,
+            #     )
+            # elif self.fallback_agent_type == AgentType.OPENAI:
+            #     prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, topic, custom_instructions)
+            #     self.fallback_agent = OpenAIAgent.from_tools(
+            #         tools=self.tools,
+            #         llm=self.fallback_llm,
+            #         memory=self.memory,
+            #         verbose=verbose,
+            #         callable_manager=callback_manager,
+            #         max_function_calls=20,
+            #         system_prompt=prompt,
+            #     )
+            # elif self.fallback_agent_type == AgentType.LLMCOMPILER:
+            #     agent_worker = LLMCompilerAgentWorker.from_tools(
+            #         tools=self.tools,
+            #         llm=self.fallback_llm,
+            #         verbose=verbose,
+            #         callable_manager=callback_manager,
+            #     )
+            #     agent_worker.system_prompt = _get_prompt(
+            #         _get_llm_compiler_prompt(agent_worker.system_prompt, topic, custom_instructions),
+            #         topic, custom_instructions
+            #     )
+            #     agent_worker.system_prompt_replan = _get_prompt(
+            #         _get_llm_compiler_prompt(agent_worker.system_prompt_replan, topic, custom_instructions),
+            #         topic, custom_instructions
+            #     )
+            #     self.fallback_agent = agent_worker.as_agent()
+            # elif self.fallback_agent_type == AgentType.LATS:
+            #     agent_worker = LATSAgentWorker.from_tools(
+            #         tools=self.tools,
+            #         llm=self.fallback_llm,
+            #         num_expansions=3,
+            #         max_rollouts=-1,
+            #         verbose=verbose,
+            #         callable_manager=callback_manager,
+            #     )
+            #     prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
+            #     agent_worker.chat_formatter = ReActChatFormatter(system_header=prompt)
+            #     self.fallback_agent = agent_worker.as_agent()
+            # else:
+            #     raise ValueError(f"Unknown fallback agent type: {self.fallback_agent_type}")
+
+    def _create_agent(
+        self,
+        config: AgentConfig,
+        llm_callback_manager: CallbackManager
+    ) -> Dict[str, Any]:
+        """
+        Creates the agent based on the configuration object.
+
+        Args:
+        
+            config: The configuration of the agent.
+            llm_callback_manager: The callback manager for the agent's llm.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing the agent type, agent, and agent llm.
+        """
+        agent_type = config.agent_type
+        llm = get_llm(LLMRole.MAIN, config=config)
+        llm.callback_manager = llm_callback_manager
+
+        if agent_type == AgentType.REACT:
             prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
-            self.agent = ReActAgent.from_tools(
+            agent = ReActAgent.from_tools(
                 tools=self.tools,
-                llm=self.llm,
+                llm=llm,
                 memory=self.memory,
                 verbose=verbose,
                 react_chat_formatter=ReActChatFormatter(system_header=prompt),
                 max_iterations=self.agent_config.max_reasoning_steps,
                 callable_manager=callback_manager,
             )
-        elif self.agent_type == AgentType.OPENAI:
+        elif agent_type == AgentType.OPENAI:
             prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, topic, custom_instructions)
-            self.agent = OpenAIAgent.from_tools(
+            agent = OpenAIAgent.from_tools(
                 tools=self.tools,
-                llm=self.llm,
+                llm=llm,
                 memory=self.memory,
                 verbose=verbose,
                 callable_manager=callback_manager,
                 max_function_calls=self.agent_config.max_reasoning_steps,
                 system_prompt=prompt,
             )
-        elif self.agent_type == AgentType.LLMCOMPILER:
+        elif agent_type == AgentType.LLMCOMPILER:
             agent_worker = LLMCompilerAgentWorker.from_tools(
                 tools=self.tools,
-                llm=self.llm,
+                llm=llm,
                 verbose=verbose,
                 callable_manager=callback_manager,
             )
@@ -333,11 +473,11 @@ class Agent:
                 _get_llm_compiler_prompt(agent_worker.system_prompt_replan, topic, custom_instructions),
                 topic, custom_instructions
             )
-            self.agent = agent_worker.as_agent()
-        elif self.agent_type == AgentType.LATS:
+            agent = agent_worker.as_agent()
+        elif agent_type == AgentType.LATS:
             agent_worker = LATSAgentWorker.from_tools(
                 tools=self.tools,
-                llm=self.llm,
+                llm=llm,
                 num_expansions=3,
                 max_rollouts=-1,
                 verbose=verbose,
@@ -345,83 +485,15 @@ class Agent:
             )
             prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
             agent_worker.chat_formatter = ReActChatFormatter(system_header=prompt)
-            self.agent = agent_worker.as_agent()
+            agent = agent_worker.as_agent()
         else:
             raise ValueError(f"Unknown agent type: {self.agent_type}")
 
-        try:
-            self.observability_enabled = setup_observer(self.agent_config)
-        except Exception as e:
-            print(f"Failed to set up observer ({e}), ignoring")
-            self.observability_enabled = False
-
-        # Set up fallback agent config, if provided
-        self.fallback_agent_config = fallback_agent_config
-        
-        if self.fallback_agent_config:
-            self.fallback_agent_type = self.fallback_agent_config.agent_type
-            self.fallback_llm = get_llm(LLMRole.MAIN, cofig=self.fallback_agent_config)
-            self.fallback_llm.callback_manager = callback_manager
-
-            if self.fallback_agent_type == AgentType.REACT:
-                prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
-                self.fallback_agent = ReActAgent.from_tools(
-                    tools=self.tools,
-                    llm=self.fallback_llm,
-                    memory=self.memory,
-                    verbose=verbose,
-                    react_chat_formatter=ReActChatFormatter(system_header=prompt),
-                    max_iterations=30,
-                    callable_manager=callback_manager,
-                )
-            elif self.fallback_agent_type == AgentType.OPENAI:
-                prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, topic, custom_instructions)
-                self.fallback_agent = OpenAIAgent.from_tools(
-                    tools=self.tools,
-                    llm=self.fallback_llm,
-                    memory=self.memory,
-                    verbose=verbose,
-                    callable_manager=callback_manager,
-                    max_function_calls=20,
-                    system_prompt=prompt,
-                )
-            elif self.fallback_agent_type == AgentType.LLMCOMPILER:
-                agent_worker = LLMCompilerAgentWorker.from_tools(
-                    tools=self.tools,
-                    llm=self.fallback_llm,
-                    verbose=verbose,
-                    callable_manager=callback_manager,
-                )
-                agent_worker.system_prompt = _get_prompt(
-                    _get_llm_compiler_prompt(agent_worker.system_prompt, topic, custom_instructions),
-                    topic, custom_instructions
-                )
-                agent_worker.system_prompt_replan = _get_prompt(
-                    _get_llm_compiler_prompt(agent_worker.system_prompt_replan, topic, custom_instructions),
-                    topic, custom_instructions
-                )
-                self.fallback_agent = agent_worker.as_agent()
-            elif self.fallback_agent_type == AgentType.LATS:
-                agent_worker = LATSAgentWorker.from_tools(
-                    tools=self.tools,
-                    llm=self.fallback_llm,
-                    num_expansions=3,
-                    max_rollouts=-1,
-                    verbose=verbose,
-                    callable_manager=callback_manager,
-                )
-                prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
-                agent_worker.chat_formatter = ReActChatFormatter(system_header=prompt)
-                self.fallback_agent = agent_worker.as_agent()
-            else:
-                raise ValueError(f"Unknown fallback agent type: {self.fallback_agent_type}")
-
-            try:
-                self.fallback_observability_enabled = setup_observer(self.fallback_agent_config)
-            except Exception as e:
-                print(f"Failed to set up fallback observer ({e}), ignoring")
-                self.fallback_observability_enabled = False
-
+        return {
+            "agent_type": agent_type,
+            "agent": agent,
+            "llm": llm
+        }
 
     def clear_memory(self) -> None:
         """
@@ -432,7 +504,7 @@ class Agent:
         elif self.agent_config_type == AgentConfigType.FALLBACK and self.fallback_agent_config::
             self.fallback_agent.memory.reset()
         else:
-            pass # NEED TO DEFINE DEFAULT BEHAVIOR IN CASE OF INVALID VALUE
+            raise ValueError(f"Invalid agent config type {self.agent_config_type}")
 
     def __eq__(self, other):
         if not isinstance(other, Agent):
@@ -473,7 +545,7 @@ class Agent:
             print(f"Comparison failed: verbose differs. (self.verbose: {self.verbose}, other.verbose: {other.verbose})")
             return False
 
-        # Compare agent
+        # Compare agent memory
         if self.agent.memory.chat_store != other.agent.memory.chat_store:
             print(
                 f"Comparison failed: agent memory differs. (self.agent: {repr(self.agent.memory.chat_store)}, "
@@ -536,6 +608,9 @@ class Agent:
         vectara_api_key: str = str(os.environ.get("VECTARA_API_KEY", "")),
         agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
         query_logging_callback: Optional[Callable[[str, str], None]] = None,
+        agent_config: AgentConfig = AgentConfig(),
+        fallback_agent_config: Optional[AgentConfig] = None,
+        chat_history: Optional[list[Tuple[str, str]]] = None,
         verbose: bool = False,
         vectara_filter_fields: list[dict] = [],
         vectara_offset: int = 0,
@@ -571,6 +646,9 @@ class Agent:
             vectara_api_key (str): The Vectara API key.
             agent_progress_callback (Callable): A callback function the code calls on any agent updates.
             query_logging_callback (Callable): A callback function the code calls upon completion of a query
+            agent_config (AgentConfig, optional): The configuration of the agent.
+            fallback_agent_config (AgentConfig, optional): The fallback configuration of the agent.
+            chat_history (Tuple[str, str], optional): A list of user/agent chat pairs to initialize the agent memory.
             data_description (str): The description of the data.
             assistant_specialty (str): The specialty of the assistant.
             verbose (bool, optional): Whether to print verbose output.
@@ -672,22 +750,20 @@ class Agent:
             verbose=verbose,
             agent_progress_callback=agent_progress_callback,
             query_logging_callback=query_logging_callback,
+            agent_config=agent_config,
+            fallback_agent_config=fallback_agent_config,
+            chat_history=chat_history,
         )
 
-    def switch_agent_config(config_type: str) -> None:
+    def _switch_agent_config() -> None:
         """"
         Switch the configuration type of the agent.
-        This is typically used to automatically switch to the fallback agent configuration if the main configuration fails.
-        However, a user can also call this function to explicitly switch the configuration type.
-
-        Args:
-            config_type (str): The agent configuration type, either "default" or "fallback"
+        This function is called automatically to switch the agent configuration if the current configuration fails.
         """
-        if config_type in [AgentConfigType.DEFAULT, AgentConfigType.FALLBACK]:
-            self.agent_config_type = config_type
-
+        if config_type == AgentConfigType.DEFAULT:
+            self.agent_config_type = AgentConfigType.FALLBACK
         else:
-            raise ValueError(f'Invalid agent configuration type {config_type}. Valid types are "default" or "fallback".')
+            self.agent_config_type = AgentConfigType.DEFAULT
 
 
     def report(self) -> None:
@@ -708,11 +784,6 @@ class Agent:
                 print("- tool without metadata")
         print(f"Agent LLM = {get_llm(LLMRole.MAIN, config=self.agent_config).metadata.model_name}")
         print(f"Tool LLM = {get_llm(LLMRole.TOOL, config=self.agent_config).metadata.model_name}")
-
-        if self.agent_config_type == AgentConfigType.FALLBACK and self.fallback_agent_config:
-            print(f"Fallback Agent Type = {self.fallback_agent_type}")
-            print(f"Fallback Agent LLM = {get_llm(LLMRole.MAIN, config=self.fallback_agent_config).metadata.model_name}")
-            print(f"Fallback Tool LLM = {get_llm(LLMRole.TOOL, config=self.fallback_agent_config).metadata.model_name}")
 
     def token_counts(self) -> dict:
         """
@@ -737,7 +808,7 @@ class Agent:
         elif self.agent_config_type == AgentConfigType.FALLBACK and self.fallback_agent_config:
             agent_response.response = str(self.fallback_llm.acomplete(llm_prompt))
         else:
-            pass # NEED TO DEFINE DEFAULT BEHAVIOR IN CASE OF INVALID VALUE
+            raise ValueError(f"Invalid agent config type {self.agent_config_type}")
 
     def chat(self, prompt: str) -> AgentResponse:           # type: ignore
         """
@@ -774,7 +845,7 @@ class Agent:
                 if self.fallback_agent_type == AgentType.LATS:
                     await self._aformat_for_lats(prompt, agent_response)
             else:
-                pass # NEED TO DEFINE DEFAULT BEHAVIOR IN CASE OF INVALID VALUE
+                raise ValueError(f"Invalid agent config type {self.agent_config_type}")
 
             if self.verbose:
                 print(f"Time taken: {time.time() - st}")
@@ -816,7 +887,7 @@ class Agent:
             elif self.agent_config_type == AgentConfigType.FALLBACK and self.fallback_agent_config:
                 agent_response = await self.fallback_agent.astream_chat(prompt)
             else:
-                pass # NEED TO DEFINE DEFAULT BEHAVIOR IN CASE OF INVALID VALUE
+                raise ValueError(f"Invalid agent config type {self.agent_config_type}")
             
             original_async_response_gen = agent_response.async_response_gen
 
