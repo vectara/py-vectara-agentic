@@ -437,41 +437,41 @@ class Agent:
         llm.callback_manager = llm_callback_manager
 
         if agent_type == AgentType.REACT:
-            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
+            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, self._topic, self._custom_instructions)
             agent = ReActAgent.from_tools(
                 tools=self.tools,
                 llm=llm,
                 memory=self.memory,
-                verbose=verbose,
+                verbose=self.verbose,
                 react_chat_formatter=ReActChatFormatter(system_header=prompt),
-                max_iterations=self.agent_config.max_reasoning_steps,
-                callable_manager=callback_manager,
+                max_iterations=config.max_reasoning_steps,
+                callable_manager=llm_callback_manager,
             )
         elif agent_type == AgentType.OPENAI:
-            prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, topic, custom_instructions)
+            prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, self._topic, self._custom_instructions)
             agent = OpenAIAgent.from_tools(
                 tools=self.tools,
                 llm=llm,
                 memory=self.memory,
-                verbose=verbose,
-                callable_manager=callback_manager,
-                max_function_calls=self.agent_config.max_reasoning_steps,
+                verbose=self.verbose,
+                callable_manager=llm_callback_manager,
+                max_function_calls=config.max_reasoning_steps,
                 system_prompt=prompt,
             )
         elif agent_type == AgentType.LLMCOMPILER:
             agent_worker = LLMCompilerAgentWorker.from_tools(
                 tools=self.tools,
                 llm=llm,
-                verbose=verbose,
-                callable_manager=callback_manager,
+                verbose=self.verbose,
+                callable_manager=llm_callback_manager,
             )
             agent_worker.system_prompt = _get_prompt(
-                _get_llm_compiler_prompt(agent_worker.system_prompt, topic, custom_instructions),
-                topic, custom_instructions
+                _get_llm_compiler_prompt(agent_worker.system_prompt, self._topic, self._custom_instructions),
+                self._topic, self._custom_instructions
             )
             agent_worker.system_prompt_replan = _get_prompt(
-                _get_llm_compiler_prompt(agent_worker.system_prompt_replan, topic, custom_instructions),
-                topic, custom_instructions
+                _get_llm_compiler_prompt(agent_worker.system_prompt_replan, self._topic, self._custom_instructions),
+                self._topic, self._custom_instructions
             )
             agent = agent_worker.as_agent()
         elif agent_type == AgentType.LATS:
@@ -480,10 +480,10 @@ class Agent:
                 llm=llm,
                 num_expansions=3,
                 max_rollouts=-1,
-                verbose=verbose,
-                callable_manager=callback_manager,
+                verbose=self.verbose,
+                callable_manager=llm_callback_manager,
             )
-            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
+            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, self._topic, self._custom_instructions)
             agent_worker.chat_formatter = ReActChatFormatter(system_header=prompt)
             agent = agent_worker.as_agent()
         else:
@@ -501,7 +501,7 @@ class Agent:
         """
         if self.agent_config_type == AgentConfigType.DEFAULT:
             self.agent.memory.reset()
-        elif self.agent_config_type == AgentConfigType.FALLBACK and self.fallback_agent_config::
+        elif self.agent_config_type == AgentConfigType.FALLBACK and self.fallback_agent_config:
             self.fallback_agent.memory.reset()
         else:
             raise ValueError(f"Invalid agent config type {self.agent_config_type}")
@@ -897,8 +897,11 @@ class Agent:
                     yield token  # Yield async token to keep streaming behavior
 
                 # After streaming completes, execute additional logic
-                if (self.agent_config_type == AgentConfigType.DEFAULT and self.agent_type == AgentType.LATS) or 
-                   (self.agent_config_type == AgentConfigType.FALLBACK and self.fallback_agent_config and self.fallback_agent_type == AgentType.LATS):
+                if (
+                    (self.agent_config_type == AgentConfigType.DEFAULT and self.agent_type == AgentType.LATS)
+                    or
+                    (self.agent_config_type == AgentConfigType.FALLBACK and self.fallback_agent_config and self.fallback_agent_type == AgentType.LATS)
+                ):
                     await self._aformat_for_lats(prompt, agent_response)
                 if self.query_logging_callback:
                     self.query_logging_callback(prompt, agent_response.response)
