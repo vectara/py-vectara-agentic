@@ -54,7 +54,7 @@ class TestFallback(unittest.TestCase):
 
         # Set fallback agent config to OpenAI agent
         fallback_config = AgentConfig()
-        
+
         agent = Agent(agent_config=config, tools=tools, topic=topic,
                       custom_instructions=custom_instructions,
                       fallback_agent_config=fallback_config)

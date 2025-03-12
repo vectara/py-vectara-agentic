@@ -134,7 +134,7 @@ class TestAgentPackage(unittest.TestCase):
         self.assertIsInstance(agent_reloaded, Agent)
         self.assertEqual(agent, agent_reloaded_again)
         self.assertEqual(agent.agent_type, agent_reloaded_again.agent_type)
-        
+
         self.assertEqual(agent.agent_config.observer, agent_reloaded_again.agent_config.observer)
         self.assertEqual(agent.agent_config.main_llm_provider, agent_reloaded_again.agent_config.main_llm_provider)
         self.assertEqual(agent.agent_config.tool_llm_provider, agent_reloaded_again.agent_config.tool_llm_provider)

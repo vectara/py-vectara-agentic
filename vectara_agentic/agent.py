@@ -104,7 +104,8 @@ def _retry_if_exception(exception):
 def retry_with_callback():
     """
     Retries original function call up to 3 times with current agent config.
-    If current config agent config fails 3 times, switches to other agent config (if available) and tries to call function again.
+    If current config agent config fails 3 times,
+    switches to other agent config (if available) and tries to call function again.
     """
     def decorator(func):
         @retry(
@@ -118,7 +119,10 @@ def retry_with_callback():
             except Exception as e:
                 if (self.agent_config_type == AgentConfigType.DEFAULT) and self.fallback_agent_config:
                     if self.verbose:
-                        print(f"{func.__name__} failed 3 consecutive times with default agent config. Switching to fallback agent config and calling {func.__name__} again.")
+                        print(
+                            f"{func.__name__} failed 3 consecutive times with default agent config. "
+                            "Switching to fallback agent config and calling {func.__name__} again."
+                        )
                     self._switch_agent_config()
                     try:
                         return func(self, *args)
@@ -131,7 +135,10 @@ def retry_with_callback():
                         )
                 elif self.agent_config_type == AgentConfigType.FALLBACK:
                     if self.verbose:
-                        print(f"{func.__name__} failed 3 consecutive times with fallback agent config. Switching to default agent config and calling {func.__name__} again.")
+                        print(
+                            f"{func.__name__} failed 3 consecutive times with fallback agent config. "
+                            f"Switching to default agent config and calling {func.__name__} again."
+                        )
                     self._switch_agent_config()
                     try:
                         return func(self, *args)
@@ -277,7 +284,7 @@ class Agent:
             self.memory = ChatMemoryBuffer.from_defaults(token_limit=128000, chat_history=msg_history)
         else:
             self.memory = ChatMemoryBuffer.from_defaults(token_limit=128000)
-        
+
         # Set up main agent
         agent_setup_dict = self._create_agent(self.agent_config, callback_manager)
         self.agent_type = agent_setup_dict.get("agent_type")
@@ -286,7 +293,7 @@ class Agent:
 
         # Set up fallback agent config, if provided
         self.fallback_agent_config = fallback_agent_config
-        
+
         if self.fallback_agent_config:
             fallback_agent_setup_dict = self._create_agent(self.fallback_agent_config, callback_manager)
             self.fallback_agent_type = fallback_agent_setup_dict.get("agent_type")
@@ -308,7 +315,7 @@ class Agent:
         Creates the agent based on the configuration object.
 
         Args:
-        
+
             config: The configuration of the agent.
             llm_callback_manager: The callback manager for the agent's llm.
 
@@ -638,16 +645,15 @@ class Agent:
             chat_history=chat_history,
         )
 
-    def _switch_agent_config() -> None:
+    def _switch_agent_config(self) -> None:
         """"
         Switch the configuration type of the agent.
         This function is called automatically to switch the agent configuration if the current configuration fails.
         """
-        if config_type == AgentConfigType.DEFAULT:
+        if self.agent_config_type == AgentConfigType.DEFAULT:
             self.agent_config_type = AgentConfigType.FALLBACK
         else:
             self.agent_config_type = AgentConfigType.DEFAULT
-
 
     def report(self) -> None:
         """
@@ -771,7 +777,7 @@ class Agent:
                 agent_response = await self.fallback_agent.astream_chat(prompt)
             else:
                 raise ValueError(f"Invalid agent config type {self.agent_config_type}")
-            
+
             original_async_response_gen = agent_response.async_response_gen
 
             # Wrap async_response_gen
@@ -783,7 +789,10 @@ class Agent:
                 if (
                     (self.agent_config_type == AgentConfigType.DEFAULT and self.agent_type == AgentType.LATS)
                     or
-                    (self.agent_config_type == AgentConfigType.FALLBACK and self.fallback_agent_config and self.fallback_agent_type == AgentType.LATS)
+                    (
+                        self.agent_config_type == AgentConfigType.FALLBACK and
+                        self.fallback_agent_config and self.fallback_agent_type == AgentType.LATS
+                    )
                 ):
                     await self._aformat_for_lats(prompt, agent_response)
                 if self.query_logging_callback:
@@ -845,7 +854,11 @@ class Agent:
     def from_dict(cls, data: Dict[str, Any]) -> "Agent":
         """Create an Agent instance from a dictionary."""
         agent_config = AgentConfig.from_dict(data["agent_config"])
-        fallback_agent_config = AgentConfig.from_dict(data["fallback_agent_config"]) if data.get("fallback_agent_config") else None
+        fallback_agent_config = (
+            AgentConfig.from_dict(data["fallback_agent_config"])
+            if data.get("fallback_agent_config")
+            else None
+        )
         tools = []
 
         for tool_data in data["tools"]:
