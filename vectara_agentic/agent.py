@@ -22,7 +22,7 @@ from pydantic import Field, create_model
 
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.llms import ChatMessage, MessageRole
-from llama_index.core.tools import FunctionTool, QueryPlanTool
+from llama_index.core.tools import FunctionTool
 from llama_index.core.agent import ReActAgent, StructuredPlannerAgent
 from llama_index.core.agent.react.formatter import ReActChatFormatter
 from llama_index.agent.llm_compiler import LLMCompilerAgentWorker
@@ -30,12 +30,11 @@ from llama_index.agent.lats import LATSAgentWorker
 from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
-from llama_index.core import get_response_synthesizer
+from llama_index.core.workflow import Workflow
 
 from .types import (
     AgentType, AgentStatusType, LLMRole, ToolType,
     AgentResponse, AgentStreamingResponse,
-    PlanningType
 )
 from .utils import get_llm, get_tokenizer_for_model
 from ._prompts import REACT_PROMPT_TEMPLATE, GENERAL_PROMPT_TEMPLATE, GENERAL_INSTRUCTIONS
@@ -44,7 +43,6 @@ from ._observability import setup_observer, eval_fcs
 from .tools import VectaraToolFactory, VectaraTool, ToolsFactory
 from .tools_catalog import get_current_date
 from .agent_config import AgentConfig
-from .sub_query_workflow import SubQueryAgent
 
 class IgnoreUnpickleableAttributeFilter(logging.Filter):
     '''
@@ -145,7 +143,7 @@ class Agent:
         topic: str = "general",
         custom_instructions: str = "",
         verbose: bool = True,
-        planning_mode: PlanningType = PlanningType.NO_PLANNING,
+        use_structured_planning: bool = False,
         update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
         agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
         query_logging_callback: Optional[Callable[[str, str], None]] = None,
@@ -162,12 +160,8 @@ class Agent:
             topic (str, optional): The topic for the agent. Defaults to 'general'.
             custom_instructions (str, optional): Custom instructions for the agent. Defaults to ''.
             verbose (bool, optional): Whether the agent should print its steps. Defaults to True.
-            planning_mode (PlanningType, optional)
-                The planning mode for the agent. Defaults to PlanningType.NO_PLANNING.
-                Options:
-                    - PlanningType.NO_PLANNING: No planning is used.
-                    - PlanningType.STRUCTURED_PLANNING: Structured planning is used.
-                    - PlanningType.QUERY_PLANNING: Query planning is used.
+            use_structured_planning (bool, optional)
+                Whether or not we want to wrap the agent with LlamaIndex StructuredPlannerAgent.
             agent_progress_callback (Callable): A callback function the code calls on any agent updates.
                 update_func (Callable): old name for agent_progress_callback. Will be deprecated in future.
             query_logging_callback (Callable): A callback function the code calls upon completion of a query
@@ -179,7 +173,7 @@ class Agent:
         """
         self.agent_config = agent_config or AgentConfig()
         self.agent_type = self.agent_config.agent_type
-        self.planning_mode = planning_mode
+        self.use_structured_planning = use_structured_planning
         self.tools = tools
         if not any(tool.metadata.name == 'get_current_date' for tool in self.tools):
             self.tools += [ToolsFactory().create_tool(get_current_date)]
@@ -238,17 +232,6 @@ class Agent:
             self.memory = ChatMemoryBuffer.from_defaults(token_limit=128000, chat_history=msg_history)
         else:
             self.memory = ChatMemoryBuffer.from_defaults(token_limit=128000)
-
-        # If using Query planner - set that up first
-        if self.planning_mode == PlanningType.QUERY_PLANNING:
-            if self.agent_type != AgentType.OPENAI:
-                raise ValueError("Query planning is only supported for OpenAI agents.")
-            response_synthesizer = get_response_synthesizer()
-            query_plan_tool = QueryPlanTool.from_defaults(
-                query_engine_tools=self.tools,
-                response_synthesizer=response_synthesizer,
-            )
-            self.tools = [query_plan_tool]
 
         # Create agent based on type
         if self.agent_type == AgentType.REACT:
@@ -311,19 +294,12 @@ class Agent:
             self.observability_enabled = False
 
         # Set up structured planner if needed
-        if (self.planning_mode == PlanningType.STRUCTURED_PLANNING
+        if (self.use_structured_planning
             or self.agent_type in [AgentType.LLMCOMPILER, AgentType.LATS]):
             self.agent = StructuredPlannerAgent(
                 self.agent.agent_worker,
                 tools=self.tools,
                 verbose=verbose,
-            )
-        elif self.planning_mode == PlanningType.SUB_QUERY_PLANNING:
-            self.agent = SubQueryAgent(
-                agent=self.agent,
-                tools=self.tools,
-                llm=self.llm,
-                verbose=verbose
             )
 
     def clear_memory(self) -> None:
@@ -702,6 +678,17 @@ class Agent:
             raise ValueError(
                 f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()}), and can't respond."
             ) from e
+
+    #
+    # run() method for running a workflow
+    #
+    def run(
+        self, 
+        workflow: Workflow, 
+        query: str
+    ) -> AgentResponse:
+        ###workflow.run()
+        pass
 
     #
     # Serialization methods

@@ -57,13 +57,6 @@ class ToolType(Enum):
     QUERY = "query"
     ACTION = "action"
 
-class PlanningType(Enum):
-    """Enumeration for different types of planning."""
-    NO_PLANNING = "none"
-    STRUCTURED_PLANNING = "structured_planning"
-    QUERY_PLANNING = "query_planning"
-    SUB_QUERY_PLANNING = "sub_query_planning"
-
 
 # classes for Agent responses
 ToolOutput = LI_ToolOutput

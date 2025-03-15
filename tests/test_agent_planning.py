@@ -31,28 +31,6 @@ class TestAgentPlanningPackage(unittest.TestCase):
         self.assertEqual(agent, agent_reloaded)
         self.assertEqual(agent.agent_type, agent_reloaded.agent_type)
 
-    def test_sub_query_planning(self):
-        tools = [ToolsFactory().create_tool(mult)]
-        topic = "AI topic"
-        instructions = "Always do as your father tells you, if your mother agrees!"
-        agent = Agent(
-            tools=tools,
-            topic=topic,
-            custom_instructions=instructions,
-            agent_config = AgentConfig(),
-            planning_type = PlanningType.SUB_QUERY_PLANNING
-        )
-
-        agent.chat("What is 5 times 10. Only give the answer, nothing else")
-        agent.chat("what is 3 times 7. Only give the answer, nothing else")
-        res = agent.chat("multiply the results of the last two questions. Output only the answer.")
-        self.assertEqual(res.response, "1050")
-
-        agent_reloaded = agent.loads(agent.dumps())
-        self.assertIsInstance(agent_reloaded, Agent)
-        self.assertEqual(agent, agent_reloaded)
-        self.assertEqual(agent.agent_type, agent_reloaded.agent_type)
-
     def test_structured_planning(self):
         tools = [ToolsFactory().create_tool(mult)]
         topic = "AI topic"
@@ -62,7 +40,7 @@ class TestAgentPlanningPackage(unittest.TestCase):
             topic=topic,
             custom_instructions=instructions,
             agent_config = AgentConfig(),
-            planning_type = PlanningType.STRUCTURED_PLANNING
+            use_structured_planning = True
         )
 
         agent.chat("What is 5 times 10. Only give the answer, nothing else")
@@ -74,29 +52,6 @@ class TestAgentPlanningPackage(unittest.TestCase):
         self.assertIsInstance(agent_reloaded, Agent)
         self.assertEqual(agent, agent_reloaded)
         self.assertEqual(agent.agent_type, agent_reloaded.agent_type)
-
-    def test_query_planning(self):
-        tools = [ToolsFactory().create_tool(mult)]
-        topic = "AI topic"
-        instructions = "Always do as your father tells you, if your mother agrees!"
-        agent = Agent(
-            tools=tools,
-            topic=topic,
-            custom_instructions=instructions,
-            agent_config = AgentConfig(),
-            planning_type = PlanningType.QUERY_PLANNING
-        )
-
-        agent.chat("What is 5 times 10. Only give the answer, nothing else")
-        agent.chat("what is 3 times 7. Only give the answer, nothing else")
-        res = agent.chat("multiply the results of the last two questions. Output only the answer.")
-        self.assertEqual(res.response, "1050")
-
-        agent_reloaded = agent.loads(agent.dumps())
-        self.assertIsInstance(agent_reloaded, Agent)
-        self.assertEqual(agent, agent_reloaded)
-        self.assertEqual(agent.agent_type, agent_reloaded.agent_type)
-
 
 if __name__ == "__main__":
     unittest.main()

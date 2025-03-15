@@ -69,8 +69,11 @@ class SubQuestionQueryEngine(Workflow):
                     "What is the GDP of San Francisco?"
                 ]
             }}
+            As an example, for the question "what is the name of the mayor of the largest city within 50 miles of San Francisco?",
+            the sub-questions could be:
+            - What is the largest city within 50 miles of San Francisco? (answer is San Jose)
+            - What is the name of the mayor of San Jose?
             Here is the user question: {await ctx.get('original_query')}
-
             And here is the list of tools: {await ctx.get('tools')}
             """
         )
