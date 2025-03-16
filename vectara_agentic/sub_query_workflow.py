@@ -3,9 +3,7 @@ This module contains the SubQuestionQueryEngine workflow, which is a workflow
 that takes a user question and a list of tools, and outputs a list of sub-questions.
 """
 import json
-import asyncio
-from typing import Any, List, Optional
-from llama_index.core.base.llms.types import ChatMessage, MessageRole
+from pydantic import BaseModel
 
 from llama_index.core.workflow import (
     step,
@@ -15,22 +13,35 @@ from llama_index.core.workflow import (
     StartEvent,
     StopEvent,
 )
-from llama_index.core.agent.types import BaseAgent
-from llama_index.core.tools import FunctionTool
-from llama_index.core.llms import LLM
 
-from vectara_agentic.types import AgentResponse
+class SubQuestionQueryWorkflow(Workflow):
+    """
+    Workflow for sub-question query engine.
+    """
 
-class QueryEvent(Event):
-    """Event for a query."""
-    question: str
+    # Workflow inputs/outputs
+    class InputsModel(BaseModel):
+        """
+        Inputs for the workflow.
+        """
+        query: str
 
-class AnswerEvent(Event):
-    """Event for an answer."""
-    question: str
-    answer: str
+    class OutputsModel(BaseModel):
+        """
+        Outputs for the workflow.
+        """
+        response: str
 
-class SubQuestionQueryEngine(Workflow):
+    # Workflow Event types
+    class QueryEvent(Event):
+        """Event for a query."""
+        question: str
+
+    class AnswerEvent(Event):
+        """Event for an answer."""
+        question: str
+        answer: str
+
     """Workflow for sub-question query engine."""
     @step
     async def query(self, ctx: Context, ev: StartEvent) -> QueryEvent:
@@ -39,8 +50,13 @@ class SubQuestionQueryEngine(Workflow):
         sub-questions, such that the answers to all the sub-questions put together
         will answer the question.
         """
-        if hasattr(ev, "query"):
-            await ctx.set("original_query", ev.query)
+        if not hasattr(ev, "inputs"):
+            raise ValueError("No inputs provided to workflow Start Event.")
+        if hasattr(ev, "inputs") and not isinstance(ev.inputs, self.InputsModel):
+            raise ValueError(f"Expected inputs to be of type {self.InputsModel}")
+        if hasattr(ev, "inputs"):
+            query = ev.inputs.query
+            await ctx.set("original_query", query)
             print(f"Query is {await ctx.get('original_query')}")
 
         if hasattr(ev, "agent"):
@@ -69,7 +85,8 @@ class SubQuestionQueryEngine(Workflow):
                     "What is the GDP of San Francisco?"
                 ]
             }}
-            As an example, for the question "what is the name of the mayor of the largest city within 50 miles of San Francisco?",
+            As an example, for the question
+            "what is the name of the mayor of the largest city within 50 miles of San Francisco?",
             the sub-questions could be:
             - What is the largest city within 50 miles of San Francisco? (answer is San Jose)
             - What is the name of the mayor of San Jose?
@@ -87,7 +104,7 @@ class SubQuestionQueryEngine(Workflow):
         await ctx.set("sub_question_count", len(sub_questions))
 
         for question in sub_questions:
-            self.send_event(QueryEvent(question=question))
+            self.send_event(self.QueryEvent(question=question))
 
         return None
 
@@ -100,7 +117,7 @@ class SubQuestionQueryEngine(Workflow):
             print(f"Sub-question is {ev.question}")
         agent = await ctx.get("agent")
         response = agent.chat(ev.question)
-        return AnswerEvent(question=ev.question, answer=str(response))
+        return self.AnswerEvent(question=ev.question, answer=str(response))
 
     @step
     async def combine_answers(
@@ -110,7 +127,7 @@ class SubQuestionQueryEngine(Workflow):
         Given a list of answers to sub-questions, combine them into a single answer.
         """
         ready = ctx.collect_events(
-            ev, [AnswerEvent] * await ctx.get("sub_question_count")
+            ev, [self.AnswerEvent] * await ctx.get("sub_question_count")
         )
         if ready is None:
             return None
@@ -141,82 +158,5 @@ class SubQuestionQueryEngine(Workflow):
         if await ctx.get("verbose"):
             print("Final response is", response)
 
-        return StopEvent(result=str(response))
-
-class SubQueryAgent(BaseAgent):
-    """
-    An agent that uses the SubQuestionQueryEngine workflow to answer questions.
-    """
-    def __init__(
-        self,
-        agent: Any,
-        tools: list[FunctionTool],
-        llm: LLM,
-        verbose: bool = False
-    ):
-        self.agent = agent
-        self.tools = tools
-        self.verbose = verbose
-        self.llm = llm
-        self._chat_history = []
-        self.engine = SubQuestionQueryEngine(timeout=120, verbose=self.verbose)
-
-    async def run(self, query: str) -> str:
-        """
-        Run the SubQuestionQueryEngine workflow with the given query.
-        """
-        result = await self.engine.run(
-            agent=self.agent,
-            tools=self.tools,
-            llm=self.llm,
-            verbose=self.verbose,
-            query=query
-        )
-        self._chat_history.append(ChatMessage.from_str(content=query, role=MessageRole.USER))
-        self._chat_history.append(ChatMessage.from_str(content=result, role=MessageRole.ASSISTANT))
-        return AgentResponse(response=result)
-
-    def reset(self):
-        """
-        Reset the agent.
-        """
-        self._chat_history = []
-        if hasattr(self.engine, "reset"):
-            self.engine.reset()
-
-    def clear_memory(self):
-        """
-        Clear the memory of the agent.
-        """
-        self.reset()
-
-    @property
-    def chat_history(self) -> List[ChatMessage]:
-        """
-        Return the chat history of the agent.
-        """
-        return self._chat_history
-
-    def chat(
-        self,
-        message: str,
-        chat_history: Optional[List[ChatMessage]] = None
-    ) -> str:
-        """
-        Chat with the agent.
-        """
-        if chat_history is not None:
-            self._chat_history = chat_history
-        return asyncio.run(self.run(message))
-
-    async def achat(
-        self,
-        message: str,
-        chat_history: Optional[List[ChatMessage]] = None
-    ) -> str:
-        """
-        Chat with the agent asynchronously.
-        """
-        if chat_history is not None:
-            self._chat_history = chat_history
-        return await self.run(message)
+        output = self.OutputsModel(response=str(response))
+        return StopEvent(result=output)

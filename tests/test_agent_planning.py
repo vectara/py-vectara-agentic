@@ -2,7 +2,6 @@ import unittest
 
 from vectara_agentic.agent import Agent
 from vectara_agentic.agent_config import AgentConfig
-from vectara_agentic.types import PlanningType
 from vectara_agentic.tools import ToolsFactory
 
 def mult(x, y):
@@ -52,6 +51,7 @@ class TestAgentPlanningPackage(unittest.TestCase):
         self.assertIsInstance(agent_reloaded, Agent)
         self.assertEqual(agent, agent_reloaded)
         self.assertEqual(agent.agent_type, agent_reloaded.agent_type)
+
 
 if __name__ == "__main__":
     unittest.main()

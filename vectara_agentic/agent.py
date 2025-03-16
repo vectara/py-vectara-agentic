@@ -18,7 +18,7 @@ import cloudpickle as pickle
 from dotenv import load_dotenv
 
 from retrying import retry
-from pydantic import Field, create_model
+from pydantic import Field, create_model, ValidationError
 
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.llms import ChatMessage, MessageRole
@@ -150,6 +150,8 @@ class Agent:
         agent_config: Optional[AgentConfig] = None,
         chat_history: Optional[list[Tuple[str, str]]] = None,
         validate_tools: bool = False,
+        workflow_cls: Workflow = None,
+        workflow_timeout: int = 120,
     ) -> None:
         """
         Initialize the agent with the specified type, tools, topic, and system message.
@@ -170,6 +172,8 @@ class Agent:
             chat_history (Tuple[str, str], optional): A list of user/agent chat pairs to initialize the agent memory.
             validate_tools (bool, optional): Whether to validate tool inconsistency with instructions.
                 Defaults to False.
+            workflow_cls (Workflow, optional): The workflow class to be used with run(). Defaults to None.
+            workflow_timeout (int, optional): The timeout for the workflow in seconds. Defaults to 120.
         """
         self.agent_config = agent_config or AgentConfig()
         self.agent_type = self.agent_config.agent_type
@@ -183,6 +187,9 @@ class Agent:
         self._topic = topic
         self.agent_progress_callback = agent_progress_callback if agent_progress_callback else update_func
         self.query_logging_callback = query_logging_callback
+
+        self.workflow_cls = workflow_cls
+        self.workflow_timeout = workflow_timeout
 
         # Validate tools
         # Check for:
@@ -681,14 +688,49 @@ class Agent:
 
     #
     # run() method for running a workflow
+    # workflow will always get these arguments in the StartEvent: agent, tools, llm, verbose
+    # the inputs argument comes from the call to run()
     #
-    def run(
-        self, 
-        workflow: Workflow, 
-        query: str
-    ) -> AgentResponse:
-        ###workflow.run()
-        pass
+    async def run(
+        self,
+        inputs: Any,
+        verbose: bool = False
+    ) -> Any:
+        """
+        Run a workflow using the agent.
+        workflow class must be provided in the agent constructor.
+        Args:
+            inputs (Any): The inputs to the workflow.
+            verbose (bool, optional): Whether to print verbose output. Defaults to False.
+        Returns:
+            Any: The output of the workflow.
+        """
+        # Create workflow
+        if self.workflow_cls:
+            workflow = self.workflow_cls(timeout=self.workflow_timeout, verbose=verbose)
+        else:
+            raise ValueError("Workflow is not defined.")
+
+        # Validate inputs is in the form of workflow.InputsModel
+        if not isinstance(inputs, self.workflow_cls.InputsModel):
+            raise ValueError(f"Inputs must be an instance of {workflow.InputsModel}.")
+
+        # run workflow
+        result = await workflow.run(
+            agent=self,
+            tools=self.tools,
+            llm=self.llm,
+            verbose=verbose,
+            inputs=inputs,
+        )
+
+        # return output in the form of workflow.OutputsModel
+        try:
+            output = workflow.OutputsModel.parse_obj(result)
+        except ValidationError as e:
+            raise ValueError(f"Failed to map workflow output to model: {e}") from e
+
+        return output
 
     #
     # Serialization methods

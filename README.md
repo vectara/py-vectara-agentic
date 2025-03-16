@@ -26,14 +26,20 @@
 <img src="https://raw.githubusercontent.com/vectara/py-vectara-agentic/main/.github/assets/diagram1.png" alt="Agentic RAG diagram" width="100%" style="vertical-align: middle;">
 </p>
 
-###  Features
+### Key Features
 
-- Enables easy creation of custom AI assistants and agents.
-- Create a Vectara RAG tool or search tool with a single line of code.
-- Supports `ReAct`, `OpenAIAgent`, `LATS` and `LLMCompiler` agent types.
-- Includes pre-built tools for various domains (e.g., finance, legal).
-- Integrates with various LLM inference services like OpenAI, Anthropic, Gemini, GROQ, Together.AI, Cohere, Bedrock and Fireworks
-- Built-in support for observability with Arize Phoenix
+- **Rapid Tool Creation:**  
+  Build Vectara RAG tools or search tools with a single line of code.
+- **Agent Flexibility:**  
+  Supports multiple agent types including `ReAct`, `OpenAIAgent`, `LATS`, and `LLMCompiler`.
+- **Pre-Built Domain Tools:**  
+  Tools tailored for finance, legal, and other verticals.
+- **Multi-LLM Integration:**  
+  Seamless integration with OpenAI, Anthropic, Gemini, GROQ, Together.AI, Cohere, Bedrock, and Fireworks.
+- **Observability:**  
+  Built-in support with Arize Phoenix for monitoring and feedback.
+- **Workflow Support:**  
+  Extend your agent’s capabilities by defining custom workflows using the `run()` method.
 
 ### 📚 Example AI Assistants
 
@@ -133,7 +139,7 @@ agent = Agent(
 
 See the [docs](https://vectara.github.io/vectara-agentic-docs/) for additional arguments, including `agent_progress_callback` and `query_logging_callback`.
 
-### 5. Run your agent
+### 5. Run a chat interaction
 
 ```python
 res = agent.chat("What was the revenue for Apple in 2021?")
@@ -145,6 +151,77 @@ Note that:
 2. The response types from `chat()` and `achat()` are of type `AgentResponse`. If you just need the actual string
    response it's available as the `response` variable, or just use `str()`. For advanced use-cases you can look 
    at other `AgentResponse` variables [such as `sources`](https://github.com/run-llama/llama_index/blob/659f9faaafbecebb6e6c65f42143c0bf19274a37/llama-index-core/llama_index/core/chat_engine/types.py#L53).
+
+## Advanced Usage: Workflows
+
+In addition to standard chat interactions, `vectara-agentic` supports custom workflows via the `run()` method. 
+Workflows allow you to structure multi-step interactions where inputs and outputs are validated using Pydantic models.
+To learn more about workflows read [the documentation](https://docs.llamaindex.ai/en/stable/understanding/workflows/basic_flow/)
+
+### Defining a Custom Workflow
+
+Create a workflow by subclassing `llama_index.core.workflow.Workflow` and defining the input/output models:
+
+```python
+from pydantic import BaseModel
+from llama_index.core.workflow import (
+    StartEvent,StopEvent, Workflow, step,
+)
+
+class MyWorkflow(Workflow):
+    class InputsModel(BaseModel):
+        query: str
+
+    class OutputsModel(BaseModel):
+        answer: str
+
+    @step
+    async def my_step(self, ev: StartEvent) -> StopEvent:
+        # do something here
+        return StopEvent(result="Hello, world!")
+```
+
+When the `run()` method in vectara-agentic is invoked, it calls the workflow with the following variables in the StartEvent:
+* `agent`: the agent object used to call `run()` (self)
+* `tools`: the tools provided to the agent. Those can be used as needed in the flow.
+* `llm`: a pointer to a LlamaIndex llm, so it can be used in the workflow. For example, one of the steps may call `llm.acomplete(prompt)`
+* `verbose`: controls whether extra debug information is displayed
+* `inputs`: this is the actual inputs to the workflow provided by the call to `run()` and must be of type `InputsModel`
+
+### Using the Workflow with Your Agent
+
+When initializing your agent, pass the workflow class using the `workflow_cls` parameter:
+
+```python
+agent = Agent(
+    tools=[query_financial_reports_tool],
+    topic="10-K financial reports",
+    custom_instructions="You are a helpful financial assistant.",
+    workflow_cls=MyWorkflow,       # Provide your custom workflow here
+    workflow_timeout=120           # Optional: Set a timeout (default is 120 seconds)
+)
+```
+
+### Running the Workflow
+
+Prepare the inputs using your workflow’s `InputsModel` and execute the workflow using `run()`:
+
+```python
+# Create an instance of the workflow's input model
+inputs = MyWorkflow.InputsModel(query="What is Vectara?", extra_param=42)
+
+# Run the workflow (ensure you're in an async context or use asyncio.run)
+workflow_result = asyncio.run(agent.run(inputs))
+
+# Access the output from the workflow's OutputsModel
+print(workflow_result.answer)
+```
+
+### Using SubQuestionQueryWorkflow
+
+vectara-agentic already includes one useful workflow you can use right away (it is also useful as an advanced example)
+This workflow is called `SubQuestionQueryWorkflow` and it works by breaking a complex query into sub-queries and then
+executing each sub-query with the agent until it reaches a good response.
 
 ## 🧰 Vectara tools
 
@@ -286,7 +363,7 @@ The `AgentConfig` object may include the following items:
 
 If any of these are not provided, `AgentConfig` first tries to read the values from the OS environment.
 
-## Configuring Vectara RAG or search tools
+## Configuring Vectara tools: rag_tool, or search_tool
 
 When creating a `VectaraToolFactory`, you can pass in a `vectara_api_key`, and `vectara_corpus_key` to the factory. 
 

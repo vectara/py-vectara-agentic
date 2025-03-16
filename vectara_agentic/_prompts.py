@@ -19,7 +19,7 @@ GENERAL_INSTRUCTIONS = """
   3) If a tool fails, try other tools that might be appropriate to gain the information you need.
 - If after retrying you can't get the information or answer the question, respond with "I don't know".
 - If a tool provides citations or references in markdown as part of its response, include the references in your response.
-- Ensure that every link in your responses includes descriptive anchor text that clearly explains what the user can expect from the linked content. 
+- Ensure that every link in your responses includes descriptive anchor text that clearly explains what the user can expect from the linked content.
   Avoid using generic terms like “source” or “reference” as the anchor text.
 - All links must be valid URLs, clickable, and should open in a new tab.
 - If a tool returns a source URL of a PDF file, along with page number in the metadata, combine the URL and page number in the response.

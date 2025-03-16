@@ -391,10 +391,14 @@ arguments:
     rather any particular behavior you want your LLM to have, such as
     how to present the information it receives from the tools to the
     user.
-4.  `update_func: Optional[Callable[[AgentStatusType, str], None]] = None`:
+4.  `agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None`:
     This is an optional callback function that will be called on every
     agent step. It can be used to update the user interface or the steps
     of the agent.
+5.  `query_logging_callback: Optional[Callable[[str, str], None]] = None`:
+    This is an optional callback function that will be called at the end
+    of response generation, with the query and response strings.
+
 
 Every agent has its own default set of instructions that it follows to
 interpret users' messages and use the necessary tools to complete its
@@ -430,8 +434,8 @@ general, the agent should be able to decide for itself what tools it
 should call. This is what makes agents very powerful and makes our job
 as coders much simpler.
 
-**update_func callback**
-The `update_func` is an optional `Callable` function that can serve a
+**agent_progress_callback callback**
+The `agent_progress_callback` is an optional `Callable` function that can serve a
 variety of purposes for your assistant. It is a callback function that
 is managed by the agent, and it will be called anytime the agent is
 updated, such as when calling a tool, or when receiving a response from
@@ -445,7 +449,7 @@ append the log messages to the session state.
 ``` python
 from vectara_agentic.agent import AgentStatusType
 
-def update_func(status_type: AgentStatusType, msg: str):
+def agent_progress_callback(status_type: AgentStatusType, msg: str):
   output = f"{status_type.value} - {msg}"
   st.session_state.log_messages.append(output)
 ```
@@ -497,7 +501,7 @@ agent = Agent(
            [ask_transcripts],
      topic="10-K annual financial reports",
      custom_instructions=financial_assistant_instructions,
-     update_func=update_func
+     agent_progress_callback=agent_progress_callback
 )
 ```
 
@@ -558,6 +562,81 @@ agent's response by chunks, you can use the `stream_chat()` method (or
 response, you can use the `print_response_stream()` method. If you need
 to yield the chunks in some other way for your application, you can
 obtain the generator object by accessing the `chat_stream` member.
+
+## Using Workflows
+
+vectara-agentic now supports custom workflows via the `run()` method, enabling you to define multi-step interactions with validated inputs and outputs.
+To learn more about workflows read [the documentation](https://docs.llamaindex.ai/en/stable/understanding/workflows/basic_flow/)
+
+### Defining a Custom Workflow
+
+To create a workflow, subclass the Workflow class from `llama_index.core.workflow` and define two Pydantic models: `InputsModel` and ``OutputsModel`. 
+For example:
+
+```python
+from pydantic import BaseModel
+from llama_index.core.workflow import (
+    StartEvent,StopEvent, Workflow, step,
+)
+
+class MyWorkflow(Workflow):
+    class InputsModel(BaseModel):
+        query: str
+
+    class OutputsModel(BaseModel):
+        answer: str
+
+    @step
+    async def my_step(self, ev: StartEvent) -> StopEvent:
+        # do something here
+        return StopEvent(result="Hello, world!")
+```
+
+When the `run()` method in vectara-agentic is invoked, it calls the workflow with the following variables in the StartEvent:
+* `agent`: the agent object used to call `run()` (self)
+* `tools`: the tools provided to the agent. Those can be used as needed in the flow.
+* `llm`: a pointer to a LlamaIndex llm, so it can be used in the workflow. For example, one of the steps may call `llm.acomplete(prompt)`
+* `verbose`: controls whether extra debug information is displayed
+* `inputs`: this is the actual inputs to the workflow provided by the call to `run()` and must be of type `InputsModel`
+
+### Integrating the Workflow with Your Agent
+
+When instantiating your agent, pass your workflow class to the `workflow_cls` parameter (and optionally set a workflow timeout):
+
+```python
+agent = Agent(
+    tools=[...],  # your list of tools
+    topic="10-K annual financial reports",
+    custom_instructions=financial_assistant_instructions,
+    agent_progress_callback=agent_progress_callback,
+    workflow_cls=FinanceWorkflow,   # Provide your workflow class here
+    workflow_timeout=120            # Optional timeout in seconds
+)
+```
+
+### Running the Workflow
+
+To run the workflow, create an instance of your workflow's `InputsModel` with the required parameters and call the agent's `run()` method. For example:
+
+```python
+# Create input for the workflow
+workflow_inputs = FinanceWorkflow.InputsModel(query="What were the revenue trends for Apple?", analysis_depth=3)
+
+# Execute the workflow asynchronously (ensure you're in an async context or use asyncio.run)
+workflow_output = asyncio.run(agent.run(workflow_inputs))
+
+# Access the final answer from the output model
+print(workflow_output.answer)
+```
+
+The `run()` method executes your workflow’s logic, validates the output against the `OutputsModel`, and returns a structured result.
+
+### Using SubQuestionQueryWorkflow
+
+vectara-agentic already includes one useful workflow you can use right away (it is also useful as an advanced example)
+This workflow is called `SubQuestionQueryWorkflow` and it works by breaking a complex query into sub-queries and then
+executing each sub-query with the agent until it reaches a good response.
+
 
 ## Additional Information
 
