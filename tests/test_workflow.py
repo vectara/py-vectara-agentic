@@ -28,12 +28,11 @@ class TestWorkflowPackage(unittest.IsolatedAsyncioTestCase):
             topic=topic,
             custom_instructions=instructions,
             agent_config = AgentConfig(),
-            use_structured_planning = True,
             workflow_cls = SubQuestionQueryWorkflow,
         )
 
         inputs = SubQuestionQueryWorkflow.InputsModel(
-            query="What is 5 times 3, plus 7. Only give the answer, nothing else."
+            query="Compute 5 times 3, then add 7 to the result. respond with the final answer only."
         )
         res = await agent.run(inputs=inputs)
         self.assertEqual(res.response, "22")
