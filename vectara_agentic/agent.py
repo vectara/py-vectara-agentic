@@ -306,6 +306,7 @@ class Agent:
             self.agent = StructuredPlannerAgent(
                 self.agent.agent_worker,
                 tools=self.tools,
+                memory=self.memory,
                 verbose=verbose,
             )
 

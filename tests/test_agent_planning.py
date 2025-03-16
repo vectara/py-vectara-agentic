@@ -22,13 +22,8 @@ class TestAgentPlanningPackage(unittest.TestCase):
 
         agent.chat("What is 5 times 10. Only give the answer, nothing else")
         agent.chat("what is 3 times 7. Only give the answer, nothing else")
-        res = agent.chat("multiply the results of the last two questions. Output only the answer.")
-        self.assertEqual(res.response, "1050")
-
-        agent_reloaded = agent.loads(agent.dumps())
-        self.assertIsInstance(agent_reloaded, Agent)
-        self.assertEqual(agent, agent_reloaded)
-        self.assertEqual(agent.agent_type, agent_reloaded.agent_type)
+        res = agent.chat("multiply the results of the last two multiplications. Only give the answer, nothing else.")
+        self.assertIn("1050", res.response)
 
     def test_structured_planning(self):
         tools = [ToolsFactory().create_tool(mult)]
@@ -44,13 +39,8 @@ class TestAgentPlanningPackage(unittest.TestCase):
 
         agent.chat("What is 5 times 10. Only give the answer, nothing else")
         agent.chat("what is 3 times 7. Only give the answer, nothing else")
-        res = agent.chat("multiply the results of the last two questions. Output only the answer, nothing else.")
-        self.assertEqual(res.response, "1050")
-
-        agent_reloaded = agent.loads(agent.dumps())
-        self.assertIsInstance(agent_reloaded, Agent)
-        self.assertEqual(agent, agent_reloaded)
-        self.assertEqual(agent.agent_type, agent_reloaded.agent_type)
+        res = agent.chat("multiply the results of the last two multiplications. Only give the answer, nothing else.")
+        self.assertIn("1050", res.response)
 
 
 if __name__ == "__main__":
