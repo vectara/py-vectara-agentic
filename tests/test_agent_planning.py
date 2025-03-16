@@ -44,7 +44,7 @@ class TestAgentPlanningPackage(unittest.TestCase):
 
         agent.chat("What is 5 times 10. Only give the answer, nothing else")
         agent.chat("what is 3 times 7. Only give the answer, nothing else")
-        res = agent.chat("multiply the results of the last two questions. Output only the answer.")
+        res = agent.chat("multiply the results of the last two questions. Output only the answer, nothing else.")
         self.assertEqual(res.response, "1050")
 
         agent_reloaded = agent.loads(agent.dumps())

@@ -10,7 +10,7 @@ import json
 import logging
 import traceback
 import asyncio
-
+import importlib
 from collections import Counter
 
 import cloudpickle as pickle
@@ -726,7 +726,7 @@ class Agent:
 
         # return output in the form of workflow.OutputsModel
         try:
-            output = workflow.OutputsModel.parse_obj(result)
+            output = workflow.OutputsModel.model_validate(result)
         except ValidationError as e:
             raise ValueError(f"Failed to map workflow output to model: {e}") from e
 
@@ -749,7 +749,18 @@ class Agent:
         tool_info = []
 
         for tool in self.tools:
-            # Serialize each tool's metadata, function, and dynamic model schema (QueryArgs)
+            if hasattr(tool.metadata, "fn_schema"):
+                fn_schema_cls = tool.metadata.fn_schema
+                fn_schema_serialized = {
+                    "schema": fn_schema_cls.model_json_schema() if hasattr(fn_schema_cls, "model_json_schema") else None,
+                    "metadata": {
+                        "module": fn_schema_cls.__module__,
+                        "class": fn_schema_cls.__name__,
+                    }
+                }
+            else:
+                fn_schema_serialized = None
+
             tool_dict = {
                 "tool_type": tool.metadata.tool_type.value,
                 "name": tool.metadata.name,
@@ -757,10 +768,9 @@ class Agent:
                 "fn": pickle.dumps(getattr(tool, 'fn', None)).decode("latin-1") if getattr(tool, 'fn', None) else None,
                 "async_fn": pickle.dumps(getattr(tool, 'async_fn', None)).decode("latin-1")
                 if getattr(tool, 'async_fn', None) else None,
-                "fn_schema": tool.metadata.fn_schema.model_json_schema()
-                if hasattr(tool.metadata, "fn_schema")
-                else None,  # Serialize schema if available
+                "fn_schema": fn_schema_serialized,
             }
+            x = {k:v for k,v in tool_dict.items() if k not in ["fn", "async_fn"]}
             tool_info.append(tool_dict)
 
         return {
@@ -771,6 +781,7 @@ class Agent:
             "custom_instructions": self._custom_instructions,
             "verbose": self.verbose,
             "agent_config": self.agent_config.to_dict(),
+            "workflow_cls": self.workflow_cls if self.workflow_cls else None,
         }
 
     @classmethod
@@ -782,22 +793,29 @@ class Agent:
         for tool_data in data["tools"]:
             # Recreate the dynamic model using the schema info
             if tool_data.get("fn_schema"):
-                field_definitions = {}
-                for field, values in tool_data["fn_schema"]["properties"].items():
-                    # Instead of checking for 'type', use the helper:
-                    field_type = get_field_type(values)
-                    # If there's a default value, include it.
-                    if "default" in values:
-                        field_definitions[field] = (
-                            field_type,
-                            Field(description=values.get("description", ""), default=values["default"]),
-                        )
-                    else:
-                        field_definitions[field] = (
-                            field_type,
-                            Field(description=values.get("description", "")),
-                        )
-                query_args_model = create_model("QueryArgs", **field_definitions)  # type: ignore
+                schema_info = tool_data["fn_schema"]
+                try:
+                    module_name = schema_info["metadata"]["module"]
+                    class_name = schema_info["metadata"]["class"]
+                    mod = importlib.import_module(module_name)
+                    fn_schema_cls = getattr(mod, class_name)
+                    query_args_model = fn_schema_cls
+                except Exception as e:
+                    # Fallback: rebuild using the JSON schema
+                    field_definitions = {}
+                    for field, values in schema_info.get("schema", {}).get("properties", {}).items():
+                        field_type = get_field_type(values)
+                        if "default" in values:
+                            field_definitions[field] = (
+                                field_type,
+                                Field(description=values.get("description", ""), default=values["default"]),
+                            )
+                        else:
+                            field_definitions[field] = (
+                                field_type,
+                                Field(description=values.get("description", "")),
+                            )
+                    query_args_model = create_model(schema_info.get("schema", {}).get("title", "QueryArgs"), **field_definitions)
             else:
                 query_args_model = create_model("QueryArgs")
 
@@ -820,6 +838,7 @@ class Agent:
             topic=data["topic"],
             custom_instructions=data["custom_instructions"],
             verbose=data["verbose"],
+            workflow_cls=data["workflow_cls"],
         )
         memory = pickle.loads(data["memory"].encode("latin-1")) if data.get("memory") else None
         if memory:

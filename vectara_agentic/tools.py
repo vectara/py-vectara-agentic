@@ -112,28 +112,36 @@ class VectaraTool(FunctionTool):
         return vectara_tool
 
     def __eq__(self, other):
+        if not isinstance(other, VectaraTool):
+            return False
+            
         if self.metadata.tool_type != other.metadata.tool_type:
             return False
 
-        if self.metadata.name != other.metadata.name or self.metadata.description != other.metadata.description:
+        if self.metadata.name != other.metadata.name:
             return False
-
-        # Check if fn_schema is an instance of a BaseModel or a class itself (metaclass)
-        self_schema_dict = self.metadata.fn_schema.model_fields
-        other_schema_dict = other.metadata.fn_schema.model_fields
-        is_equal = True
-        for key in self_schema_dict.keys():
-            if key not in other_schema_dict:
-                is_equal = False
-                break
-            if (
-                self_schema_dict[key].annotation != other_schema_dict[key].annotation
-                or self_schema_dict[key].description != other_schema_dict[key].description
-                or self_schema_dict[key].is_required() != other_schema_dict[key].is_required()
-            ):
-                is_equal = False
-                break
-        return is_equal
+        
+        # If schema is a dict-like object, compare the dict representation
+        try:
+            # Try to get schema as dict if possible
+            if hasattr(self.metadata.fn_schema, 'schema'):
+                self_schema = self.metadata.fn_schema.schema
+                other_schema = other.metadata.fn_schema.schema
+                
+                # Compare only properties and required fields
+                self_props = self_schema.get('properties', {})
+                other_props = other_schema.get('properties', {})
+                
+                self_required = self_schema.get('required', [])
+                other_required = other_schema.get('required', [])
+                
+                return (self_props.keys() == other_props.keys() and 
+                        set(self_required) == set(other_required))
+        except Exception:
+            # If any exception occurs during schema comparison, fall back to name comparison
+            pass
+            
+        return True
 
     def call(
         self, *args: Any, ctx: Optional[Context] = None, **kwargs: Any

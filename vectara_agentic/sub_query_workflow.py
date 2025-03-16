@@ -116,7 +116,7 @@ class SubQuestionQueryWorkflow(Workflow):
         if await ctx.get("verbose"):
             print(f"Sub-question is {ev.question}")
         agent = await ctx.get("agent")
-        response = agent.chat(ev.question)
+        response = await agent.achat(ev.question)
         return self.AnswerEvent(question=ev.question, answer=str(response))
 
     @step
