@@ -8,6 +8,7 @@ from vectara_agentic.types import ModelProvider, ObserverType
 def mult(x, y):
     return x * y
 
+
 react_config = AgentConfig(
     agent_type=AgentType.REACT,
     main_llm_provider=ModelProvider.ANTHROPIC,

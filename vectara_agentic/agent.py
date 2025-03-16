@@ -753,7 +753,11 @@ class Agent:
             if hasattr(tool.metadata, "fn_schema"):
                 fn_schema_cls = tool.metadata.fn_schema
                 fn_schema_serialized = {
-                    "schema": fn_schema_cls.model_json_schema() if hasattr(fn_schema_cls, "model_json_schema") else None,
+                    "schema": (
+                        fn_schema_cls.model_json_schema()
+                        if hasattr(fn_schema_cls, "model_json_schema")
+                        else None
+                    ),
                     "metadata": {
                         "module": fn_schema_cls.__module__,
                         "class": fn_schema_cls.__name__,
@@ -771,7 +775,6 @@ class Agent:
                 if getattr(tool, 'async_fn', None) else None,
                 "fn_schema": fn_schema_serialized,
             }
-            x = {k:v for k,v in tool_dict.items() if k not in ["fn", "async_fn"]}
             tool_info.append(tool_dict)
 
         return {
@@ -801,7 +804,7 @@ class Agent:
                     mod = importlib.import_module(module_name)
                     fn_schema_cls = getattr(mod, class_name)
                     query_args_model = fn_schema_cls
-                except Exception as e:
+                except Exception:
                     # Fallback: rebuild using the JSON schema
                     field_definitions = {}
                     for field, values in schema_info.get("schema", {}).get("properties", {}).items():
@@ -816,7 +819,10 @@ class Agent:
                                 field_type,
                                 Field(description=values.get("description", "")),
                             )
-                    query_args_model = create_model(schema_info.get("schema", {}).get("title", "QueryArgs"), **field_definitions)
+                    query_args_model = create_model(
+                        schema_info.get("schema", {}).get("title", "QueryArgs"),
+                        **field_definitions
+                    )
             else:
                 query_args_model = create_model("QueryArgs")
 

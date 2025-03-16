@@ -42,7 +42,6 @@ class SubQuestionQueryWorkflow(Workflow):
         question: str
         answer: str
 
-    """Workflow for sub-question query engine."""
     @step
     async def query(self, ctx: Context, ev: StartEvent) -> QueryEvent:
         """

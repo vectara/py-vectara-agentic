@@ -114,33 +114,33 @@ class VectaraTool(FunctionTool):
     def __eq__(self, other):
         if not isinstance(other, VectaraTool):
             return False
-            
+
         if self.metadata.tool_type != other.metadata.tool_type:
             return False
 
         if self.metadata.name != other.metadata.name:
             return False
-        
+
         # If schema is a dict-like object, compare the dict representation
         try:
             # Try to get schema as dict if possible
             if hasattr(self.metadata.fn_schema, 'schema'):
                 self_schema = self.metadata.fn_schema.schema
                 other_schema = other.metadata.fn_schema.schema
-                
+
                 # Compare only properties and required fields
                 self_props = self_schema.get('properties', {})
                 other_props = other_schema.get('properties', {})
-                
+
                 self_required = self_schema.get('required', [])
                 other_required = other_schema.get('required', [])
-                
-                return (self_props.keys() == other_props.keys() and 
+
+                return (self_props.keys() == other_props.keys() and
                         set(self_required) == set(other_required))
         except Exception:
             # If any exception occurs during schema comparison, fall back to name comparison
             pass
-            
+
         return True
 
     def call(
