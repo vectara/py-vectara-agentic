@@ -591,7 +591,7 @@ class Agent:
         Please provide a well formatted final response to the query.
         final response:
         """
-        agent_response.response = str(self.llm.acomplete(llm_prompt))
+        agent_response.response = str(await self.llm.acomplete(llm_prompt))
 
     def chat(self, prompt: str) -> AgentResponse:           # type: ignore
         """

@@ -70,7 +70,8 @@ class SubQuestionQueryWorkflow(Workflow):
         if hasattr(ev, "verbose"):
             await ctx.set("verbose", ev.verbose)
 
-        response = (await ctx.get("llm")).complete(
+        llm = await ctx.get("llm")
+        response = llm.complete(
             f"""
             Given a user question, and a list of tools, output a list of
             relevant sub-questions, such that the answers to all the
@@ -91,7 +92,7 @@ class SubQuestionQueryWorkflow(Workflow):
             - What is the name of the mayor of San Jose?
             Here is the user question: {await ctx.get('original_query')}
             And here is the list of tools: {await ctx.get('tools')}
-            """
+            """,
         )
 
         if await ctx.get("verbose"):
@@ -152,7 +153,8 @@ class SubQuestionQueryWorkflow(Workflow):
         if await ctx.get("verbose"):
             print(f"Final prompt is {prompt}")
 
-        response = (await ctx.get("llm")).complete(prompt)
+        llm = await ctx.get("llm")
+        response = llm.complete(prompt)
 
         if await ctx.get("verbose"):
             print("Final response is", response)
