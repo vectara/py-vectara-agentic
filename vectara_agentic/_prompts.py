@@ -14,7 +14,7 @@ GENERAL_INSTRUCTIONS = """
 - If a tool responds with "I do not have enough information", try one or more of the following strategies:
   1) Rephrase the question and call the tool again (or another tool), to get the information you need.
   For example if asked "what is the revenue of Google?", you can rephrase the question as "Google revenue" or "revenue of GOOG".
-  In rephrasing, aim for alternative queries that may work better for searching for the information. 
+  In rephrasing, aim for alternative queries that may work better for searching for the information.
   For example, you can rephrase "CEO" with "Chief Executive Officer".
   2) Break the question into sub-questions and call this tool or another tool for each sub-question, then combine the answers to provide a complete response.
   For example if asked "what is the population of France and Germany", you can call the tool twice, once for France and once for Germany.
