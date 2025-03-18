@@ -286,17 +286,13 @@ class Agent:
             self.memory = ChatMemoryBuffer.from_defaults(token_limit=128000)
 
         # Set up main agent
-        agent_setup_dict = self._create_agent(self.agent_config, callback_manager)
-        self.agent_type = agent_setup_dict.get("agent_type")
-        self.agent = agent_setup_dict.get("agent")
+        self.agent = self._create_agent(self.agent_config, callback_manager)
 
         # Set up fallback agent config, if provided
         self.fallback_agent_config = fallback_agent_config
 
         if self.fallback_agent_config:
-            fallback_agent_setup_dict = self._create_agent(self.fallback_agent_config, callback_manager)
-            self.fallback_agent_type = fallback_agent_setup_dict.get("agent_type")
-            self.fallback_agent = fallback_agent_setup_dict.get("agent")
+            self.fallback_agent = self._create_agent(self.fallback_agent_config, callback_manager)
 
         try:
             self.observability_enabled = setup_observer(self.agent_config)
@@ -308,7 +304,7 @@ class Agent:
         self,
         config: AgentConfig,
         llm_callback_manager: CallbackManager
-    ) -> Dict[str, Any]:
+    ) -> Any:
         """
         Creates the agent based on the configuration object.
 
@@ -318,7 +314,7 @@ class Agent:
             llm_callback_manager: The callback manager for the agent's llm.
 
         Returns:
-            Dict[str, Any]: A dictionary containing the agent type and agent object.
+            Any: The configured agent object.
         """
         agent_type = config.agent_type
         llm = get_llm(LLMRole.MAIN, config=config)
@@ -326,7 +322,7 @@ class Agent:
 
         if agent_type == AgentType.REACT:
             prompt = _get_prompt(REACT_PROMPT_TEMPLATE, self._topic, self._custom_instructions)
-            agent = ReActAgent.from_tools(
+            return ReActAgent.from_tools(
                 tools=self.tools,
                 llm=llm,
                 memory=self.memory,
@@ -337,7 +333,7 @@ class Agent:
             )
         elif agent_type == AgentType.OPENAI:
             prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, self._topic, self._custom_instructions)
-            agent = OpenAIAgent.from_tools(
+            return OpenAIAgent.from_tools(
                 tools=self.tools,
                 llm=llm,
                 memory=self.memory,
@@ -361,7 +357,7 @@ class Agent:
                 _get_llm_compiler_prompt(agent_worker.system_prompt_replan, self._topic, self._custom_instructions),
                 self._topic, self._custom_instructions
             )
-            agent = agent_worker.as_agent()
+            return agent_worker.as_agent()
         elif agent_type == AgentType.LATS:
             agent_worker = LATSAgentWorker.from_tools(
                 tools=self.tools,
@@ -373,14 +369,9 @@ class Agent:
             )
             prompt = _get_prompt(REACT_PROMPT_TEMPLATE, self._topic, self._custom_instructions)
             agent_worker.chat_formatter = ReActChatFormatter(system_header=prompt)
-            agent = agent_worker.as_agent()
+            return agent_worker.as_agent()
         else:
-            raise ValueError(f"Unknown agent type: {self.agent_type}")
-
-        return {
-            "agent_type": agent_type,
-            "agent": agent
-        }
+            raise ValueError(f"Unknown agent type: {agent_type}")
 
     def clear_memory(self) -> None:
         """
@@ -399,10 +390,10 @@ class Agent:
             return False
 
         # Compare agent_type
-        if self.agent_type != other.agent_type:
+        if self.agent_config.agent_type != other.agent_config.agent_type:
             print(
-                f"Comparison failed: agent_type differs. (self.agent_type: {self.agent_type}, "
-                f"other.agent_type: {other.agent_type})"
+                f"Comparison failed: agent_type differs. (self.agent_config.agent_type: {self.agent_config.agent_type},"
+                f" other.agent_config.agent_type: {other.agent_config.agent_type})"
             )
             return False
 
@@ -660,7 +651,7 @@ class Agent:
             str: The report from the agent.
         """
         print("Vectara agentic Report:")
-        print(f"Agent Type = {self.agent_type}")
+        print(f"Agent Type = {self.agent_config.agent_type}")
         print(f"Topic = {self._topic}")
         print("Tools:")
         for tool in self.tools:
@@ -724,11 +715,11 @@ class Agent:
             st = time.time()
             if self.agent_config_type == AgentConfigType.DEFAULT:
                 agent_response = await self.agent.achat(prompt)
-                if self.agent_type == AgentType.LATS:
+                if self.agent_config.agent_type == AgentType.LATS:
                     await self._aformat_for_lats(prompt, agent_response)
             elif self.agent_config_type == AgentConfigType.FALLBACK and self.fallback_agent_config:
                 agent_response = await self.fallback_agent.achat(prompt)
-                if self.fallback_agent_type == AgentType.LATS:
+                if self.fallback_agent_config.agent_type == AgentType.LATS:
                     await self._aformat_for_lats(prompt, agent_response)
             else:
                 raise ValueError(f"Invalid agent config type {self.agent_config_type}")
@@ -784,11 +775,14 @@ class Agent:
 
                 # After streaming completes, execute additional logic
                 if (
-                    (self.agent_config_type == AgentConfigType.DEFAULT and self.agent_type == AgentType.LATS)
+                    (
+                        self.agent_config_type == AgentConfigType.DEFAULT and
+                        self.agent_config.agent_type == AgentType.LATS
+                    )
                     or
                     (
                         self.agent_config_type == AgentConfigType.FALLBACK and
-                        self.fallback_agent_config and self.fallback_agent_type == AgentType.LATS
+                        self.fallback_agent_config and self.fallback_agent_config.agent_type == AgentType.LATS
                     )
                 ):
                     await self._aformat_for_lats(prompt, agent_response)
@@ -837,7 +831,7 @@ class Agent:
             tool_info.append(tool_dict)
 
         return {
-            "agent_type": self.agent_type.value,
+            "agent_type": self.agent_config.agent_type.value,
             "memory": pickle.dumps(self.agent.memory).decode("latin-1"),
             "tools": tool_info,
             "topic": self._topic,
