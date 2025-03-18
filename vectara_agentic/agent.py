@@ -289,7 +289,6 @@ class Agent:
         agent_setup_dict = self._create_agent(self.agent_config, callback_manager)
         self.agent_type = agent_setup_dict.get("agent_type")
         self.agent = agent_setup_dict.get("agent")
-        self.llm = agent_setup_dict.get("llm")
 
         # Set up fallback agent config, if provided
         self.fallback_agent_config = fallback_agent_config
@@ -298,7 +297,6 @@ class Agent:
             fallback_agent_setup_dict = self._create_agent(self.fallback_agent_config, callback_manager)
             self.fallback_agent_type = fallback_agent_setup_dict.get("agent_type")
             self.fallback_agent = fallback_agent_setup_dict.get("agent")
-            self.fallback_llm = fallback_agent_setup_dict.get("llm")
 
         try:
             self.observability_enabled = setup_observer(self.agent_config)
@@ -320,7 +318,7 @@ class Agent:
             llm_callback_manager: The callback manager for the agent's llm.
 
         Returns:
-            Dict[str, Any]: A dictionary containing the agent type, agent, and agent llm.
+            Dict[str, Any]: A dictionary containing the agent type and agent object.
         """
         agent_type = config.agent_type
         llm = get_llm(LLMRole.MAIN, config=config)
@@ -381,8 +379,7 @@ class Agent:
 
         return {
             "agent_type": agent_type,
-            "agent": agent,
-            "llm": llm
+            "agent": agent
         }
 
     def clear_memory(self) -> None:
@@ -693,9 +690,9 @@ class Agent:
         final response:
         """
         if self.agent_config_type == AgentConfigType.DEFAULT:
-            agent_response.response = str(self.llm.acomplete(llm_prompt))
+            agent_response.response = str(self.agent._llm.acomplete(llm_prompt))
         elif self.agent_config_type == AgentConfigType.FALLBACK and self.fallback_agent_config:
-            agent_response.response = str(self.fallback_llm.acomplete(llm_prompt))
+            agent_response.response = str(self.fallback_agent._llm.acomplete(llm_prompt))
         else:
             raise ValueError(f"Invalid agent config type {self.agent_config_type}")
 
