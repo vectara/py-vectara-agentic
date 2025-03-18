@@ -60,6 +60,7 @@ class SubQuestionQueryWorkflow(Workflow):
 
         if hasattr(ev, "agent"):
             await ctx.set("agent", ev.agent)
+        chat_history = [str(msg) for msg in ev.agent.memory.get()]
 
         if hasattr(ev, "llm"):
             await ctx.set("llm", ev.llm)
@@ -90,7 +91,8 @@ class SubQuestionQueryWorkflow(Workflow):
             the sub-questions could be:
             - What is the largest city within 50 miles of San Francisco? (answer is San Jose)
             - What is the name of the mayor of San Jose?
-            Here is the user question: {await ctx.get('original_query')}
+            Here is the user question: {await ctx.get('original_query')}.
+            Here are previous chat messages: {chat_history}.
             And here is the list of tools: {await ctx.get('tools')}
             """,
         )
