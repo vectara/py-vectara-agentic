@@ -112,28 +112,36 @@ class VectaraTool(FunctionTool):
         return vectara_tool
 
     def __eq__(self, other):
+        if not isinstance(other, VectaraTool):
+            return False
+
         if self.metadata.tool_type != other.metadata.tool_type:
             return False
 
-        if self.metadata.name != other.metadata.name or self.metadata.description != other.metadata.description:
+        if self.metadata.name != other.metadata.name:
             return False
 
-        # Check if fn_schema is an instance of a BaseModel or a class itself (metaclass)
-        self_schema_dict = self.metadata.fn_schema.model_fields
-        other_schema_dict = other.metadata.fn_schema.model_fields
-        is_equal = True
-        for key in self_schema_dict.keys():
-            if key not in other_schema_dict:
-                is_equal = False
-                break
-            if (
-                self_schema_dict[key].annotation != other_schema_dict[key].annotation
-                or self_schema_dict[key].description != other_schema_dict[key].description
-                or self_schema_dict[key].is_required() != other_schema_dict[key].is_required()
-            ):
-                is_equal = False
-                break
-        return is_equal
+        # If schema is a dict-like object, compare the dict representation
+        try:
+            # Try to get schema as dict if possible
+            if hasattr(self.metadata.fn_schema, 'schema'):
+                self_schema = self.metadata.fn_schema.schema
+                other_schema = other.metadata.fn_schema.schema
+
+                # Compare only properties and required fields
+                self_props = self_schema.get('properties', {})
+                other_props = other_schema.get('properties', {})
+
+                self_required = self_schema.get('required', [])
+                other_required = other_schema.get('required', [])
+
+                return (self_props.keys() == other_props.keys() and
+                        set(self_required) == set(other_required))
+        except Exception:
+            # If any exception occurs during schema comparison, fall back to name comparison
+            pass
+
+        return True
 
     def call(
         self, *args: Any, ctx: Optional[Context] = None, **kwargs: Any
@@ -443,7 +451,7 @@ class VectaraToolFactory:
                 if doc.id_ in unique_ids:
                     continue
                 unique_ids.add(doc.id_)
-                tool_output += f"document '{doc.id_}' metadata: {doc.metadata}\n"
+                tool_output += f"document_id: '{doc.id_}'\nmetadata: '{doc.metadata}'\n"
             out = ToolOutput(
                 tool_name=search_function.__name__,
                 content=tool_output,
@@ -479,10 +487,13 @@ class VectaraToolFactory:
         function_str = f"{tool_name}({args_str}) -> str"
 
         # Create the tool
+        search_tool_extra_desc = """
+        The response includes metadata about each relevant document, but NOT the text itself.
+        """
         tool = VectaraTool.from_defaults(
             fn=search_function,
             name=tool_name,
-            description=function_str + ". " + tool_description,
+            description=function_str + "\n" + tool_description + '\n' + search_tool_extra_desc,
             fn_schema=tool_args_schema,
             tool_type=ToolType.QUERY,
         )
@@ -623,8 +634,8 @@ class VectaraToolFactory:
                 mmr_diversity_bias=mmr_diversity_bias,
                 udf_expression=udf_expression,
                 rerank_chain=rerank_chain,
-                n_sentence_before=n_sentences_before,
-                n_sentence_after=n_sentences_after,
+                n_sentences_before=n_sentences_before,
+                n_sentences_after=n_sentences_after,
                 offset=offset,
                 lambda_val=lambda_val,
                 semantics=semantics,

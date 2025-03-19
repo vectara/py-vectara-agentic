@@ -10,7 +10,7 @@ import json
 import logging
 import traceback
 import asyncio
-
+import importlib
 from collections import Counter
 
 import cloudpickle as pickle
@@ -18,23 +18,29 @@ import cloudpickle as pickle
 from dotenv import load_dotenv
 
 from retrying import retry
-from pydantic import Field, create_model
+from pydantic import Field, create_model, ValidationError
 
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.llms import ChatMessage, MessageRole
 from llama_index.core.tools import FunctionTool
-from llama_index.core.agent import ReActAgent
+from llama_index.core.agent import ReActAgent, StructuredPlannerAgent
 from llama_index.core.agent.react.formatter import ReActChatFormatter
 from llama_index.agent.llm_compiler import LLMCompilerAgentWorker
 from llama_index.agent.lats import LATSAgentWorker
 from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
+from llama_index.core.workflow import Workflow
 
-
-from .types import AgentType, AgentStatusType, LLMRole, ToolType, AgentResponse, AgentStreamingResponse
+from .types import (
+    AgentType, AgentStatusType, LLMRole, ToolType,
+    AgentResponse, AgentStreamingResponse,
+)
 from .utils import get_llm, get_tokenizer_for_model
-from ._prompts import REACT_PROMPT_TEMPLATE, GENERAL_PROMPT_TEMPLATE, GENERAL_INSTRUCTIONS
+from ._prompts import (
+    REACT_PROMPT_TEMPLATE, GENERAL_PROMPT_TEMPLATE, GENERAL_INSTRUCTIONS,
+    STRUCTURED_PLANNER_PLAN_REFINE_PROMPT, STRUCTURED_PLANNER_INITIAL_PLAN_PROMPT
+)
 from ._callback import AgentCallbackHandler
 from ._observability import setup_observer, eval_fcs
 from .tools import VectaraToolFactory, VectaraTool, ToolsFactory
@@ -101,7 +107,6 @@ def _retry_if_exception(exception):
     # Define the condition to retry on certain exceptions
     return isinstance(exception, (TimeoutError))
 
-
 def get_field_type(field_schema: dict) -> Any:
     """
     Convert a JSON schema field definition to a Python type.
@@ -141,12 +146,15 @@ class Agent:
         topic: str = "general",
         custom_instructions: str = "",
         verbose: bool = True,
+        use_structured_planning: bool = False,
         update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
         agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
         query_logging_callback: Optional[Callable[[str, str], None]] = None,
         agent_config: Optional[AgentConfig] = None,
         chat_history: Optional[list[Tuple[str, str]]] = None,
         validate_tools: bool = False,
+        workflow_cls: Workflow = None,
+        workflow_timeout: int = 120,
     ) -> None:
         """
         Initialize the agent with the specified type, tools, topic, and system message.
@@ -157,6 +165,8 @@ class Agent:
             topic (str, optional): The topic for the agent. Defaults to 'general'.
             custom_instructions (str, optional): Custom instructions for the agent. Defaults to ''.
             verbose (bool, optional): Whether the agent should print its steps. Defaults to True.
+            use_structured_planning (bool, optional)
+                Whether or not we want to wrap the agent with LlamaIndex StructuredPlannerAgent.
             agent_progress_callback (Callable): A callback function the code calls on any agent updates.
                 update_func (Callable): old name for agent_progress_callback. Will be deprecated in future.
             query_logging_callback (Callable): A callback function the code calls upon completion of a query
@@ -165,17 +175,24 @@ class Agent:
             chat_history (Tuple[str, str], optional): A list of user/agent chat pairs to initialize the agent memory.
             validate_tools (bool, optional): Whether to validate tool inconsistency with instructions.
                 Defaults to False.
+            workflow_cls (Workflow, optional): The workflow class to be used with run(). Defaults to None.
+            workflow_timeout (int, optional): The timeout for the workflow in seconds. Defaults to 120.
         """
         self.agent_config = agent_config or AgentConfig()
         self.agent_type = self.agent_config.agent_type
+        self.use_structured_planning = use_structured_planning
         self.tools = tools
         if not any(tool.metadata.name == 'get_current_date' for tool in self.tools):
             self.tools += [ToolsFactory().create_tool(get_current_date)]
+
         self.llm = get_llm(LLMRole.MAIN, config=self.agent_config)
         self._custom_instructions = custom_instructions
         self._topic = topic
         self.agent_progress_callback = agent_progress_callback if agent_progress_callback else update_func
         self.query_logging_callback = query_logging_callback
+
+        self.workflow_cls = workflow_cls
+        self.workflow_timeout = workflow_timeout
 
         # Validate tools
         # Check for:
@@ -225,6 +242,8 @@ class Agent:
             self.memory = ChatMemoryBuffer.from_defaults(token_limit=128000, chat_history=msg_history)
         else:
             self.memory = ChatMemoryBuffer.from_defaults(token_limit=128000)
+
+        # Create agent based on type
         if self.agent_type == AgentType.REACT:
             prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
             self.agent = ReActAgent.from_tools(
@@ -283,6 +302,18 @@ class Agent:
         except Exception as e:
             print(f"Failed to set up observer ({e}), ignoring")
             self.observability_enabled = False
+
+        # Set up structured planner if needed
+        if (self.use_structured_planning
+            or self.agent_type in [AgentType.LLMCOMPILER, AgentType.LATS]):
+            self.agent = StructuredPlannerAgent(
+                agent_worker=self.agent.agent_worker,
+                tools=self.tools,
+                memory=self.memory,
+                verbose=verbose,
+                initial_plan_prompt=STRUCTURED_PLANNER_INITIAL_PLAN_PROMPT,
+                plan_refine_prompt=STRUCTURED_PLANNER_PLAN_REFINE_PROMPT,
+            )
 
     def clear_memory(self) -> None:
         """
@@ -565,7 +596,7 @@ class Agent:
         Please provide a well formatted final response to the query.
         final response:
         """
-        agent_response.response = str(self.llm.acomplete(llm_prompt))
+        agent_response.response = str(await self.llm.acomplete(llm_prompt))
 
     def chat(self, prompt: str) -> AgentResponse:           # type: ignore
         """
@@ -594,7 +625,6 @@ class Agent:
         Returns:
             AgentResponse: The response from the agent.
         """
-
         try:
             st = time.time()
             agent_response = await self.agent.achat(prompt)
@@ -663,6 +693,52 @@ class Agent:
             ) from e
 
     #
+    # run() method for running a workflow
+    # workflow will always get these arguments in the StartEvent: agent, tools, llm, verbose
+    # the inputs argument comes from the call to run()
+    #
+    async def run(
+        self,
+        inputs: Any,
+        verbose: bool = False
+    ) -> Any:
+        """
+        Run a workflow using the agent.
+        workflow class must be provided in the agent constructor.
+        Args:
+            inputs (Any): The inputs to the workflow.
+            verbose (bool, optional): Whether to print verbose output. Defaults to False.
+        Returns:
+            Any: The output of the workflow.
+        """
+        # Create workflow
+        if self.workflow_cls:
+            workflow = self.workflow_cls(timeout=self.workflow_timeout, verbose=verbose)
+        else:
+            raise ValueError("Workflow is not defined.")
+
+        # Validate inputs is in the form of workflow.InputsModel
+        if not isinstance(inputs, self.workflow_cls.InputsModel):
+            raise ValueError(f"Inputs must be an instance of {workflow.InputsModel}.")
+
+        # run workflow
+        result = await workflow.run(
+            agent=self,
+            tools=self.tools,
+            llm=self.llm,
+            verbose=verbose,
+            inputs=inputs,
+        )
+
+        # return output in the form of workflow.OutputsModel
+        try:
+            output = workflow.OutputsModel.model_validate(result)
+        except ValidationError as e:
+            raise ValueError(f"Failed to map workflow output to model: {e}") from e
+
+        return output
+
+    #
     # Serialization methods
     #
     def dumps(self) -> str:
@@ -679,18 +755,30 @@ class Agent:
         tool_info = []
 
         for tool in self.tools:
-            # Serialize each tool's metadata, function, and dynamic model schema (QueryArgs)
+            if hasattr(tool.metadata, "fn_schema"):
+                fn_schema_cls = tool.metadata.fn_schema
+                fn_schema_serialized = {
+                    "schema": (
+                        fn_schema_cls.model_json_schema()
+                        if hasattr(fn_schema_cls, "model_json_schema")
+                        else None
+                    ),
+                    "metadata": {
+                        "module": fn_schema_cls.__module__,
+                        "class": fn_schema_cls.__name__,
+                    }
+                }
+            else:
+                fn_schema_serialized = None
+
             tool_dict = {
                 "tool_type": tool.metadata.tool_type.value,
                 "name": tool.metadata.name,
                 "description": tool.metadata.description,
-                "fn": pickle.dumps(tool.fn).decode("latin-1") if tool.fn else None,  # Serialize fn
-                "async_fn": pickle.dumps(tool.async_fn).decode("latin-1")
-                if tool.async_fn
-                else None,  # Serialize async_fn
-                "fn_schema": tool.metadata.fn_schema.model_json_schema()
-                if hasattr(tool.metadata, "fn_schema")
-                else None,  # Serialize schema if available
+                "fn": pickle.dumps(getattr(tool, 'fn', None)).decode("latin-1") if getattr(tool, 'fn', None) else None,
+                "async_fn": pickle.dumps(getattr(tool, 'async_fn', None)).decode("latin-1")
+                if getattr(tool, 'async_fn', None) else None,
+                "fn_schema": fn_schema_serialized,
             }
             tool_info.append(tool_dict)
 
@@ -702,6 +790,7 @@ class Agent:
             "custom_instructions": self._custom_instructions,
             "verbose": self.verbose,
             "agent_config": self.agent_config.to_dict(),
+            "workflow_cls": self.workflow_cls if self.workflow_cls else None,
         }
 
     @classmethod
@@ -713,22 +802,32 @@ class Agent:
         for tool_data in data["tools"]:
             # Recreate the dynamic model using the schema info
             if tool_data.get("fn_schema"):
-                field_definitions = {}
-                for field, values in tool_data["fn_schema"]["properties"].items():
-                    # Instead of checking for 'type', use the helper:
-                    field_type = get_field_type(values)
-                    # If there's a default value, include it.
-                    if "default" in values:
-                        field_definitions[field] = (
-                            field_type,
-                            Field(description=values.get("description", ""), default=values["default"]),
-                        )
-                    else:
-                        field_definitions[field] = (
-                            field_type,
-                            Field(description=values.get("description", "")),
-                        )
-                query_args_model = create_model("QueryArgs", **field_definitions)  # type: ignore
+                schema_info = tool_data["fn_schema"]
+                try:
+                    module_name = schema_info["metadata"]["module"]
+                    class_name = schema_info["metadata"]["class"]
+                    mod = importlib.import_module(module_name)
+                    fn_schema_cls = getattr(mod, class_name)
+                    query_args_model = fn_schema_cls
+                except Exception:
+                    # Fallback: rebuild using the JSON schema
+                    field_definitions = {}
+                    for field, values in schema_info.get("schema", {}).get("properties", {}).items():
+                        field_type = get_field_type(values)
+                        if "default" in values:
+                            field_definitions[field] = (
+                                field_type,
+                                Field(description=values.get("description", ""), default=values["default"]),
+                            )
+                        else:
+                            field_definitions[field] = (
+                                field_type,
+                                Field(description=values.get("description", "")),
+                            )
+                    query_args_model = create_model(
+                        schema_info.get("schema", {}).get("title", "QueryArgs"),
+                        **field_definitions
+                    )
             else:
                 query_args_model = create_model("QueryArgs")
 
@@ -751,6 +850,7 @@ class Agent:
             topic=data["topic"],
             custom_instructions=data["custom_instructions"],
             verbose=data["verbose"],
+            workflow_cls=data["workflow_cls"],
         )
         memory = pickle.loads(data["memory"].encode("latin-1")) if data.get("memory") else None
         if memory:
