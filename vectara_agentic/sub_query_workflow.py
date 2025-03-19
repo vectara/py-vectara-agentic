@@ -163,3 +163,114 @@ class SubQuestionQueryWorkflow(Workflow):
 
         output = self.OutputsModel(response=str(response))
         return StopEvent(result=output)
+
+class SequentialSubQuestionsWorkflow(Workflow):
+    """
+    Workflow for breaking a query into sequential sub-questions
+    """
+
+    # Workflow inputs/outputs
+    class InputsModel(BaseModel):
+        """
+        Inputs for the workflow.
+        """
+        query: str
+
+    class OutputsModel(BaseModel):
+        """
+        Outputs for the workflow.
+        """
+        response: str
+
+    # Workflow Event types
+    class QueryEvent(Event):
+        """Event for a query."""
+        question: str
+        prev_answer: str
+        num: int
+
+    @step
+    async def query(self, ctx: Context, ev: StartEvent) -> QueryEvent:
+        """
+        Given a user question, and a list of tools, output a list of relevant
+        sub-questions, such that each question depends on the one before it to
+        to answer the question.
+        """
+        if not hasattr(ev, "inputs"):
+            raise ValueError("No inputs provided to workflow Start Event.")
+        if hasattr(ev, "inputs") and not isinstance(ev.inputs, self.InputsModel):
+            raise ValueError(f"Expected inputs to be of type {self.InputsModel}")
+        if hasattr(ev, "inputs"):
+            query = ev.inputs.query
+            await ctx.set("original_query", query)
+            print(f"Query is {await ctx.get('original_query')}")
+
+        if hasattr(ev, "agent"):
+            await ctx.set("agent", ev.agent)
+        chat_history = [str(msg) for msg in ev.agent.memory.get()]
+
+        if hasattr(ev, "llm"):
+            await ctx.set("llm", ev.llm)
+
+        if hasattr(ev, "tools"):
+            await ctx.set("tools", ev.tools)
+
+        if hasattr(ev, "verbose"):
+            await ctx.set("verbose", ev.verbose)
+
+        llm = await ctx.get("llm")
+        response = llm.complete(
+            f"""
+            Given a user question, and a list of tools, output a list of
+            relevant sequential sub-questions, such that the answers to all the
+            sub-questions in sequence will answer the question, and the output
+            of each question can be used as input to the subsequent question.
+            Respond in pure JSON without any markdown, like this:
+            {{
+                "sub_questions": [
+                    "What is the population of San Francisco?",
+                    "Is that population larger than the population of San Jose?",
+                ]
+            }}
+            As an example, for the question
+            "what is the name of the mayor of the largest city within 50 miles of San Francisco?",
+            the sub-questions could be:
+            - What is the largest city within 50 miles of San Francisco? (answer is San Jose)
+            - What is the name of the mayor of San Jose?
+            Here is the user question: {await ctx.get('original_query')}.
+            Here are previous chat messages: {chat_history}.
+            And here is the list of tools: {await ctx.get('tools')}
+            """,
+        )
+
+        if await ctx.get("verbose"):
+            print(f"Sub-questions are {response}")
+
+        response_obj = json.loads(str(response))
+        sub_questions = response_obj["sub_questions"]
+
+        await ctx.set("sub_questions", sub_questions)
+
+        return self.QueryEvent(question=sub_questions[0], prev_answer="", num=0)
+
+    @step
+    async def sub_question(self, ctx: Context, ev: QueryEvent) -> StopEvent:
+        """
+        Given a sub-question, return the answer to the sub-question, using the agent.
+        """
+        if await ctx.get("verbose"):
+            print(f"Sub-question is {ev.question}")
+        agent = await ctx.get("agent")
+        response = await agent.achat(ev.question)
+        if await ctx.get("verbose"):
+            print(f"Answer is {response}")
+
+        sub_questions = await ctx.get("sub_questions")
+        if ev.num + 1 < len(sub_questions):
+            return self.QueryEvent(
+                question=sub_questions[ev.num + 1],
+                prev_answer = response.response,
+                num=ev.num + 1)
+
+        output = self.OutputsModel(response=response.response)
+        return StopEvent(result=output)
