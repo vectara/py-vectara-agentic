@@ -20,7 +20,7 @@ def setup_observer(config: AgentConfig) -> bool:
         if not phoenix_endpoint:
             px.launch_app()
             tracer_provider = register(endpoint='http://localhost:6006/v1/traces', project_name="vectara-agentic")
-        elif 'app.phoenix.arize.com' in phoenix_endpoint:   # hosted on Arizze
+        elif 'app.phoenix.arize.com' in phoenix_endpoint:   # hosted on Arize
             phoenix_api_key = os.getenv("PHOENIX_API_KEY", None)
             if not phoenix_api_key:
                 raise ValueError("Arize Phoenix API key not set. Please set PHOENIX_API_KEY environment variable.")
@@ -93,7 +93,7 @@ def eval_fcs() -> None:
     top_level_spans['context.span_id'] = top_level_spans['top_level_parent_id']
     vectara_spans = pd.concat([vectara_spans, top_level_spans], ignore_index=True)
     vectara_spans.set_index('context.span_id', inplace=True)
-
+    
     px.Client().log_evaluations(
         SpanEvaluations(
             dataframe=vectara_spans,

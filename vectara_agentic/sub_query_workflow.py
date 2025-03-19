@@ -106,7 +106,7 @@ class SubQuestionQueryWorkflow(Workflow):
         await ctx.set("sub_question_count", len(sub_questions))
 
         for question in sub_questions:
-            self.send_event(self.QueryEvent(question=question))
+            ctx.send_event(self.QueryEvent(question=question))
 
         return None
 

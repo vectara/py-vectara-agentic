@@ -21,7 +21,7 @@ from llama_index.core.workflow.context import Context
 from .types import ToolType
 from .tools_catalog import ToolsCatalog, get_bad_topics
 from .db_tools import DBLoadSampleData, DBLoadUniqueValues, DBLoadData
-from .utils import is_float
+from .utils import is_float, timed_lru_cache
 from .agent_config import AgentConfig
 
 LI_packages = {
@@ -320,6 +320,9 @@ class VectaraToolFactory:
         self.vectara_corpus_key = vectara_corpus_key
         self.vectara_api_key = vectara_api_key
         self.num_corpora = len(vectara_corpus_key.split(","))
+        self.cache_expiry = 60 * 60  # 1 hour
+        self.max_cache_size = 128
+
 
     def create_search_tool(
         self,
@@ -392,6 +395,7 @@ class VectaraToolFactory:
         )
 
         # Dynamically generate the search function
+        @timed_lru_cache(seconds=self.cache_expiry, maxsize=self.max_cache_size)
         def search_function(*args, **kwargs) -> ToolOutput:
             """
             Dynamically generated function for semantic search Vectara.
@@ -599,6 +603,7 @@ class VectaraToolFactory:
         )
 
         # Dynamically generate the RAG function
+        @timed_lru_cache(seconds=self.cache_expiry, maxsize=self.max_cache_size)
         def rag_function(*args, **kwargs) -> ToolOutput:
             """
             Dynamically generated function for RAG query with Vectara.

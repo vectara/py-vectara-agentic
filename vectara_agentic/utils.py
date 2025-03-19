@@ -3,7 +3,8 @@ Utilities for the Vectara agentic.
 """
 
 from typing import Tuple, Callable, Optional
-from functools import lru_cache
+import time
+from functools import lru_cache, wraps
 from inspect import signature
 
 import tiktoken
@@ -16,14 +17,14 @@ from .types import LLMRole, AgentType, ModelProvider
 from .agent_config import AgentConfig
 
 provider_to_default_model_name = {
-    ModelProvider.OPENAI: "gpt-4o",
-    ModelProvider.ANTHROPIC: "claude-3-5-sonnet-20241022",
+    ModelProvider.OPENAI: "gpt-4o-mini",
+    ModelProvider.ANTHROPIC: "claude-3-7-sonnet-20250219",
     ModelProvider.TOGETHER: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
     ModelProvider.GROQ: "llama-3.3-70b-versatile",
     ModelProvider.FIREWORKS: "accounts/fireworks/models/firefunction-v2",
     ModelProvider.BEDROCK: "anthropic.claude-3-5-sonnet-20241022-v2:0",
     ModelProvider.COHERE: "command-r-plus",
-    ModelProvider.GEMINI: "models/gemini-1.5-flash",
+    ModelProvider.GEMINI: "models/gemini-2.0-flash-lite",
 }
 
 DEFAULT_MODEL_PROVIDER = ModelProvider.OPENAI
@@ -141,3 +142,20 @@ def remove_self_from_signature(func):
     new_sig = sig.replace(parameters=params)
     func.__signature__ = new_sig
     return func
+
+def timed_lru_cache(seconds: int, maxsize: int = 128):
+    """LRU cache decorator that expires after a given number of seconds."""
+    def decorator(func):
+        func = lru_cache(maxsize=maxsize)(func)
+        func._cache_expiry = time.time() + seconds
+
+        @wraps(func)
+        def wrapped(*args, **kwargs):
+            if time.time() > func._cache_expiry:
+                func.cache_clear()
+                func._cache_expiry = time.time() + seconds
+            return func(*args, **kwargs)
+
+        wrapped.cache_clear = func.cache_clear
+        return wrapped
+    return decorator
