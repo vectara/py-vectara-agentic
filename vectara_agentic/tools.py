@@ -493,7 +493,7 @@ class VectaraToolFactory:
         tool = VectaraTool.from_defaults(
             fn=search_function,
             name=tool_name,
-            description=function_str + "\n" + tool_description + '\n' + search_tool_extra_desc,  
+            description=function_str + "\n" + tool_description + '\n' + search_tool_extra_desc,
             fn_schema=tool_args_schema,
             tool_type=ToolType.QUERY,
         )

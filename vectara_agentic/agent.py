@@ -37,7 +37,10 @@ from .types import (
     AgentResponse, AgentStreamingResponse,
 )
 from .utils import get_llm, get_tokenizer_for_model
-from ._prompts import REACT_PROMPT_TEMPLATE, GENERAL_PROMPT_TEMPLATE, GENERAL_INSTRUCTIONS
+from ._prompts import (
+    REACT_PROMPT_TEMPLATE, GENERAL_PROMPT_TEMPLATE, GENERAL_INSTRUCTIONS,
+    STRUCTURED_PLANNER_PLAN_REFINE_PROMPT, STRUCTURED_PLANNER_INITIAL_PLAN_PROMPT
+)
 from ._callback import AgentCallbackHandler
 from ._observability import setup_observer, eval_fcs
 from .tools import VectaraToolFactory, VectaraTool, ToolsFactory
@@ -304,10 +307,12 @@ class Agent:
         if (self.use_structured_planning
             or self.agent_type in [AgentType.LLMCOMPILER, AgentType.LATS]):
             self.agent = StructuredPlannerAgent(
-                self.agent.agent_worker,
+                agent_worker=self.agent.agent_worker,
                 tools=self.tools,
                 memory=self.memory,
                 verbose=verbose,
+                initial_plan_prompt=STRUCTURED_PLANNER_INITIAL_PLAN_PROMPT,
+                plan_refine_prompt=STRUCTURED_PLANNER_PLAN_REFINE_PROMPT,
             )
 
     def clear_memory(self) -> None:
