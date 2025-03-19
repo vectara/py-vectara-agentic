@@ -30,6 +30,8 @@ from llama_index.agent.lats import LATSAgentWorker
 from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
+from llama_index.core.agent.runner.base import AgentRunner
+from llama_index.core.agent.types import BaseAgent
 
 
 from .types import AgentType, AgentStatusType, LLMRole, ToolType, AgentResponse, AgentStreamingResponse, AgentConfigType
@@ -304,7 +306,7 @@ class Agent:
         self,
         config: AgentConfig,
         llm_callback_manager: CallbackManager
-    ) -> Any:
+    ) -> Union[BaseAgent, AgentRunner]:
         """
         Creates the agent based on the configuration object.
 
@@ -314,7 +316,7 @@ class Agent:
             llm_callback_manager: The callback manager for the agent's llm.
 
         Returns:
-            Any: The configured agent object.
+            Union[BaseAgent, AgentRunner]: The configured agent object.
         """
         agent_type = config.agent_type
         llm = get_llm(LLMRole.MAIN, config=config)
