@@ -35,7 +35,7 @@ jobs:
         # Extract version from vectara_agentic/_version.py using grep and sed
         VERSION=$(grep -o '__version__ = "[^"]*"' vectara_agentic/_version.py | sed 's/__version__ = "//;s/"//g')
         echo "VERSION=$VERSION" >> $GITHUB_ENV
-        echo "::set-output name=version::$VERSION"
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
 
     - name: Build package
       run: |
@@ -81,6 +81,7 @@ jobs:
     - name: Update documentation
       run: |
         # Deploy the new version as both a specific version and as 'latest'
+        mike delete latest --push || echo "No existing 'latest' version found, continuing..."
         mike deploy --push --update-aliases ${{ env.VERSION }} latest
         
         # Set the default version to 'latest'
