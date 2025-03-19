@@ -93,7 +93,7 @@ def eval_fcs() -> None:
     top_level_spans['context.span_id'] = top_level_spans['top_level_parent_id']
     vectara_spans = pd.concat([vectara_spans, top_level_spans], ignore_index=True)
     vectara_spans.set_index('context.span_id', inplace=True)
-    
+
     px.Client().log_evaluations(
         SpanEvaluations(
             dataframe=vectara_spans,

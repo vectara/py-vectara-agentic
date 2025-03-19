@@ -142,20 +142,3 @@ def remove_self_from_signature(func):
     new_sig = sig.replace(parameters=params)
     func.__signature__ = new_sig
     return func
-
-def timed_lru_cache(seconds: int, maxsize: int = 128):
-    """LRU cache decorator that expires after a given number of seconds."""
-    def decorator(func):
-        func = lru_cache(maxsize=maxsize)(func)
-        func._cache_expiry = time.time() + seconds
-
-        @wraps(func)
-        def wrapped(*args, **kwargs):
-            if time.time() > func._cache_expiry:
-                func.cache_clear()
-                func._cache_expiry = time.time() + seconds
-            return func(*args, **kwargs)
-
-        wrapped.cache_clear = func.cache_clear
-        return wrapped
-    return decorator
