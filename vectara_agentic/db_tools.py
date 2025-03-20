@@ -13,7 +13,7 @@ class DBTool(ABC):
     """
     A base class for vectara-agentic database tools extensions
     """
-    def __init__(self, load_data_fn: Callable, max_rows: int = 500):
+    def __init__(self, load_data_fn: Callable, max_rows: int = 1000):
         self.load_data_fn = load_data_fn
         self.max_rows = max_rows
 
@@ -39,7 +39,7 @@ class DBLoadData(DBTool):
         if num_rows > self.max_rows:
             return [
                 f"The query is expected to return more than {self.max_rows} rows. "
-                "Please refine your query to make it return less rows."
+                "Please refactor your query to make it return less rows. "
             ]
         try:
             res = self.load_data_fn(query)

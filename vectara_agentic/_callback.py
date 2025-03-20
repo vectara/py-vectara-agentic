@@ -148,8 +148,12 @@ class AgentCallbackHandler(BaseCallbackHandler):
             if response and response not in ["None", "assistant: None"]:
                 if self.fn:
                     self.fn(AgentStatusType.AGENT_UPDATE, response)
+        elif EventPayload.PROMPT in payload:
+            prompt = str(payload.get(EventPayload.PROMPT))
+            if self.fn:
+                self.fn(AgentStatusType.AGENT_UPDATE, prompt)
         else:
-            print(f"No messages or prompt found in payload {payload}")
+            print(f"vectara-agentic llm callback: no messages or prompt found in payload {payload}")
 
     def _handle_function_call(self, payload: dict) -> None:
         if EventPayload.FUNCTION_CALL in payload:
@@ -167,7 +171,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
             if self.fn:
                 self.fn(AgentStatusType.TOOL_OUTPUT, response)
         else:
-            print(f"No function call or output found in payload {payload}")
+            print(f"Vectara-agentic callback handler: no function call or output found in payload {payload}")
 
     def _handle_agent_step(self, payload: dict) -> None:
         if EventPayload.MESSAGES in payload:
@@ -179,7 +183,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
             if self.fn:
                 self.fn(AgentStatusType.AGENT_STEP, response)
         else:
-            print(f"No messages or prompt found in payload {payload}")
+            print(f"Vectara-agentic agent_step: no messages or prompt found in payload {payload}")
 
     # Asynchronous handlers
     async def _ahandle_llm(self, payload: dict) -> None:
@@ -191,8 +195,12 @@ class AgentCallbackHandler(BaseCallbackHandler):
                         await self.fn(AgentStatusType.AGENT_UPDATE, response)
                     else:
                         self.fn(AgentStatusType.AGENT_UPDATE, response)
+        elif EventPayload.PROMPT in payload:
+            prompt = str(payload.get(EventPayload.PROMPT))
+            if self.fn:
+                self.fn(AgentStatusType.AGENT_UPDATE, prompt)
         else:
-            print(f"No messages or prompt found in payload {payload}")
+            print(f"vectara-agentic llm callback: no messages or prompt found in payload {payload}")
 
     async def _ahandle_function_call(self, payload: dict) -> None:
         if EventPayload.FUNCTION_CALL in payload:

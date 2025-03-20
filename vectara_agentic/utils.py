@@ -92,7 +92,9 @@ def get_llm(
     """
     model_provider, model_name = _get_llm_params_for_role(role, config)
     if model_provider == ModelProvider.OPENAI:
-        llm = OpenAI(model=model_name, temperature=0, is_function_calling_model=True)
+        llm = OpenAI(model=model_name, temperature=0,
+                     is_function_calling_model=True,
+                     strict=True)
     elif model_provider == ModelProvider.ANTHROPIC:
         llm = Anthropic(model=model_name, temperature=0)
     elif model_provider == ModelProvider.GEMINI:

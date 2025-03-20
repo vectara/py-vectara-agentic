@@ -12,6 +12,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0  # Fetch all history for tagging
 
     - name: Set up Python
       uses: actions/setup-python@v2
@@ -26,6 +28,14 @@ jobs:
 
     - name: Set up PYTHONPATH
       run: echo "PYTHONPATH=$PYTHONPATH:$(pwd)" >> $GITHUB_ENV
+
+    - name: Get version from _version.py
+      id: get_version
+      run: |
+        # Extract version from vectara_agentic/_version.py using grep and sed
+        VERSION=$(grep -o '__version__ = "[^"]*"' vectara_agentic/_version.py | sed 's/__version__ = "//;s/"//g')
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
 
     - name: Build package
       run: |
@@ -45,4 +55,34 @@ jobs:
         TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
       run: |
         twine upload dist/*
+
+    - name: Create GitHub Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ env.VERSION }}
+        release_name: Release v${{ env.VERSION }}
+        draft: false
+        prerelease: false
+        body: |
+          Release v${{ env.VERSION }} of vectara-agentic
         
+    - name: Install mkdocs and mike
+      run: |
+        pip install mkdocs mkdocs-material mkdocstrings mike
+
+    - name: Configure Git user
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+
+    - name: Update documentation
+      run: |
+        # Deploy the new version as both a specific version and as 'latest'
+        mike delete latest --push || echo "No existing 'latest' version found, continuing..."
+        mike deploy --push --update-aliases ${{ env.VERSION }} latest
+        
+        # Set the default version to 'latest'
+        mike set-default --push latest
