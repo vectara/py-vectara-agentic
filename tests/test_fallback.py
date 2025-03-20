@@ -70,14 +70,11 @@ class TestFallback(unittest.TestCase):
         TestFallback.flask_process.send_signal(signal.SIGINT)
         TestFallback.flask_process.wait()
 
-        self.assertEqual(
-            agent.chat(
+        res = agent.chat(
                 "What is 5 times 10. Only give the answer, nothing else"
-            ).response.replace("$", "\\$"),
-            "50",
-        )
-
-        self.assertEqual(agent.config_type, AgentConfigType.FALLBACK)
+            ).response.replace("$", "\\$")
+        self.assertEqual(res, "50")
+        self.assertEqual(agent.agent_config_type, AgentConfigType.FALLBACK)
         self.assertEqual(agent.fallback_agent_config, fallback_config)
 
 

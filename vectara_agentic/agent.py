@@ -5,7 +5,6 @@ from typing import List, Callable, Optional, Dict, Any, Union, Tuple
 import os
 import re
 from datetime import date
-import time
 import json
 import logging
 import traceback
@@ -17,7 +16,6 @@ import cloudpickle as pickle
 
 from dotenv import load_dotenv
 
-from retrying import retry
 from pydantic import Field, create_model, ValidationError
 
 from llama_index.core.memory import ChatMemoryBuffer
@@ -105,67 +103,6 @@ def _get_llm_compiler_prompt(prompt: str, topic: str, custom_instructions: str) 
     prompt += f"Today is {date.today().strftime('%A, %B %d, %Y')}"
     return prompt
 
-def _retry_if_exception(exception):
-    # Define the condition to retry on certain exceptions
-    return isinstance(exception, (TimeoutError))
-
-def retry_with_callback():
-    """
-    Retries original function call up to 3 times with current agent config.
-    If current config agent config fails 3 times,
-    switches to other agent config (if available) and tries to call function again.
-    """
-    def decorator(func):
-        @retry(
-            retry_on_exception=_retry_if_exception,
-            stop_max_attempt_number=3,
-            wait_fixed=2000,
-        )
-        def wrapper(self, *args):
-            try:
-                return func(self, *args)
-            except Exception as e:
-                if (self.agent_config_type == AgentConfigType.DEFAULT) and self.fallback_agent_config:
-                    if self.verbose:
-                        print(
-                            f"{func.__name__} failed 3 consecutive times with default agent config. "
-                            "Switching to fallback agent config and calling {func.__name__} again."
-                        )
-                    self._switch_agent_config()
-                    try:
-                        return func(self, *args)
-                    except Exception as e:
-                        return AgentResponse(
-                            response = (
-                                f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()})"
-                                ", function also failed with fallback agent configuration."
-                            )
-                        )
-                elif self.agent_config_type == AgentConfigType.FALLBACK:
-                    if self.verbose:
-                        print(
-                            f"{func.__name__} failed 3 consecutive times with fallback agent config. "
-                            f"Switching to default agent config and calling {func.__name__} again."
-                        )
-                    self._switch_agent_config()
-                    try:
-                        return func(self, *args)
-                    except Exception as e:
-                        return AgentResponse(
-                            response = (
-                                f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()})"
-                                ", function also failed with default agent configuration."
-                            )
-                        )
-                else:
-                    return AgentResponse(
-                        response = (
-                            f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()})"
-                            ", no fallback configuration available."
-                        )
-                    )
-        return wrapper
-    return decorator
 
 def get_field_type(field_schema: dict) -> Any:
     """
@@ -310,7 +247,9 @@ class Agent:
         self.fallback_agent_config = fallback_agent_config
         if self.fallback_agent_config:
             self.fallback_agent = self._create_agent(self.fallback_agent_config, callback_manager)
-        
+        else:
+            self.fallback_agent_config = None
+
         # Setup observability
         try:
             self.observability_enabled = setup_observer(self.agent_config)
@@ -402,7 +341,7 @@ class Agent:
                 initial_plan_prompt=STRUCTURED_PLANNER_INITIAL_PLAN_PROMPT,
                 plan_refine_prompt=STRUCTURED_PLANNER_PLAN_REFINE_PROMPT,
             )
-        
+
         return agent
 
     def clear_memory(self) -> None:
@@ -706,18 +645,27 @@ class Agent:
             "tool token count": self.tool_token_counter.total_llm_token_count if self.tool_token_counter else -1,
         }
 
+    def _get_current_agent(self):
+        return self.agent if self.agent_config_type == AgentConfigType.DEFAULT else self.fallback_agent
+
+    def _get_current_agent_type(self):
+        return (
+            self.agent_config.agent_type if self.agent_config_type == AgentConfigType.DEFAULT
+            else self.fallback_agent_config.agent_type
+        )
+
     async def _aformat_for_lats(self, prompt, agent_response):
         llm_prompt = f"""
         Given the question '{prompt}', and agent response '{agent_response.response}',
         Please provide a well formatted final response to the query.
         final response:
         """
-        if self.agent_config_type == AgentConfigType.DEFAULT:
-            agent_response.response = str(self.agent._llm.acomplete(llm_prompt))
-        elif self.agent_config_type == AgentConfigType.FALLBACK and self.fallback_agent_config:
-            agent_response.response = str(self.fallback_agent._llm.acomplete(llm_prompt))
-        else:
-            raise ValueError(f"Invalid agent config type {self.agent_config_type}")
+        agent_type = self._get_current_agent_type()
+        if agent_type != AgentType.LATS:
+            return
+
+        agent = self._get_current_agent()
+        agent_response.response = str(agent.llm.acomplete(llm_prompt))
 
     def chat(self, prompt: str) -> AgentResponse:           # type: ignore
         """
@@ -731,7 +679,6 @@ class Agent:
         """
         return asyncio.run(self.achat(prompt))
 
-    @retry_with_callback()
     async def achat(self, prompt: str) -> AgentResponse:    # type: ignore
         """
         Interact with the agent using a chat prompt.
@@ -743,32 +690,34 @@ class Agent:
             AgentResponse: The response from the agent.
         """
         try:
-            st = time.time()
-            if self.agent_config_type == AgentConfigType.DEFAULT:
-                agent_response = await self.agent.achat(prompt)
-                if self.agent_config.agent_type == AgentType.LATS:
-                    await self._aformat_for_lats(prompt, agent_response)
-            elif self.agent_config_type == AgentConfigType.FALLBACK and self.fallback_agent_config:
-                agent_response = await self.fallback_agent.achat(prompt)
-                if self.fallback_agent_config.agent_type == AgentType.LATS:
-                    await self._aformat_for_lats(prompt, agent_response)
-            else:
-                raise ValueError(f"Invalid agent config type {self.agent_config_type}")
-
-            if self.verbose:
-                print(f"Time taken: {time.time() - st}")
+            current_agent = self._get_current_agent()
+            agent_response = await current_agent.achat(prompt)
+            await self._aformat_for_lats(prompt, agent_response)
             if self.observability_enabled:
                 eval_fcs()
             if self.query_logging_callback:
                 self.query_logging_callback(prompt, agent_response.response)
             return agent_response
         except Exception as e:
-            return AgentResponse(
-                response = (
-                    f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()})"
-                    ", and can't respond."
+            # If an error occurs, optionally switch configuration and try once more
+            if self.verbose:
+                print("LLM call failed. Switching to fallback configuration.")
+            if self.fallback_agent_config:
+                self._switch_agent_config()
+                current_agent = self._get_current_agent()
+                agent_response = await current_agent.achat(prompt)
+                if self.observability_enabled:
+                    eval_fcs()
+                if self.query_logging_callback:
+                    self.query_logging_callback(prompt, agent_response.response)
+                return agent_response
+            else:
+                return AgentResponse(
+                    response=(
+                        f"Encountered an exception {e} and no fallback configuration is available: "
+                        f"{traceback.format_exc()}"
+                    )
                 )
-            )
 
     def stream_chat(self, prompt: str) -> AgentStreamingResponse:    # type: ignore
         """
@@ -780,7 +729,6 @@ class Agent:
         """
         return asyncio.run(self.astream_chat(prompt))
 
-    @retry_with_callback()
     async def astream_chat(self, prompt: str) -> AgentStreamingResponse:    # type: ignore
         """
         Interact with the agent using a chat prompt asynchronously with streaming.
@@ -790,13 +738,8 @@ class Agent:
             AgentStreamingResponse: The streaming response from the agent.
         """
         try:
-            if self.agent_config_type == AgentConfigType.DEFAULT:
-                agent_response = await self.agent.astream_chat(prompt)
-            elif self.agent_config_type == AgentConfigType.FALLBACK and self.fallback_agent_config:
-                agent_response = await self.fallback_agent.astream_chat(prompt)
-            else:
-                raise ValueError(f"Invalid agent config type {self.agent_config_type}")
-
+            current_agent = self._get_current_agent()
+            agent_response = await current_agent.astream_chat(prompt)
             original_async_response_gen = agent_response.async_response_gen
 
             # Wrap async_response_gen
@@ -805,18 +748,7 @@ class Agent:
                     yield token  # Yield async token to keep streaming behavior
 
                 # After streaming completes, execute additional logic
-                if (
-                    (
-                        self.agent_config_type == AgentConfigType.DEFAULT and
-                        self.agent_config.agent_type == AgentType.LATS
-                    )
-                    or
-                    (
-                        self.agent_config_type == AgentConfigType.FALLBACK and
-                        self.fallback_agent_config and self.fallback_agent_config.agent_type == AgentType.LATS
-                    )
-                ):
-                    await self._aformat_for_lats(prompt, agent_response)
+                await self._aformat_for_lats(prompt, agent_response)
                 if self.query_logging_callback:
                     self.query_logging_callback(prompt, agent_response.response)
                 if self.observability_enabled:
@@ -825,9 +757,18 @@ class Agent:
             agent_response.async_response_gen = _stream_response_wrapper  # Override method
             return agent_response
         except Exception as e:
-            raise ValueError(
-                f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()}), and can't respond."
-            ) from e
+            if self.verbose:
+                print("LLM call failed. Switching to fallback configuration.")
+            if self.fallback_agent_config:
+                self._switch_agent_config()
+                current_agent = self._get_current_agent()
+                agent_response = await current_agent.astream_chat(prompt)
+                original_async_response_gen = agent_response.async_response_gen
+                agent_response.async_response_gen = _stream_response_wrapper  # Override method
+                return agent_response
+            else:
+                print("DEBUG")
+                raise ValueError(f"Encountered an exception ({e}) and no fallback configuration is available.") from e
 
     #
     # run() method for running a workflow

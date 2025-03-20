@@ -57,7 +57,7 @@ class TestPrivateLLM(unittest.TestCase):
         # To run this test, you must have OPENAI_API_KEY in your environment
         self.assertEqual(
             agent.chat(
-                "What is 5 times 10. Only give the answer, nothing else"
+                "What is 5 times 10. Only give the answer, nothing else."
             ).response.replace("$", "\\$"),
             "50",
         )
