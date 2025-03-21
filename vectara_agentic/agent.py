@@ -5,9 +5,9 @@ from typing import List, Callable, Optional, Dict, Any, Union, Tuple
 import os
 import re
 from datetime import date
+import time
 import json
 import logging
-import traceback
 import asyncio
 import importlib
 from collections import Counter
@@ -679,7 +679,7 @@ class Agent:
         """
         return asyncio.run(self.achat(prompt))
 
-    async def achat(self, prompt: str) -> AgentResponse:    # type: ignore
+    async def achat(self, prompt: str) -> AgentResponse:       # type: ignore
         """
         Interact with the agent using a chat prompt.
 
@@ -689,35 +689,30 @@ class Agent:
         Returns:
             AgentResponse: The response from the agent.
         """
-        try:
-            current_agent = self._get_current_agent()
-            agent_response = await current_agent.achat(prompt)
-            await self._aformat_for_lats(prompt, agent_response)
-            if self.observability_enabled:
-                eval_fcs()
-            if self.query_logging_callback:
-                self.query_logging_callback(prompt, agent_response.response)
-            return agent_response
-        except Exception as e:
-            # If an error occurs, optionally switch configuration and try once more
-            if self.verbose:
-                print("LLM call failed. Switching to fallback configuration.")
-            if self.fallback_agent_config:
-                self._switch_agent_config()
+        max_attempts = 4 if self.fallback_agent_config else 2
+        attempt = 0
+        while attempt < max_attempts:
+            try:
                 current_agent = self._get_current_agent()
                 agent_response = await current_agent.achat(prompt)
+                await self._aformat_for_lats(prompt, agent_response)
                 if self.observability_enabled:
                     eval_fcs()
                 if self.query_logging_callback:
                     self.query_logging_callback(prompt, agent_response.response)
                 return agent_response
-            else:
-                return AgentResponse(
-                    response=(
-                        f"Encountered an exception {e} and no fallback configuration is available: "
-                        f"{traceback.format_exc()}"
-                    )
-                )
+
+            except Exception:
+                if attempt >= 2:
+                    if self.verbose:
+                        print(f"LLM call failed on attempt {attempt+1}. Switching agent configuration.")
+                    self._switch_agent_config()
+                time.sleep(1)
+                attempt += 1
+
+        return AgentResponse(
+            response=f"LLM failure can't be resolved after {max_attempts} attempts."
+        )
 
     def stream_chat(self, prompt: str) -> AgentStreamingResponse:    # type: ignore
         """
@@ -737,38 +732,39 @@ class Agent:
         Returns:
             AgentStreamingResponse: The streaming response from the agent.
         """
-        try:
-            current_agent = self._get_current_agent()
-            agent_response = await current_agent.astream_chat(prompt)
-            original_async_response_gen = agent_response.async_response_gen
-
-            # Wrap async_response_gen
-            async def _stream_response_wrapper():
-                async for token in original_async_response_gen():
-                    yield token  # Yield async token to keep streaming behavior
-
-                # After streaming completes, execute additional logic
-                await self._aformat_for_lats(prompt, agent_response)
-                if self.query_logging_callback:
-                    self.query_logging_callback(prompt, agent_response.response)
-                if self.observability_enabled:
-                    eval_fcs()
-
-            agent_response.async_response_gen = _stream_response_wrapper  # Override method
-            return agent_response
-        except Exception as e:
-            if self.verbose:
-                print("LLM call failed. Switching to fallback configuration.")
-            if self.fallback_agent_config:
-                self._switch_agent_config()
+        max_attempts = 4 if self.fallback_agent_config else 2
+        attempt = 0
+        while attempt < max_attempts:
+            try:
                 current_agent = self._get_current_agent()
                 agent_response = await current_agent.astream_chat(prompt)
                 original_async_response_gen = agent_response.async_response_gen
-                agent_response.async_response_gen = _stream_response_wrapper  # Override method
+
+                # Define a wrapper to preserve streaming behavior while executing post-stream logic.
+                async def _stream_response_wrapper():
+                    async for token in original_async_response_gen():
+                        yield token  # Yield tokens as they are generated
+                    # Post-streaming additional logic:
+                    await self._aformat_for_lats(prompt, agent_response)
+                    if self.query_logging_callback:
+                        self.query_logging_callback(prompt, agent_response.response)
+                    if self.observability_enabled:
+                        eval_fcs()
+
+                agent_response.async_response_gen = _stream_response_wrapper  # Override the generator
                 return agent_response
-            else:
-                print("DEBUG")
-                raise ValueError(f"Encountered an exception ({e}) and no fallback configuration is available.") from e
+
+            except Exception:
+                if attempt >= 2:
+                    if self.verbose:
+                        print("LLM call failed. Switching agent configuration.")
+                    self._switch_agent_config()
+                time.sleep(1)
+                attempt += 1
+
+        return AgentResponse(
+            response=f"LLM failure can't be resolved after {max_attempts} attempts."
+        )
 
     #
     # run() method for running a workflow
