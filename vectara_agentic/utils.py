@@ -3,8 +3,7 @@ Utilities for the Vectara agentic.
 """
 
 from typing import Tuple, Callable, Optional
-import time
-from functools import lru_cache, wraps
+from functools import lru_cache
 from inspect import signature
 
 import tiktoken

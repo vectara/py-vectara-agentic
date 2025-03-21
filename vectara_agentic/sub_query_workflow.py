@@ -60,16 +60,24 @@ class SubQuestionQueryWorkflow(Workflow):
 
         if hasattr(ev, "agent"):
             await ctx.set("agent", ev.agent)
+        else:
+            raise ValueError("Agent not provided to workflow Start Event.")
         chat_history = [str(msg) for msg in ev.agent.memory.get()]
 
         if hasattr(ev, "llm"):
             await ctx.set("llm", ev.llm)
+        else:
+            raise ValueError("LLM not provided to workflow Start Event.")
 
         if hasattr(ev, "tools"):
             await ctx.set("tools", ev.tools)
+        else:
+            raise ValueError("Tools not provided to workflow Start Event.")
 
         if hasattr(ev, "verbose"):
             await ctx.set("verbose", ev.verbose)
+        else:
+            await ctx.set("verbose", False)
 
         llm = await ctx.get("llm")
         response = llm.complete(
@@ -193,8 +201,8 @@ class SequentialSubQuestionsWorkflow(Workflow):
     async def query(self, ctx: Context, ev: StartEvent) -> QueryEvent:
         """
         Given a user question, and a list of tools, output a list of relevant
-        sub-questions, such that each question depends on the one before it to
-        to answer the question.
+        sub-questions, such that each question depends on the response of the
+        previous question, to answer the original user question.
         """
         if not hasattr(ev, "inputs"):
             raise ValueError("No inputs provided to workflow Start Event.")
@@ -203,20 +211,29 @@ class SequentialSubQuestionsWorkflow(Workflow):
         if hasattr(ev, "inputs"):
             query = ev.inputs.query
             await ctx.set("original_query", query)
-            print(f"Query is {await ctx.get('original_query')}")
 
         if hasattr(ev, "agent"):
             await ctx.set("agent", ev.agent)
+        else:
+            raise ValueError("Agent not provided to workflow Start Event.")
         chat_history = [str(msg) for msg in ev.agent.memory.get()]
 
         if hasattr(ev, "llm"):
             await ctx.set("llm", ev.llm)
+        else:
+            raise ValueError("LLM not provided to workflow Start Event.")
 
         if hasattr(ev, "tools"):
             await ctx.set("tools", ev.tools)
+        else:
+            raise ValueError("Tools not provided to workflow Start Event.")
 
         if hasattr(ev, "verbose"):
             await ctx.set("verbose", ev.verbose)
+        else:
+            await ctx.set("verbose", False)
+        if ev.verbose:
+            print(f"Query is {await ctx.get('original_query')}")
 
         llm = await ctx.get("llm")
         response = llm.complete(
@@ -243,18 +260,17 @@ class SequentialSubQuestionsWorkflow(Workflow):
             """,
         )
 
-        if await ctx.get("verbose"):
-            print(f"Sub-questions are {response}")
-
         response_obj = json.loads(str(response))
         sub_questions = response_obj["sub_questions"]
 
         await ctx.set("sub_questions", sub_questions)
+        if await ctx.get("verbose"):
+            print(f"Sub-questions are {sub_questions}")
 
         return self.QueryEvent(question=sub_questions[0], prev_answer="", num=0)
 
     @step
-    async def sub_question(self, ctx: Context, ev: QueryEvent) -> StopEvent:
+    async def sub_question(self, ctx: Context, ev: QueryEvent) -> StopEvent | QueryEvent:
         """
         Given a sub-question, return the answer to the sub-question, using the agent.
         """

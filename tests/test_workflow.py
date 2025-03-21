@@ -20,7 +20,7 @@ def add(x: float, y: float):
 class TestWorkflowPackage(unittest.IsolatedAsyncioTestCase):
 
     async def test_sub_query_workflow(self):
-        tools = [ToolsFactory().create_tool(mult)]
+        tools = [ToolsFactory().create_tool(mult)] + [ToolsFactory().create_tool(add)]
         topic = "AI topic"
         instructions = "You are a helpful AI assistant."
         agent = Agent(
@@ -38,7 +38,7 @@ class TestWorkflowPackage(unittest.IsolatedAsyncioTestCase):
         self.assertIn("22", res.response)
 
     async def test_seq_sub_query_workflow(self):
-        tools = [ToolsFactory().create_tool(mult)]
+        tools = [ToolsFactory().create_tool(mult)] + [ToolsFactory().create_tool(add)]
         topic = "AI topic"
         instructions = "You are a helpful AI assistant."
         agent = Agent(
@@ -52,7 +52,7 @@ class TestWorkflowPackage(unittest.IsolatedAsyncioTestCase):
         inputs = SequentialSubQuestionsWorkflow.InputsModel(
             query="Compute 5 times 3, then add 7 to the result."
         )
-        res = await agent.run(inputs=inputs)
+        res = await agent.run(inputs=inputs, verbose=True)
         self.assertIn("22", res.response)
 
 
