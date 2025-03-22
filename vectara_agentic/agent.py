@@ -8,7 +8,6 @@ from datetime import date
 import time
 import json
 import logging
-import traceback
 import asyncio
 import importlib
 from collections import Counter
@@ -17,7 +16,6 @@ import cloudpickle as pickle
 
 from dotenv import load_dotenv
 
-from retrying import retry
 from pydantic import Field, create_model, ValidationError
 
 from llama_index.core.memory import ChatMemoryBuffer
@@ -30,11 +28,13 @@ from llama_index.agent.lats import LATSAgentWorker
 from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
+from llama_index.core.agent.runner.base import AgentRunner
+from llama_index.core.agent.types import BaseAgent
 from llama_index.core.workflow import Workflow
 
 from .types import (
     AgentType, AgentStatusType, LLMRole, ToolType,
-    AgentResponse, AgentStreamingResponse,
+    AgentResponse, AgentStreamingResponse, AgentConfigType
 )
 from .utils import get_llm, get_tokenizer_for_model
 from ._prompts import (
@@ -103,9 +103,6 @@ def _get_llm_compiler_prompt(prompt: str, topic: str, custom_instructions: str) 
     prompt += f"Today is {date.today().strftime('%A, %B %d, %Y')}"
     return prompt
 
-def _retry_if_exception(exception):
-    # Define the condition to retry on certain exceptions
-    return isinstance(exception, (TimeoutError))
 
 def get_field_type(field_schema: dict) -> Any:
     """
@@ -151,6 +148,7 @@ class Agent:
         agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
         query_logging_callback: Optional[Callable[[str, str], None]] = None,
         agent_config: Optional[AgentConfig] = None,
+        fallback_agent_config: Optional[AgentConfig] = None,
         chat_history: Optional[list[Tuple[str, str]]] = None,
         validate_tools: bool = False,
         workflow_cls: Workflow = None,
@@ -172,6 +170,8 @@ class Agent:
             query_logging_callback (Callable): A callback function the code calls upon completion of a query
             agent_config (AgentConfig, optional): The configuration of the agent.
                 Defaults to AgentConfig(), which reads from environment variables.
+            fallback_agent_config (AgentConfig, optional): The fallback configuration of the agent.
+                This config is used when the main agent config fails multiple times.
             chat_history (Tuple[str, str], optional): A list of user/agent chat pairs to initialize the agent memory.
             validate_tools (bool, optional): Whether to validate tool inconsistency with instructions.
                 Defaults to False.
@@ -179,12 +179,12 @@ class Agent:
             workflow_timeout (int, optional): The timeout for the workflow in seconds. Defaults to 120.
         """
         self.agent_config = agent_config or AgentConfig()
-        self.agent_type = self.agent_config.agent_type
-        self.use_structured_planning = use_structured_planning
+        self.agent_config_type = AgentConfigType.DEFAULT
         self.tools = tools
         if not any(tool.metadata.name == 'get_current_date' for tool in self.tools):
             self.tools += [ToolsFactory().create_tool(get_current_date)]
-
+        self.agent_type = self.agent_config.agent_type
+        self.use_structured_planning = use_structured_planning
         self.llm = get_llm(LLMRole.MAIN, config=self.agent_config)
         self._custom_instructions = custom_instructions
         self._topic = topic
@@ -231,7 +231,6 @@ class Agent:
         if self.tool_token_counter:
             callbacks.append(self.tool_token_counter)
         callback_manager = CallbackManager(callbacks)  # type: ignore
-        self.llm.callback_manager = callback_manager
         self.verbose = verbose
 
         if chat_history:
@@ -243,83 +242,118 @@ class Agent:
         else:
             self.memory = ChatMemoryBuffer.from_defaults(token_limit=128000)
 
-        # Create agent based on type
-        if self.agent_type == AgentType.REACT:
-            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
-            self.agent = ReActAgent.from_tools(
-                tools=self.tools,
-                llm=self.llm,
-                memory=self.memory,
-                verbose=verbose,
-                react_chat_formatter=ReActChatFormatter(system_header=prompt),
-                max_iterations=self.agent_config.max_reasoning_steps,
-                callable_manager=callback_manager,
-            )
-        elif self.agent_type == AgentType.OPENAI:
-            prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, topic, custom_instructions)
-            self.agent = OpenAIAgent.from_tools(
-                tools=self.tools,
-                llm=self.llm,
-                memory=self.memory,
-                verbose=verbose,
-                callable_manager=callback_manager,
-                max_function_calls=self.agent_config.max_reasoning_steps,
-                system_prompt=prompt,
-            )
-        elif self.agent_type == AgentType.LLMCOMPILER:
-            agent_worker = LLMCompilerAgentWorker.from_tools(
-                tools=self.tools,
-                llm=self.llm,
-                verbose=verbose,
-                callable_manager=callback_manager,
-            )
-            agent_worker.system_prompt = _get_prompt(
-                _get_llm_compiler_prompt(agent_worker.system_prompt, topic, custom_instructions),
-                topic, custom_instructions
-            )
-            agent_worker.system_prompt_replan = _get_prompt(
-                _get_llm_compiler_prompt(agent_worker.system_prompt_replan, topic, custom_instructions),
-                topic, custom_instructions
-            )
-            self.agent = agent_worker.as_agent()
-        elif self.agent_type == AgentType.LATS:
-            agent_worker = LATSAgentWorker.from_tools(
-                tools=self.tools,
-                llm=self.llm,
-                num_expansions=3,
-                max_rollouts=-1,
-                verbose=verbose,
-                callable_manager=callback_manager,
-            )
-            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, topic, custom_instructions)
-            agent_worker.chat_formatter = ReActChatFormatter(system_header=prompt)
-            self.agent = agent_worker.as_agent()
+        # Set up main agent and fallback agent
+        self.agent = self._create_agent(self.agent_config, callback_manager)
+        self.fallback_agent_config = fallback_agent_config
+        if self.fallback_agent_config:
+            self.fallback_agent = self._create_agent(self.fallback_agent_config, callback_manager)
         else:
-            raise ValueError(f"Unknown agent type: {self.agent_type}")
+            self.fallback_agent_config = None
 
+        # Setup observability
         try:
             self.observability_enabled = setup_observer(self.agent_config)
         except Exception as e:
             print(f"Failed to set up observer ({e}), ignoring")
             self.observability_enabled = False
 
+    def _create_agent(
+        self,
+        config: AgentConfig,
+        llm_callback_manager: CallbackManager
+    ) -> Union[BaseAgent, AgentRunner]:
+        """
+        Creates the agent based on the configuration object.
+
+        Args:
+
+            config: The configuration of the agent.
+            llm_callback_manager: The callback manager for the agent's llm.
+
+        Returns:
+            Union[BaseAgent, AgentRunner]: The configured agent object.
+        """
+        agent_type = config.agent_type
+        llm = get_llm(LLMRole.MAIN, config=config)
+        llm.callback_manager = llm_callback_manager
+
+        if agent_type == AgentType.REACT:
+            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, self._topic, self._custom_instructions)
+            agent = ReActAgent.from_tools(
+                tools=self.tools,
+                llm=llm,
+                memory=self.memory,
+                verbose=self.verbose,
+                react_chat_formatter=ReActChatFormatter(system_header=prompt),
+                max_iterations=config.max_reasoning_steps,
+                callable_manager=llm_callback_manager,
+            )
+        elif agent_type == AgentType.OPENAI:
+            prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, self._topic, self._custom_instructions)
+            agent = OpenAIAgent.from_tools(
+                tools=self.tools,
+                llm=llm,
+                memory=self.memory,
+                verbose=self.verbose,
+                callable_manager=llm_callback_manager,
+                max_function_calls=config.max_reasoning_steps,
+                system_prompt=prompt,
+            )
+        elif agent_type == AgentType.LLMCOMPILER:
+            agent_worker = LLMCompilerAgentWorker.from_tools(
+                tools=self.tools,
+                llm=llm,
+                verbose=self.verbose,
+                callable_manager=llm_callback_manager,
+            )
+            agent_worker.system_prompt = _get_prompt(
+                _get_llm_compiler_prompt(agent_worker.system_prompt, self._topic, self._custom_instructions),
+                self._topic, self._custom_instructions
+            )
+            agent_worker.system_prompt_replan = _get_prompt(
+                _get_llm_compiler_prompt(agent_worker.system_prompt_replan, self._topic, self._custom_instructions),
+                self._topic, self._custom_instructions
+            )
+            agent = agent_worker.as_agent()
+        elif agent_type == AgentType.LATS:
+            agent_worker = LATSAgentWorker.from_tools(
+                tools=self.tools,
+                llm=llm,
+                num_expansions=3,
+                max_rollouts=-1,
+                verbose=self.verbose,
+                callable_manager=llm_callback_manager,
+            )
+            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, self._topic, self._custom_instructions)
+            agent_worker.chat_formatter = ReActChatFormatter(system_header=prompt)
+            agent = agent_worker.as_agent()
+        else:
+            raise ValueError(f"Unknown agent type: {agent_type}")
+
         # Set up structured planner if needed
         if (self.use_structured_planning
             or self.agent_type in [AgentType.LLMCOMPILER, AgentType.LATS]):
-            self.agent = StructuredPlannerAgent(
-                agent_worker=self.agent.agent_worker,
+            agent = StructuredPlannerAgent(
+                agent_worker=agent.agent_worker,
                 tools=self.tools,
                 memory=self.memory,
-                verbose=verbose,
+                verbose=self.verbose,
                 initial_plan_prompt=STRUCTURED_PLANNER_INITIAL_PLAN_PROMPT,
                 plan_refine_prompt=STRUCTURED_PLANNER_PLAN_REFINE_PROMPT,
             )
+
+        return agent
 
     def clear_memory(self) -> None:
         """
         Clear the agent's memory.
         """
-        self.agent.memory.reset()
+        if self.agent_config_type == AgentConfigType.DEFAULT:
+            self.agent.memory.reset()
+        elif self.agent_config_type == AgentConfigType.FALLBACK and self.fallback_agent_config:
+            self.fallback_agent.memory.reset()
+        else:
+            raise ValueError(f"Invalid agent config type {self.agent_config_type}")
 
     def __eq__(self, other):
         if not isinstance(other, Agent):
@@ -327,10 +361,10 @@ class Agent:
             return False
 
         # Compare agent_type
-        if self.agent_type != other.agent_type:
+        if self.agent_config.agent_type != other.agent_config.agent_type:
             print(
-                f"Comparison failed: agent_type differs. (self.agent_type: {self.agent_type}, "
-                f"other.agent_type: {other.agent_type})"
+                f"Comparison failed: agent_type differs. (self.agent_config.agent_type: {self.agent_config.agent_type},"
+                f" other.agent_config.agent_type: {other.agent_config.agent_type})"
             )
             return False
 
@@ -360,7 +394,7 @@ class Agent:
             print(f"Comparison failed: verbose differs. (self.verbose: {self.verbose}, other.verbose: {other.verbose})")
             return False
 
-        # Compare agent
+        # Compare agent memory
         if self.agent.memory.chat_store != other.agent.memory.chat_store:
             print(
                 f"Comparison failed: agent memory differs. (self.agent: {repr(self.agent.memory.chat_store)}, "
@@ -383,6 +417,7 @@ class Agent:
         agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
         query_logging_callback: Optional[Callable[[str, str], None]] = None,
         agent_config: AgentConfig = AgentConfig(),
+        fallback_agent_config: Optional[AgentConfig] = None,
         chat_history: Optional[list[Tuple[str, str]]] = None,
     ) -> "Agent":
         """
@@ -398,6 +433,7 @@ class Agent:
                 update_func (Callable): old name for agent_progress_callback. Will be deprecated in future.
             query_logging_callback (Callable): A callback function the code calls upon completion of a query
             agent_config (AgentConfig, optional): The configuration of the agent.
+            fallback_agent_config (AgentConfig, optional): The fallback configuration of the agent.
             chat_history (Tuple[str, str], optional): A list of user/agent chat pairs to initialize the agent memory.
 
         Returns:
@@ -408,7 +444,7 @@ class Agent:
             verbose=verbose, agent_progress_callback=agent_progress_callback,
             query_logging_callback=query_logging_callback,
             update_func=update_func, agent_config=agent_config,
-            chat_history=chat_history,
+            fallback_agent_config=fallback_agent_config, chat_history=chat_history,
         )
 
     @classmethod
@@ -421,6 +457,9 @@ class Agent:
         vectara_api_key: str = str(os.environ.get("VECTARA_API_KEY", "")),
         agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
         query_logging_callback: Optional[Callable[[str, str], None]] = None,
+        agent_config: AgentConfig = AgentConfig(),
+        fallback_agent_config: Optional[AgentConfig] = None,
+        chat_history: Optional[list[Tuple[str, str]]] = None,
         verbose: bool = False,
         vectara_filter_fields: list[dict] = [],
         vectara_offset: int = 0,
@@ -456,6 +495,9 @@ class Agent:
             vectara_api_key (str): The Vectara API key.
             agent_progress_callback (Callable): A callback function the code calls on any agent updates.
             query_logging_callback (Callable): A callback function the code calls upon completion of a query
+            agent_config (AgentConfig, optional): The configuration of the agent.
+            fallback_agent_config (AgentConfig, optional): The fallback configuration of the agent.
+            chat_history (Tuple[str, str], optional): A list of user/agent chat pairs to initialize the agent memory.
             data_description (str): The description of the data.
             assistant_specialty (str): The specialty of the assistant.
             verbose (bool, optional): Whether to print verbose output.
@@ -557,7 +599,20 @@ class Agent:
             verbose=verbose,
             agent_progress_callback=agent_progress_callback,
             query_logging_callback=query_logging_callback,
+            agent_config=agent_config,
+            fallback_agent_config=fallback_agent_config,
+            chat_history=chat_history,
         )
+
+    def _switch_agent_config(self) -> None:
+        """"
+        Switch the configuration type of the agent.
+        This function is called automatically to switch the agent configuration if the current configuration fails.
+        """
+        if self.agent_config_type == AgentConfigType.DEFAULT:
+            self.agent_config_type = AgentConfigType.FALLBACK
+        else:
+            self.agent_config_type = AgentConfigType.DEFAULT
 
     def report(self) -> None:
         """
@@ -567,7 +622,7 @@ class Agent:
             str: The report from the agent.
         """
         print("Vectara agentic Report:")
-        print(f"Agent Type = {self.agent_type}")
+        print(f"Agent Type = {self.agent_config.agent_type}")
         print(f"Topic = {self._topic}")
         print("Tools:")
         for tool in self.tools:
@@ -590,13 +645,27 @@ class Agent:
             "tool token count": self.tool_token_counter.total_llm_token_count if self.tool_token_counter else -1,
         }
 
+    def _get_current_agent(self):
+        return self.agent if self.agent_config_type == AgentConfigType.DEFAULT else self.fallback_agent
+
+    def _get_current_agent_type(self):
+        return (
+            self.agent_config.agent_type if self.agent_config_type == AgentConfigType.DEFAULT
+            else self.fallback_agent_config.agent_type
+        )
+
     async def _aformat_for_lats(self, prompt, agent_response):
         llm_prompt = f"""
         Given the question '{prompt}', and agent response '{agent_response.response}',
         Please provide a well formatted final response to the query.
         final response:
         """
-        agent_response.response = str(await self.llm.acomplete(llm_prompt))
+        agent_type = self._get_current_agent_type()
+        if agent_type != AgentType.LATS:
+            return
+
+        agent = self._get_current_agent()
+        agent_response.response = str(agent.llm.acomplete(llm_prompt))
 
     def chat(self, prompt: str) -> AgentResponse:           # type: ignore
         """
@@ -610,12 +679,7 @@ class Agent:
         """
         return asyncio.run(self.achat(prompt))
 
-    @retry(
-        retry_on_exception=_retry_if_exception,
-        stop_max_attempt_number=3,
-        wait_fixed=2000,
-    )
-    async def achat(self, prompt: str) -> AgentResponse:    # type: ignore
+    async def achat(self, prompt: str) -> AgentResponse:       # type: ignore
         """
         Interact with the agent using a chat prompt.
 
@@ -625,25 +689,30 @@ class Agent:
         Returns:
             AgentResponse: The response from the agent.
         """
-        try:
-            st = time.time()
-            agent_response = await self.agent.achat(prompt)
-            if self.agent_type == AgentType.LATS:
+        max_attempts = 4 if self.fallback_agent_config else 2
+        attempt = 0
+        while attempt < max_attempts:
+            try:
+                current_agent = self._get_current_agent()
+                agent_response = await current_agent.achat(prompt)
                 await self._aformat_for_lats(prompt, agent_response)
-            if self.verbose:
-                print(f"Time taken: {time.time() - st}")
-            if self.observability_enabled:
-                eval_fcs()
-            if self.query_logging_callback:
-                self.query_logging_callback(prompt, agent_response.response)
-            return agent_response
-        except Exception as e:
-            return AgentResponse(
-                response = (
-                    f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()})"
-                    ", and can't respond."
-                )
-            )
+                if self.observability_enabled:
+                    eval_fcs()
+                if self.query_logging_callback:
+                    self.query_logging_callback(prompt, agent_response.response)
+                return agent_response
+
+            except Exception:
+                if attempt >= 2:
+                    if self.verbose:
+                        print(f"LLM call failed on attempt {attempt+1}. Switching agent configuration.")
+                    self._switch_agent_config()
+                time.sleep(1)
+                attempt += 1
+
+        return AgentResponse(
+            response=f"LLM failure can't be resolved after {max_attempts} attempts."
+        )
 
     def stream_chat(self, prompt: str) -> AgentStreamingResponse:    # type: ignore
         """
@@ -655,11 +724,6 @@ class Agent:
         """
         return asyncio.run(self.astream_chat(prompt))
 
-    @retry(
-        retry_on_exception=_retry_if_exception,
-        stop_max_attempt_number=3,
-        wait_fixed=2000,
-    )
     async def astream_chat(self, prompt: str) -> AgentStreamingResponse:    # type: ignore
         """
         Interact with the agent using a chat prompt asynchronously with streaming.
@@ -668,29 +732,39 @@ class Agent:
         Returns:
             AgentStreamingResponse: The streaming response from the agent.
         """
-        try:
-            agent_response = await self.agent.astream_chat(prompt)
-            original_async_response_gen = agent_response.async_response_gen
+        max_attempts = 4 if self.fallback_agent_config else 2
+        attempt = 0
+        while attempt < max_attempts:
+            try:
+                current_agent = self._get_current_agent()
+                agent_response = await current_agent.astream_chat(prompt)
+                original_async_response_gen = agent_response.async_response_gen
 
-            # Wrap async_response_gen
-            async def _stream_response_wrapper():
-                async for token in original_async_response_gen():
-                    yield token  # Yield async token to keep streaming behavior
-
-                # After streaming completes, execute additional logic
-                if self.agent_type == AgentType.LATS:
+                # Define a wrapper to preserve streaming behavior while executing post-stream logic.
+                async def _stream_response_wrapper():
+                    async for token in original_async_response_gen():
+                        yield token  # Yield tokens as they are generated
+                    # Post-streaming additional logic:
                     await self._aformat_for_lats(prompt, agent_response)
-                if self.query_logging_callback:
-                    self.query_logging_callback(prompt, agent_response.response)
-                if self.observability_enabled:
-                    eval_fcs()
+                    if self.query_logging_callback:
+                        self.query_logging_callback(prompt, agent_response.response)
+                    if self.observability_enabled:
+                        eval_fcs()
 
-            agent_response.async_response_gen = _stream_response_wrapper  # Override method
-            return agent_response
-        except Exception as e:
-            raise ValueError(
-                f"Vectara Agentic: encountered an exception ({e}) at ({traceback.format_exc()}), and can't respond."
-            ) from e
+                agent_response.async_response_gen = _stream_response_wrapper  # Override the generator
+                return agent_response
+
+            except Exception:
+                if attempt >= 2:
+                    if self.verbose:
+                        print("LLM call failed. Switching agent configuration.")
+                    self._switch_agent_config()
+                time.sleep(1)
+                attempt += 1
+
+        return AgentResponse(
+            response=f"LLM failure can't be resolved after {max_attempts} attempts."
+        )
 
     #
     # run() method for running a workflow
@@ -783,13 +857,14 @@ class Agent:
             tool_info.append(tool_dict)
 
         return {
-            "agent_type": self.agent_type.value,
+            "agent_type": self.agent_config.agent_type.value,
             "memory": pickle.dumps(self.agent.memory).decode("latin-1"),
             "tools": tool_info,
             "topic": self._topic,
             "custom_instructions": self._custom_instructions,
             "verbose": self.verbose,
             "agent_config": self.agent_config.to_dict(),
+            "fallback_agent": self.fallback_agent_config.to_dict() if self.fallback_agent_config else None,
             "workflow_cls": self.workflow_cls if self.workflow_cls else None,
         }
 
@@ -797,6 +872,11 @@ class Agent:
     def from_dict(cls, data: Dict[str, Any]) -> "Agent":
         """Create an Agent instance from a dictionary."""
         agent_config = AgentConfig.from_dict(data["agent_config"])
+        fallback_agent_config = (
+            AgentConfig.from_dict(data["fallback_agent_config"])
+            if data.get("fallback_agent_config")
+            else None
+        )
         tools = []
 
         for tool_data in data["tools"]:
@@ -850,6 +930,7 @@ class Agent:
             topic=data["topic"],
             custom_instructions=data["custom_instructions"],
             verbose=data["verbose"],
+            fallback_agent_config=fallback_agent_config,
             workflow_cls=data["workflow_cls"],
         )
         memory = pickle.loads(data["memory"].encode("latin-1")) if data.get("memory") else None

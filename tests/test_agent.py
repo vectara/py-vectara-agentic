@@ -102,8 +102,18 @@ class TestAgentPackage(unittest.TestCase):
         self.assertEqual(agent._topic, "question answering")
 
     def test_serialization(self):
+        config = AgentConfig(
+            agent_type=AgentType.REACT,
+            main_llm_provider=ModelProvider.ANTHROPIC,
+            main_llm_model_name="claude-3-5-sonnet-20241022",
+            tool_llm_provider=ModelProvider.TOGETHER,
+            tool_llm_model_name="meta-llama/Llama-3.3-70B-Instruct-Turbo",
+            observer=ObserverType.ARIZE_PHOENIX
+        )
+
         agent = Agent.from_corpus(
             tool_name="RAG Tool",
+            agent_config=config,
             vectara_corpus_key="corpus_key",
             vectara_api_key="api_key",
             data_description="information",
@@ -117,9 +127,17 @@ class TestAgentPackage(unittest.TestCase):
         self.assertEqual(agent, agent_reloaded)
         self.assertEqual(agent.agent_type, agent_reloaded.agent_type)
 
+        self.assertEqual(agent.agent_config.observer, agent_reloaded.agent_config.observer)
+        self.assertEqual(agent.agent_config.main_llm_provider, agent_reloaded.agent_config.main_llm_provider)
+        self.assertEqual(agent.agent_config.tool_llm_provider, agent_reloaded.agent_config.tool_llm_provider)
+
         self.assertIsInstance(agent_reloaded, Agent)
         self.assertEqual(agent, agent_reloaded_again)
         self.assertEqual(agent.agent_type, agent_reloaded_again.agent_type)
+
+        self.assertEqual(agent.agent_config.observer, agent_reloaded_again.agent_config.observer)
+        self.assertEqual(agent.agent_config.main_llm_provider, agent_reloaded_again.agent_config.main_llm_provider)
+        self.assertEqual(agent.agent_config.tool_llm_provider, agent_reloaded_again.agent_config.tool_llm_provider)
 
     def test_chat_history(self):
         tools = [ToolsFactory().create_tool(mult)]
