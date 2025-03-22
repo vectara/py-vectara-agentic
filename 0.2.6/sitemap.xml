@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://vectara.github.io/py-vectara-agentic/0.2.6/</loc>
+         <lastmod>2025-03-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://vectara.github.io/py-vectara-agentic/0.2.6/api/</loc>
+         <lastmod>2025-03-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://vectara.github.io/py-vectara-agentic/0.2.6/endpoint/</loc>
+         <lastmod>2025-03-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://vectara.github.io/py-vectara-agentic/0.2.6/installation/</loc>
+         <lastmod>2025-03-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://vectara.github.io/py-vectara-agentic/0.2.6/tools/</loc>
+         <lastmod>2025-03-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://vectara.github.io/py-vectara-agentic/0.2.6/usage/</loc>
+         <lastmod>2025-03-22</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+</urlset>
