@@ -85,6 +85,7 @@ class SubQuestionQueryWorkflow(Workflow):
             Given a user question, and a list of tools, output a list of
             relevant sub-questions, such that the answers to all the
             sub-questions put together will answer the question.
+            Order the sub-questions in the right order if there are dependencies.
             Make sure sub-questions do not result in duplicate tool calling.
             Respond in pure JSON without any markdown, like this:
             {{
@@ -118,7 +119,7 @@ class SubQuestionQueryWorkflow(Workflow):
 
         return None
 
-    @step
+    @step(num_workers=3)
     async def sub_question(self, ctx: Context, ev: QueryEvent) -> AnswerEvent:
         """
         Given a sub-question, return the answer to the sub-question, using the agent.
@@ -159,7 +160,6 @@ class SubQuestionQueryWorkflow(Workflow):
             Sub-questions and answers:
             {answers}
         """
-
         if await ctx.get("verbose"):
             print(f"Final prompt is {prompt}")
 

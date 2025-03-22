@@ -71,7 +71,6 @@ IMPORTANT - FOLLOW THESE INSTRUCTIONS CAREFULLY:
 # Custom REACT prompt
 #
 REACT_PROMPT_TEMPLATE = """
-
 You are designed to help with a variety of tasks, from answering questions to providing summaries to other types of analyses.
 You have expertise in {chat_topic}.
 

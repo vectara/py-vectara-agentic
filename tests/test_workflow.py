@@ -37,6 +37,13 @@ class TestWorkflowPackage(unittest.IsolatedAsyncioTestCase):
         res = await agent.run(inputs=inputs)
         self.assertIn("22", res.response)
 
+        inputs = SubQuestionQueryWorkflow.InputsModel(
+            query="what is the sum of 10 with 21, and the multiplication of 3 and 6?"
+        )
+        res = await agent.run(inputs=inputs)
+        self.assertIn("31", res.response)
+        self.assertIn("18", res.response)
+
     async def test_seq_sub_query_workflow(self):
         tools = [ToolsFactory().create_tool(mult)] + [ToolsFactory().create_tool(add)]
         topic = "AI topic"
