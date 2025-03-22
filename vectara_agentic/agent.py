@@ -568,7 +568,7 @@ class Agent:
             query_logging_callback=query_logging_callback,
         )
 
-    def report(self) -> None:
+    def report(self, detailed: bool = False) -> None:
         """
         Get a report from the agent.
 
@@ -581,7 +581,10 @@ class Agent:
         print("Tools:")
         for tool in self.tools:
             if hasattr(tool, 'metadata'):
-                print(f"- {tool.metadata.name}")
+                if detailed:
+                    print(f"- {tool.metadata.name} - {tool.metadata.description}")
+                else:
+                    print(f"- {tool.metadata.name}")
             else:
                 print("- tool without metadata")
         print(f"Agent LLM = {get_llm(LLMRole.MAIN, config=self.agent_config).metadata.model_name}")

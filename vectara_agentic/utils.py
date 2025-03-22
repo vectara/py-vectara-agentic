@@ -16,14 +16,14 @@ from .types import LLMRole, AgentType, ModelProvider
 from .agent_config import AgentConfig
 
 provider_to_default_model_name = {
-    ModelProvider.OPENAI: "gpt-4o-mini",
+    ModelProvider.OPENAI: "gpt-4o",
     ModelProvider.ANTHROPIC: "claude-3-7-sonnet-20250219",
     ModelProvider.TOGETHER: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
     ModelProvider.GROQ: "llama-3.3-70b-versatile",
     ModelProvider.FIREWORKS: "accounts/fireworks/models/firefunction-v2",
     ModelProvider.BEDROCK: "anthropic.claude-3-5-sonnet-20241022-v2:0",
     ModelProvider.COHERE: "command-r-plus",
-    ModelProvider.GEMINI: "models/gemini-2.0-flash-lite",
+    ModelProvider.GEMINI: "models/gemini-2.0-flash",
 }
 
 DEFAULT_MODEL_PROVIDER = ModelProvider.OPENAI
