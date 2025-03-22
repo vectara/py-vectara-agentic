@@ -225,8 +225,8 @@ LLM provider.
 Defaults:
 
 1.  For `OPENAI`, the default is gpt-4o.
-2.  For `ANTHROPIC`, the default is Claude-3-5-Sonnet-20241022.
-3.  For `GEMINI`, the default is gemini-1.5-flash.
+2.  For `ANTHROPIC`, the default is claude-3-7-sonnet-2025021.
+3.  For `GEMINI`, the default is gemini-2.0-flash.
 4.  For `TOGETHER.AI`, the default is Meta-Llama-3.3-70B-Instruct-Turbo.
 5.  For `COHERE`, the default is command-r-plus.
 6.  For `BEDROCK`, the default is anthropic.claude-3-5-sonnet-20241022-v2:0.

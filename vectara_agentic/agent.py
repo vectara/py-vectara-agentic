@@ -417,8 +417,11 @@ class Agent:
         agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
         query_logging_callback: Optional[Callable[[str, str], None]] = None,
         agent_config: AgentConfig = AgentConfig(),
+        validate_tools: bool = False,
         fallback_agent_config: Optional[AgentConfig] = None,
         chat_history: Optional[list[Tuple[str, str]]] = None,
+        workflow_cls: Workflow = None,
+        workflow_timeout: int = 120,
     ) -> "Agent":
         """
         Create an agent from tools, agent type, and language model.
@@ -435,6 +438,10 @@ class Agent:
             agent_config (AgentConfig, optional): The configuration of the agent.
             fallback_agent_config (AgentConfig, optional): The fallback configuration of the agent.
             chat_history (Tuple[str, str], optional): A list of user/agent chat pairs to initialize the agent memory.
+            validate_tools (bool, optional): Whether to validate tool inconsistency with instructions.
+                Defaults to False.
+            workflow_cls (Workflow, optional): The workflow class to be used with run(). Defaults to None.
+            workflow_timeout (int, optional): The timeout for the workflow in seconds. Defaults to 120.
 
         Returns:
             Agent: An instance of the Agent class.
@@ -444,7 +451,10 @@ class Agent:
             verbose=verbose, agent_progress_callback=agent_progress_callback,
             query_logging_callback=query_logging_callback,
             update_func=update_func, agent_config=agent_config,
-            fallback_agent_config=fallback_agent_config, chat_history=chat_history,
+            chat_history=chat_history,
+            validate_tools=validate_tools,
+            fallback_agent_config=fallback_agent_config,
+            workflow_cls = workflow_cls, workflow_timeout = workflow_timeout,
         )
 
     @classmethod
@@ -614,9 +624,12 @@ class Agent:
         else:
             self.agent_config_type = AgentConfigType.DEFAULT
 
-    def report(self) -> None:
+    def report(self, detailed: bool = False) -> None:
         """
         Get a report from the agent.
+
+        Args:
+            detailed (bool, optional): Whether to include detailed information. Defaults to False.
 
         Returns:
             str: The report from the agent.
@@ -627,7 +640,10 @@ class Agent:
         print("Tools:")
         for tool in self.tools:
             if hasattr(tool, 'metadata'):
-                print(f"- {tool.metadata.name}")
+                if detailed:
+                    print(f"- {tool.metadata.name} - {tool.metadata.description}")
+                else:
+                    print(f"- {tool.metadata.name}")
             else:
                 print("- tool without metadata")
         print(f"Agent LLM = {get_llm(LLMRole.MAIN, config=self.agent_config).metadata.model_name}")

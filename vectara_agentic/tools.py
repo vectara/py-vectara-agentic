@@ -320,6 +320,8 @@ class VectaraToolFactory:
         self.vectara_corpus_key = vectara_corpus_key
         self.vectara_api_key = vectara_api_key
         self.num_corpora = len(vectara_corpus_key.split(","))
+        self.cache_expiry = 60 * 60  # 1 hour
+        self.max_cache_size = 128
 
     def create_search_tool(
         self,

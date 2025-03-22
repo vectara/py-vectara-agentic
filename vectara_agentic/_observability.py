@@ -20,7 +20,7 @@ def setup_observer(config: AgentConfig) -> bool:
         if not phoenix_endpoint:
             px.launch_app()
             tracer_provider = register(endpoint='http://localhost:6006/v1/traces', project_name="vectara-agentic")
-        elif 'app.phoenix.arize.com' in phoenix_endpoint:   # hosted on Arizze
+        elif 'app.phoenix.arize.com' in phoenix_endpoint:   # hosted on Arize
             phoenix_api_key = os.getenv("PHOENIX_API_KEY", None)
             if not phoenix_api_key:
                 raise ValueError("Arize Phoenix API key not set. Please set PHOENIX_API_KEY environment variable.")
