@@ -10,22 +10,25 @@ from vectara_agentic.agent_config import AgentConfig
 from vectara_agentic.types import ModelProvider, AgentConfigType
 from vectara_agentic.tools import ToolsFactory
 
+FLASK_PORT = 5002
+
 class TestFallback(unittest.TestCase):
 
     @classmethod
     def setUp(cls):
         # Start the Flask server as a subprocess
         cls.flask_process = subprocess.Popen(
-            ['flask', 'run', '--port=5000'],
+            ['flask', 'run', f'--port={FLASK_PORT}'],
             env={**os.environ, 'FLASK_APP': 'tests.endpoint:app', 'FLASK_ENV': 'development'},
             stdout=None, stderr=None,
         )
         # Wait for the server to start
         timeout = 10
-        url = 'http://127.0.0.1:5000/'
+        url = f'http://127.0.0.1:{FLASK_PORT}/'
         for _ in range(timeout):
             try:
                 requests.get(url)
+                print("Flask server started for fallback unit test")
                 return
             except requests.ConnectionError:
                 time.sleep(1)
@@ -48,7 +51,7 @@ class TestFallback(unittest.TestCase):
             agent_type=AgentType.REACT,
             main_llm_provider=ModelProvider.PRIVATE,
             main_llm_model_name="gpt-4o",
-            private_llm_api_base="http://127.0.0.1:5000/v1",
+            private_llm_api_base=f"http://127.0.0.1:{FLASK_PORT}/v1",
             private_llm_api_key="TEST_API_KEY",
         )
 
@@ -60,19 +63,17 @@ class TestFallback(unittest.TestCase):
                       fallback_agent_config=fallback_config)
 
         # To run this test, you must have OPENAI_API_KEY in your environment
-        self.assertEqual(
-            agent.chat(
-                "What is 5 times 10. Only give the answer, nothing else"
-            ).response.replace("$", "\\$"),
-            "50",
-        )
+        res = agent.chat(
+            "What is 5 times 10. Only give the answer, nothing else"
+        ).response
+        self.assertEqual(res, "50")
 
         TestFallback.flask_process.send_signal(signal.SIGINT)
         TestFallback.flask_process.wait()
 
         res = agent.chat(
-                "What is 5 times 10. Only give the answer, nothing else"
-            ).response.replace("$", "\\$")
+            "What is 5 times 10. Only give the answer, nothing else"
+        ).response
         self.assertEqual(res, "50")
         self.assertEqual(agent.agent_config_type, AgentConfigType.FALLBACK)
         self.assertEqual(agent.fallback_agent_config, fallback_config)
