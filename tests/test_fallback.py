@@ -7,10 +7,10 @@ import signal
 
 from vectara_agentic.agent import Agent, AgentType
 from vectara_agentic.agent_config import AgentConfig
-from vectara_agentic.types import ModelProvider
+from vectara_agentic.types import ModelProvider, AgentConfigType
 from vectara_agentic.tools import ToolsFactory
 
-class TestPrivateLLM(unittest.TestCase):
+class TestFallback(unittest.TestCase):
 
     @classmethod
     def setUp(cls):
@@ -37,7 +37,7 @@ class TestPrivateLLM(unittest.TestCase):
         cls.flask_process.send_signal(signal.SIGINT)
         cls.flask_process.wait()
 
-    def test_endpoint(self):
+    def test_fallback(self):
         def mult(x, y):
             return x * y
 
@@ -51,16 +51,31 @@ class TestPrivateLLM(unittest.TestCase):
             private_llm_api_base="http://127.0.0.1:5000/v1",
             private_llm_api_key="TEST_API_KEY",
         )
+
+        # Set fallback agent config to OpenAI agent
+        fallback_config = AgentConfig()
+
         agent = Agent(agent_config=config, tools=tools, topic=topic,
-                      custom_instructions=custom_instructions)
+                      custom_instructions=custom_instructions,
+                      fallback_agent_config=fallback_config)
 
         # To run this test, you must have OPENAI_API_KEY in your environment
         self.assertEqual(
             agent.chat(
-                "What is 5 times 10. Only give the answer, nothing else."
+                "What is 5 times 10. Only give the answer, nothing else"
             ).response.replace("$", "\\$"),
             "50",
         )
+
+        TestFallback.flask_process.send_signal(signal.SIGINT)
+        TestFallback.flask_process.wait()
+
+        res = agent.chat(
+                "What is 5 times 10. Only give the answer, nothing else"
+            ).response.replace("$", "\\$")
+        self.assertEqual(res, "50")
+        self.assertEqual(agent.agent_config_type, AgentConfigType.FALLBACK)
+        self.assertEqual(agent.fallback_agent_config, fallback_config)
 
 
 if __name__ == "__main__":
