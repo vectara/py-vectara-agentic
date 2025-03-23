@@ -6,7 +6,7 @@ from vectara_agentic.agent_config import AgentConfig
 from vectara_agentic.types import ModelProvider, ObserverType
 from vectara_agentic.tools import ToolsFactory
 
-def mult(x, y):
+def mult(x: float, y: float) -> float:
     return x * y
 
 class TestAgentPackage(unittest.TestCase):

@@ -71,7 +71,7 @@ jobs:
         
     - name: Install mkdocs and mike
       run: |
-        pip install mkdocs mkdocs-material mkdocstrings mike
+        pip install mkdocs mkdocs-material mkdocstrings mike mkdocstrings-python
 
     - name: Configure Git user
       run: |

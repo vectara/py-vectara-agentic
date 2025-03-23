@@ -12,6 +12,7 @@ class AgentType(Enum):
 
     REACT = "REACT"
     OPENAI = "OPENAI"
+    FUNCTION_CALLING = "FUNCTION_CALLING"
     LLMCOMPILER = "LLMCOMPILER"
     LATS = "LATS"
 

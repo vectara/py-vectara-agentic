@@ -41,7 +41,7 @@ class TestFallback(unittest.TestCase):
         cls.flask_process.wait()
 
     def test_fallback(self):
-        def mult(x, y):
+        def mult(x: float, y: float) -> float:
             return x * y
 
         tools = [ToolsFactory().create_tool(mult)]

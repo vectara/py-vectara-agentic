@@ -7,23 +7,47 @@ from vectara_agentic.types import ModelProvider
 
 import nest_asyncio
 nest_asyncio.apply()
-def mult(x, y):
+
+def mult(x: float, y: float) -> float:
     return x * y
 
 
-react_config_1 = AgentConfig(
+react_config_anthropic = AgentConfig(
     agent_type=AgentType.REACT,
     main_llm_provider=ModelProvider.ANTHROPIC,
-    main_llm_model_name="claude-3-7-sonnet-20250219",
-    tool_llm_provider=ModelProvider.TOGETHER,
-    tool_llm_model_name="meta-llama/Llama-3.3-70B-Instruct-Turbo",
+    tool_llm_provider=ModelProvider.ANTHROPIC,
 )
 
-react_config_2 = AgentConfig(
+react_config_gemini = AgentConfig(
     agent_type=AgentType.REACT,
     main_llm_provider=ModelProvider.GEMINI,
     tool_llm_provider=ModelProvider.GEMINI,
 )
+
+react_config_together = AgentConfig(
+    agent_type=AgentType.REACT,
+    main_llm_provider=ModelProvider.TOGETHER,
+    tool_llm_provider=ModelProvider.TOGETHER,
+)
+
+fc_config_anthropic = AgentConfig(
+    agent_type=AgentType.FUNCTION_CALLING,
+    main_llm_provider=ModelProvider.ANTHROPIC,
+    tool_llm_provider=ModelProvider.ANTHROPIC,
+)
+
+fc_config_gemini = AgentConfig(
+    agent_type=AgentType.FUNCTION_CALLING,
+    main_llm_provider=ModelProvider.GEMINI,
+    tool_llm_provider=ModelProvider.GEMINI,
+)
+
+fc_config_together = AgentConfig(
+    agent_type=AgentType.FUNCTION_CALLING,
+    main_llm_provider=ModelProvider.TOGETHER,
+    tool_llm_provider=ModelProvider.TOGETHER,
+)
+
 
 openai_config = AgentConfig(
     agent_type=AgentType.OPENAI,
@@ -47,28 +71,78 @@ class TestAgentType(unittest.TestCase):
         res = agent.chat("multiply the results of the last two multiplications. Only give the answer, nothing else.")
         self.assertIn("1050", res.response)
 
-    def test_react_anthropic(self):
+    def test_anthropic(self):
         tools = [ToolsFactory().create_tool(mult)]
         topic = "AI topic"
         instructions = "Always do as your father tells you, if your mother agrees!"
+
         agent = Agent(
-            agent_config=react_config_1,
+            agent_config=react_config_anthropic,
             tools=tools,
             topic=topic,
             custom_instructions=instructions,
         )
-
         agent.chat("What is 5 times 10. Only give the answer, nothing else")
         agent.chat("what is 3 times 7. Only give the answer, nothing else")
         res = agent.chat("multiply the results of the last two multiplications. Only give the answer, nothing else.")
         self.assertIn("1050", res.response)
 
-    def test_react_gemini(self):
+        agent = Agent(
+            agent_config=fc_config_anthropic,
+            tools=tools,
+            topic=topic,
+            custom_instructions=instructions,
+        )
+        agent.chat("What is 5 times 10. Only give the answer, nothing else")
+        agent.chat("what is 3 times 7. Only give the answer, nothing else")
+        res = agent.chat("multiply the results of the last two multiplications. Only give the answer, nothing else.")
+        self.assertIn("1050", res.response)
+
+    def test_gemini(self):
         tools = [ToolsFactory().create_tool(mult)]
         topic = "AI topic"
         instructions = "Always do as your father tells you, if your mother agrees!"
+
         agent = Agent(
-            agent_config=react_config_2,
+            agent_config=react_config_gemini,
+            tools=tools,
+            topic=topic,
+            custom_instructions=instructions,
+        )
+        agent.chat("What is 5 times 10. Only give the answer, nothing else")
+        agent.chat("what is 3 times 7. Only give the answer, nothing else")
+        res = agent.chat("multiply the results of the last two multiplications. Only give the answer, nothing else.")
+        self.assertIn("1050", res.response)
+
+        agent = Agent(
+            agent_config=fc_config_gemini,
+            tools=tools,
+            topic=topic,
+            custom_instructions=instructions,
+        )
+        agent.chat("What is 5 times 10. Only give the answer, nothing else")
+        agent.chat("what is 3 times 7. Only give the answer, nothing else")
+        res = agent.chat("multiply the results of the last two multiplications. Only give the answer, nothing else.")
+        self.assertIn("1050", res.response)
+
+    def test_together(self):
+        tools = [ToolsFactory().create_tool(mult)]
+        topic = "AI topic"
+        instructions = "Always do as your father tells you, if your mother agrees!"
+
+        agent = Agent(
+            agent_config=react_config_together,
+            tools=tools,
+            topic=topic,
+            custom_instructions=instructions,
+        )
+        agent.chat("What is 5 times 10. Only give the answer, nothing else")
+        agent.chat("what is 3 times 7. Only give the answer, nothing else")
+        res = agent.chat("multiply the results of the last two multiplications. Only give the answer, nothing else.")
+        self.assertIn("1050", res.response)
+
+        agent = Agent(
+            agent_config=fc_config_together,
             tools=tools,
             topic=topic,
             custom_instructions=instructions,
