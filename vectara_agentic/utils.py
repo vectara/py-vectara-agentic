@@ -5,6 +5,8 @@ Utilities for the Vectara agentic.
 from typing import Tuple, Callable, Optional
 from functools import lru_cache
 from inspect import signature
+import json
+import requests
 
 import tiktoken
 
@@ -141,3 +143,25 @@ def remove_self_from_signature(func):
     new_sig = sig.replace(parameters=params)
     func.__signature__ = new_sig
     return func
+
+def summarize_vectara_document(corpus_key: str, vectara_api_key, doc_id: str) -> str:
+    """
+    Summarize a document in a Vectara corpus using the Vectara API.
+    """
+    url = f"https://api.vectara.io/v2/corpora/{corpus_key}/documents/{doc_id}/summarize"
+
+    payload = json.dumps({
+        "llm_name": "gpt-4o",
+        "model_parameters": {},
+        "stream_response": False
+    })
+    headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'x-api-key': vectara_api_key
+    }
+
+    response = requests.request("POST", url, headers=headers, data=payload, timeout=60)
+    if response.status_code != 200:
+        return "Summarization failed"
+    return json.loads(response.text)["summary"]

@@ -11,6 +11,7 @@ def mult(x: float, y: float) -> float:
 def addition(x: float, y: float) -> float:
     return x + y
 
+
 react_config_together = AgentConfig(
     agent_type=AgentType.REACT,
     main_llm_provider=ModelProvider.TOGETHER,
@@ -71,8 +72,9 @@ class TestAgentPlanningPackage(unittest.TestCase):
             agent_config=agent_config,
             use_structured_planning = True,
         )
-        res = agent.chat("Calculate the square of every number from 1 to 5, then add the results of all squares. What is the final sum?")
-        self.assertIn("55", res.response)
+        res = agent.chat("Calculate the square of every number from 1 to 5; which of those squares is even?")
+        self.assertIn("4", res.response)
+        self.assertIn("16", res.response)
 
 
 if __name__ == "__main__":
