@@ -92,35 +92,50 @@ def get_llm(
     Get the LLM for the specified role, using the provided config
     or a default if none is provided.
     """
+    max_tokens = 16384
     model_provider, model_name = _get_llm_params_for_role(role, config)
     if model_provider == ModelProvider.OPENAI:
         llm = OpenAI(model=model_name, temperature=0,
                      is_function_calling_model=True,
-                     strict=True)
+                     strict=True,
+                     max_tokens=max_tokens
+            )
     elif model_provider == ModelProvider.ANTHROPIC:
-        llm = Anthropic(model=model_name, temperature=0)
+        llm = Anthropic(model=model_name, temperature=0, max_tokens=max_tokens)
     elif model_provider == ModelProvider.GEMINI:
         from llama_index.llms.gemini import Gemini
-        llm = Gemini(model=model_name, temperature=0, is_function_calling_model=True)
+        llm = Gemini(
+            model=model_name, temperature=0,
+            is_function_calling_model=True,
+            max_tokens=max_tokens
+        )
     elif model_provider == ModelProvider.TOGETHER:
         from llama_index.llms.together import TogetherLLM
-        llm = TogetherLLM(model=model_name, temperature=0, is_function_calling_model=True)
+        llm = TogetherLLM(
+            model=model_name, temperature=0,
+            is_function_calling_model=True,
+            max_tokens=max_tokens
+        )
     elif model_provider == ModelProvider.GROQ:
         from llama_index.llms.groq import Groq
-        llm = Groq(model=model_name, temperature=0, is_function_calling_model=True)
+        llm = Groq(
+            model=model_name, temperature=0,
+            is_function_calling_model=True, max_tokens=max_tokens
+        )
     elif model_provider == ModelProvider.FIREWORKS:
         from llama_index.llms.fireworks import Fireworks
-        llm = Fireworks(model=model_name, temperature=0)
+        llm = Fireworks(model=model_name, temperature=0, max_tokens=max_tokens)
     elif model_provider == ModelProvider.BEDROCK:
         from llama_index.llms.bedrock import Bedrock
-        llm = Bedrock(model=model_name, temperature=0)
+        llm = Bedrock(model=model_name, temperature=0, max_tokens=max_tokens)
     elif model_provider == ModelProvider.COHERE:
         from llama_index.llms.cohere import Cohere
-        llm = Cohere(model=model_name, temperature=0)
+        llm = Cohere(model=model_name, temperature=0, max_tokens=max_tokens)
     elif model_provider == ModelProvider.PRIVATE:
         from llama_index.llms.openai_like import OpenAILike
         llm = OpenAILike(model=model_name, temperature=0, is_function_calling_model=True,is_chat_model=True,
-                         api_base=config.private_llm_api_base, api_key=config.private_llm_api_key)
+                         api_base=config.private_llm_api_base, api_key=config.private_llm_api_key,
+                         max_tokens=max_tokens)
     else:
         raise ValueError(f"Unknown LLM provider: {model_provider}")
     return llm
