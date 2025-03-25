@@ -252,8 +252,10 @@ class SequentialSubQuestionsWorkflow(Workflow):
             As an example, for the question
             "what is the name of the mayor of the largest city within 50 miles of San Francisco?",
             the sub-questions could be:
-            - What is the largest city within 50 miles of San Francisco? (answer is San Jose)
-            - What is the name of the mayor of San Jose?
+            - What is the largest city within 50 miles of San Francisco?
+            - Who is the mayor of this city?
+            The answer to the first question is San Jose, which is given as context to the second question.
+            The answer to the second question is Matt Mahan.
             Here is the user question: {await ctx.get('original_query')}.
             Here are previous chat messages: {chat_history}.
             And here is the list of tools: {await ctx.get('tools')}
@@ -277,7 +279,15 @@ class SequentialSubQuestionsWorkflow(Workflow):
         if await ctx.get("verbose"):
             print(f"Sub-question is {ev.question}")
         agent = await ctx.get("agent")
-        response = await agent.achat(ev.question)
+        if ev.prev_answer:
+            prev_question = await ctx.get("sub_questions")[ev.num - 1]
+            prompt = f"""
+                The answer to {prev_question} is: {ev.prev_answer}
+                Now answewr {ev.question}
+            """
+            response = await agent.achat(prompt)
+        else:
+            response = await agent.achat(ev.question)
         if await ctx.get("verbose"):
             print(f"Answer is {response}")
 
@@ -286,7 +296,8 @@ class SequentialSubQuestionsWorkflow(Workflow):
             return self.QueryEvent(
                 question=sub_questions[ev.num + 1],
                 prev_answer = response.response,
-                num=ev.num + 1)
+                num=ev.num + 1
+            )
 
         output = self.OutputsModel(response=response.response)
         return StopEvent(result=output)

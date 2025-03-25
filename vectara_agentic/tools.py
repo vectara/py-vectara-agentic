@@ -254,7 +254,7 @@ def _build_filter_string(kwargs: Dict[str, Any], tool_args_type: Dict[str, dict]
 
         if value is PydanticUndefined:
             raise ValueError(
-                f"Value of argument {key} is undefined, and this is invalid. "
+                f"Value of argument {key} is undefined, and this is invalid."
                 "Please form proper arguments and try again."
             )
 
