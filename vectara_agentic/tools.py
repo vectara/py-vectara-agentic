@@ -8,7 +8,7 @@ import importlib
 import os
 
 from typing import Callable, List, Dict, Any, Optional, Union, Type
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, create_model
 from pydantic_core import PydanticUndefined
 
 from llama_index.core.tools import FunctionTool
@@ -21,7 +21,7 @@ from llama_index.core.workflow.context import Context
 from .types import ToolType
 from .tools_catalog import ToolsCatalog, get_bad_topics
 from .db_tools import DBLoadSampleData, DBLoadUniqueValues, DBLoadData
-from .utils import is_float
+from .utils import is_float, summarize_vectara_document
 from .agent_config import AgentConfig
 
 LI_packages = {
@@ -73,6 +73,7 @@ class VectaraToolMetadata(ToolMetadata):
         """
         base_repr = super().__repr__()
         return f"{base_repr}, tool_type={self.tool_type}"
+
 
 class VectaraTool(FunctionTool):
     """
@@ -161,7 +162,7 @@ class VectaraTool(FunctionTool):
         self, *args: Any, ctx: Optional[Context] = None, **kwargs: Any
     ) -> ToolOutput:
         try:
-            return super().call(*args, ctx=ctx, **kwargs)
+            return await super().acall(*args, ctx=ctx, **kwargs)
         except Exception as e:
             err_output = ToolOutput(
                 tool_name=self.metadata.name,
@@ -170,6 +171,65 @@ class VectaraTool(FunctionTool):
                 raw_output={"response": str(e)},
             )
             return err_output
+
+def _create_tool_from_dynamic_function(
+    function: Callable[..., ToolOutput],
+    tool_name: str,
+    tool_description: str,
+    base_params: list[inspect.Parameter],
+    tool_args_schema: type[BaseModel],
+) -> VectaraTool:
+    """
+    Create a VectaraTool from a dynamic function, including
+    setting the function signature and creating the tool schema.
+    """
+    fields = {}
+    for param in base_params:
+        default_value = param.default if param.default != inspect.Parameter.empty else ...
+        fields[param.name] = (param.annotation, default_value)
+    for field_name, field_info in tool_args_schema.model_fields.items():
+        if field_name not in fields:
+            default_value = field_info.default if field_info.default is not PydanticUndefined else ...
+            fields[field_name] = (field_info.annotation, default_value)
+    fn_schema = create_model(f"{tool_name}", **fields)
+
+    schema_params = [
+        inspect.Parameter(
+            name=field_name,
+            kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            default=field_info.default if field_info.default is not PydanticUndefined else inspect.Parameter.empty,
+            annotation=field_info.annotation if hasattr(field_info, 'annotation') else field_info,
+        )
+        for field_name, field_info in tool_args_schema.model_fields.items()
+        if field_name not in [p.name for p in base_params]
+    ]
+    all_params = base_params + schema_params
+
+    required_params = [p for p in all_params if p.default is inspect.Parameter.empty]
+    optional_params = [p for p in all_params if p.default is not inspect.Parameter.empty]
+    sig = inspect.Signature(required_params + optional_params)
+    function.__signature__ = sig
+    function.__annotations__["return"] = dict[str, Any]
+    function.__name__ = "_" + re.sub(r"[^A-Za-z0-9_]", "_", tool_name)
+
+    # Create the tool function signature string
+    param_strs = []
+    for param in all_params:
+        annotation = param.annotation
+        type_name = annotation.__name__ if hasattr(annotation, '__name__') else str(annotation)
+        param_strs.append(f"{param.name}: {type_name}")
+    args_str = ", ".join(param_strs)
+    function_str = f"{tool_name}({args_str}) -> str"
+
+    # Create the tool
+    tool = VectaraTool.from_defaults(
+        fn=function,
+        name=tool_name,
+        description=function_str + "\n" + tool_description,
+        fn_schema=fn_schema,
+        tool_type=ToolType.QUERY,
+    )
+    return tool
 
 def _build_filter_string(kwargs: Dict[str, Any], tool_args_type: Dict[str, dict], fixed_filter: str) -> str:
     """
@@ -196,7 +256,7 @@ def _build_filter_string(kwargs: Dict[str, Any], tool_args_type: Dict[str, dict]
 
         if value is PydanticUndefined:
             raise ValueError(
-                f"Value of argument {key} is undefined, and this is invalid. "
+                f"Value of argument {key} is undefined, and this is invalid."
                 "Please form proper arguments and try again."
             )
 
@@ -394,7 +454,7 @@ class VectaraToolFactory:
         )
 
         # Dynamically generate the search function
-        def search_function(*args, **kwargs) -> ToolOutput:
+        def search_function(*args: Any, **kwargs: Any) -> ToolOutput:
             """
             Dynamically generated function for semantic search Vectara.
             """
@@ -406,6 +466,7 @@ class VectaraToolFactory:
 
             query = kwargs.pop("query")
             top_k = kwargs.pop("top_k", 10)
+            summarize = kwargs.pop("summarize", True)
             try:
                 filter_string = _build_filter_string(kwargs, tool_args_type, fixed_filter)
             except ValueError as e:
@@ -453,7 +514,11 @@ class VectaraToolFactory:
                 if doc.id_ in unique_ids:
                     continue
                 unique_ids.add(doc.id_)
-                tool_output += f"document_id: '{doc.id_}'\nmetadata: '{doc.metadata}'\n"
+                if summarize:
+                    summary = summarize_vectara_document(self.vectara_corpus_key, self.vectara_api_key, doc.id_)
+                    tool_output += f"document_id: '{doc.id_}'\nmetadata: '{doc.metadata}'\nsummary: '{summary}'\n\n"
+                else:
+                    tool_output += f"document_id: '{doc.id_}'\nmetadata: '{doc.metadata}'\n\n"
             out = ToolOutput(
                 tool_name=search_function.__name__,
                 content=tool_output,
@@ -462,42 +527,22 @@ class VectaraToolFactory:
             )
             return out
 
-        fields = tool_args_schema.model_fields
-        params = [
-            inspect.Parameter(
-                name=field_name,
-                kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                default=field_info.default,
-                annotation=field_info,
-            )
-            for field_name, field_info in fields.items()
+        base_params = [
+            inspect.Parameter("query", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=str),
+            inspect.Parameter("top_k", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=10, annotation=int),
+            inspect.Parameter("summarize", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=True, annotation=bool),
         ]
-
-        # Create a new signature using the extracted parameters
-        sig = inspect.Signature(params)
-        search_function.__signature__ = sig
-        search_function.__annotations__["return"] = dict[str, Any]
-        search_function.__name__ = "_" + re.sub(r"[^A-Za-z0-9_]", "_", tool_name)
-
-        # Create the tool function signature string
-        fields = []
-        for name, field in tool_args_schema.model_fields.items():
-            annotation = field.annotation
-            type_name = annotation.__name__ if hasattr(annotation, '__name__') else str(annotation)
-            fields.append(f"{name}: {type_name}")
-        args_str = ", ".join(fields)
-        function_str = f"{tool_name}({args_str}) -> str"
-
-        # Create the tool
-        search_tool_extra_desc = """
-        The response includes metadata about each relevant document, but NOT the text itself.
+        search_tool_extra_desc = tool_description + "\n" + """
+        The response includes metadata about each relevant document.
+        If summarize=True, it also includes a summary of each document.
         """
-        tool = VectaraTool.from_defaults(
-            fn=search_function,
-            name=tool_name,
-            description=function_str + "\n" + tool_description + '\n' + search_tool_extra_desc,
-            fn_schema=tool_args_schema,
-            tool_type=ToolType.QUERY,
+
+        tool = _create_tool_from_dynamic_function(
+            search_function,
+            tool_name,
+            search_tool_extra_desc,
+            base_params,
+            tool_args_schema,
         )
         return tool
 
@@ -597,11 +642,11 @@ class VectaraToolFactory:
             vectara_corpus_key=self.vectara_corpus_key,
             x_source_str="vectara-agentic",
             vectara_base_url=vectara_base_url,
-            vetara_verify_ssl=vectara_verify_ssl,
+            vectara_verify_ssl=vectara_verify_ssl,
         )
 
         # Dynamically generate the RAG function
-        def rag_function(*args, **kwargs) -> ToolOutput:
+        def rag_function(*args: Any, **kwargs: Any) -> ToolOutput:
             """
             Dynamically generated function for RAG query with Vectara.
             """
@@ -721,39 +766,15 @@ class VectaraToolFactory:
             )
             return out
 
-        fields = tool_args_schema.model_fields
-        params = [
-            inspect.Parameter(
-                name=field_name,
-                kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                default=field_info.default,
-                annotation=field_info,
-            )
-            for field_name, field_info in fields.items()
+        base_params = [
+            inspect.Parameter("query", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=str),
         ]
-
-        # Create a new signature using the extracted parameters
-        sig = inspect.Signature(params)
-        rag_function.__signature__ = sig
-        rag_function.__annotations__["return"] = dict[str, Any]
-        rag_function.__name__ = "_" + re.sub(r"[^A-Za-z0-9_]", "_", tool_name)
-
-        # Create the tool function signature string
-        fields = []
-        for name, field in tool_args_schema.model_fields.items():
-            annotation = field.annotation
-            type_name = annotation.__name__ if hasattr(annotation, '__name__') else str(annotation)
-            fields.append(f"{name}: {type_name}")
-        args_str = ", ".join(fields)
-        function_str = f"{tool_name}({args_str}) -> str"
-
-        # Create the tool
-        tool = VectaraTool.from_defaults(
-            fn=rag_function,
-            name=tool_name,
-            description=function_str + ". " + tool_description,
-            fn_schema=tool_args_schema,
-            tool_type=ToolType.QUERY,
+        tool = _create_tool_from_dynamic_function(
+            rag_function,
+            tool_name,
+            tool_description,
+            base_params,
+            tool_args_schema,
         )
         return tool
 

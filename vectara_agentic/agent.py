@@ -21,7 +21,7 @@ from pydantic import Field, create_model, ValidationError
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.llms import ChatMessage, MessageRole
 from llama_index.core.tools import FunctionTool
-from llama_index.core.agent import ReActAgent, StructuredPlannerAgent
+from llama_index.core.agent import ReActAgent, StructuredPlannerAgent, FunctionCallingAgent
 from llama_index.core.agent.react.formatter import ReActChatFormatter
 from llama_index.agent.llm_compiler import LLMCompilerAgentWorker
 from llama_index.agent.lats import LATSAgentWorker
@@ -277,7 +277,19 @@ class Agent:
         llm = get_llm(LLMRole.MAIN, config=config)
         llm.callback_manager = llm_callback_manager
 
-        if agent_type == AgentType.REACT:
+        if agent_type == AgentType.FUNCTION_CALLING:
+            prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, self._topic, self._custom_instructions)
+            agent = FunctionCallingAgent.from_tools(
+                tools=self.tools,
+                llm=llm,
+                memory=self.memory,
+                verbose=self.verbose,
+                max_function_calls=config.max_reasoning_steps,
+                callback_manager=llm_callback_manager,
+                system_prompt = prompt,
+                allow_parallel_tool_calls=True,
+            )
+        elif agent_type == AgentType.REACT:
             prompt = _get_prompt(REACT_PROMPT_TEMPLATE, self._topic, self._custom_instructions)
             agent = ReActAgent.from_tools(
                 tools=self.tools,
@@ -295,7 +307,7 @@ class Agent:
                 llm=llm,
                 memory=self.memory,
                 verbose=self.verbose,
-                callable_manager=llm_callback_manager,
+                callback_manager=llm_callback_manager,
                 max_function_calls=config.max_reasoning_steps,
                 system_prompt=prompt,
             )
@@ -304,7 +316,7 @@ class Agent:
                 tools=self.tools,
                 llm=llm,
                 verbose=self.verbose,
-                callable_manager=llm_callback_manager,
+                callback_manager=llm_callback_manager,
             )
             agent_worker.system_prompt = _get_prompt(
                 _get_llm_compiler_prompt(agent_worker.system_prompt, self._topic, self._custom_instructions),
@@ -322,7 +334,7 @@ class Agent:
                 num_expansions=3,
                 max_rollouts=-1,
                 verbose=self.verbose,
-                callable_manager=llm_callback_manager,
+                callback_manager=llm_callback_manager,
             )
             prompt = _get_prompt(REACT_PROMPT_TEMPLATE, self._topic, self._custom_instructions)
             agent_worker.chat_formatter = ReActChatFormatter(system_header=prompt)
@@ -707,6 +719,8 @@ class Agent:
         """
         max_attempts = 4 if self.fallback_agent_config else 2
         attempt = 0
+        orig_llm = self.llm.metadata.model_name
+        last_error = None
         while attempt < max_attempts:
             try:
                 current_agent = self._get_current_agent()
@@ -718,16 +732,20 @@ class Agent:
                     self.query_logging_callback(prompt, agent_response.response)
                 return agent_response
 
-            except Exception:
+            except Exception as e:
+                last_error = e
                 if attempt >= 2:
                     if self.verbose:
-                        print(f"LLM call failed on attempt {attempt+1}. Switching agent configuration.")
+                        print(f"LLM call failed on attempt {attempt}. Switching agent configuration.")
                     self._switch_agent_config()
                 time.sleep(1)
                 attempt += 1
 
         return AgentResponse(
-            response=f"LLM failure can't be resolved after {max_attempts} attempts."
+            response=(
+                f"For {orig_llm} LLM - failure can't be resolved after "
+                f"{max_attempts} attempts ({last_error}."
+            )
         )
 
     def stream_chat(self, prompt: str) -> AgentStreamingResponse:    # type: ignore

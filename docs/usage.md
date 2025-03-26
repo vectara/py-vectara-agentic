@@ -391,13 +391,21 @@ arguments:
     rather any particular behavior you want your LLM to have, such as
     how to present the information it receives from the tools to the
     user.
-4.  `agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None`:
+4.  `agent_config: Optional[AgentConfig] = None`: the agent configuration
+    See below for more details. If unspecified, defaults are used.
+5.  `fallback_agent_config: Optional[AgentConfig] = None`: configuration
+    for a fallback_agent. If specified, this will get activated if the
+    main agent API is not responding (e.g. when inference enpoint is down).
+    If unspecified, no fallback agent is assumed.
+6.  `agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None`:
     This is an optional callback function that will be called on every
     agent step. It can be used to update the user interface or the steps
     of the agent.
-5.  `query_logging_callback: Optional[Callable[[str, str], None]] = None`:
+7.  `query_logging_callback: Optional[Callable[[str, str], None]] = None`:
     This is an optional callback function that will be called at the end
     of response generation, with the query and response strings.
+8.  `validate_tools: bool = False`: whether to validate tool inconsistency 
+    with instructions.
 
 
 Every agent has its own default set of instructions that it follows to
@@ -457,7 +465,7 @@ def agent_progress_callback(status_type: AgentStatusType, msg: str):
 **agent_config**
 The `agent_config` argument is an optional object that you can use to
 explicitly specify the configuration of your agent, including the following:
-- `agent_type`: the agent type. Valid values are `REACT`, `LLMCOMPILER`, `LATS` or `OPENAI` (default: `OPENAI`).
+- `agent_type`: the agent type. Valid values are `REACT`, `LLMCOMPILER`, `LATS`, `FUNCTION_CALLING` or `OPENAI` (default: `OPENAI`).
 - `main_llm_provider` and `tool_llm_provider`: the LLM provider for main agent and for the tools. Valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI` or `FIREWORKS` (default: `OPENAI`).
 - `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider).
 - `observer`: the observer type; should be `ARIZE_PHOENIX` or if undefined no observation framework will be used.

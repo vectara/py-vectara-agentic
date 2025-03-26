@@ -47,7 +47,7 @@ class TestToolsPackage(unittest.TestCase):
         self.assertEqual(search_tool.metadata.tool_type, ToolType.QUERY)
 
     def test_tool_factory(self):
-        def mult(x, y):
+        def mult(x: float, y: float) -> float:
             return x * y
 
         tools_factory = ToolsFactory()

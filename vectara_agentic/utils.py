@@ -5,6 +5,8 @@ Utilities for the Vectara agentic.
 from typing import Tuple, Callable, Optional
 from functools import lru_cache
 from inspect import signature
+import json
+import requests
 
 import tiktoken
 
@@ -90,35 +92,50 @@ def get_llm(
     Get the LLM for the specified role, using the provided config
     or a default if none is provided.
     """
+    max_tokens = 8192
     model_provider, model_name = _get_llm_params_for_role(role, config)
     if model_provider == ModelProvider.OPENAI:
         llm = OpenAI(model=model_name, temperature=0,
                      is_function_calling_model=True,
-                     strict=True)
+                     strict=True,
+                     max_tokens=max_tokens
+            )
     elif model_provider == ModelProvider.ANTHROPIC:
-        llm = Anthropic(model=model_name, temperature=0)
+        llm = Anthropic(model=model_name, temperature=0, max_tokens=max_tokens)
     elif model_provider == ModelProvider.GEMINI:
         from llama_index.llms.gemini import Gemini
-        llm = Gemini(model=model_name, temperature=0, is_function_calling_model=True)
+        llm = Gemini(
+            model=model_name, temperature=0,
+            is_function_calling_model=True,
+            max_tokens=max_tokens
+        )
     elif model_provider == ModelProvider.TOGETHER:
         from llama_index.llms.together import TogetherLLM
-        llm = TogetherLLM(model=model_name, temperature=0, is_function_calling_model=True)
+        llm = TogetherLLM(
+            model=model_name, temperature=0,
+            is_function_calling_model=True,
+            max_tokens=max_tokens
+        )
     elif model_provider == ModelProvider.GROQ:
         from llama_index.llms.groq import Groq
-        llm = Groq(model=model_name, temperature=0, is_function_calling_model=True)
+        llm = Groq(
+            model=model_name, temperature=0,
+            is_function_calling_model=True, max_tokens=max_tokens
+        )
     elif model_provider == ModelProvider.FIREWORKS:
         from llama_index.llms.fireworks import Fireworks
-        llm = Fireworks(model=model_name, temperature=0)
+        llm = Fireworks(model=model_name, temperature=0, max_tokens=max_tokens)
     elif model_provider == ModelProvider.BEDROCK:
         from llama_index.llms.bedrock import Bedrock
-        llm = Bedrock(model=model_name, temperature=0)
+        llm = Bedrock(model=model_name, temperature=0, max_tokens=max_tokens)
     elif model_provider == ModelProvider.COHERE:
         from llama_index.llms.cohere import Cohere
-        llm = Cohere(model=model_name, temperature=0)
+        llm = Cohere(model=model_name, temperature=0, max_tokens=max_tokens)
     elif model_provider == ModelProvider.PRIVATE:
         from llama_index.llms.openai_like import OpenAILike
         llm = OpenAILike(model=model_name, temperature=0, is_function_calling_model=True,is_chat_model=True,
-                         api_base=config.private_llm_api_base, api_key=config.private_llm_api_key)
+                         api_base=config.private_llm_api_base, api_key=config.private_llm_api_key,
+                         max_tokens=max_tokens)
     else:
         raise ValueError(f"Unknown LLM provider: {model_provider}")
     return llm
@@ -141,3 +158,25 @@ def remove_self_from_signature(func):
     new_sig = sig.replace(parameters=params)
     func.__signature__ = new_sig
     return func
+
+def summarize_vectara_document(corpus_key: str, vectara_api_key, doc_id: str) -> str:
+    """
+    Summarize a document in a Vectara corpus using the Vectara API.
+    """
+    url = f"https://api.vectara.io/v2/corpora/{corpus_key}/documents/{doc_id}/summarize"
+
+    payload = json.dumps({
+        "llm_name": "gpt-4o",
+        "model_parameters": {},
+        "stream_response": False
+    })
+    headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'x-api-key': vectara_api_key
+    }
+
+    response = requests.request("POST", url, headers=headers, data=payload, timeout=60)
+    if response.status_code != 200:
+        return f"Vectara Summarization failed with error code {response.status_code}, error={response.text}"
+    return json.loads(response.text)["summary"]
