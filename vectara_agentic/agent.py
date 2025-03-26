@@ -768,6 +768,7 @@ class Agent:
         """
         max_attempts = 4 if self.fallback_agent_config else 2
         attempt = 0
+        orig_llm = self.llm.metadata.model_name
         while attempt < max_attempts:
             try:
                 current_agent = self._get_current_agent()
@@ -788,16 +789,20 @@ class Agent:
                 agent_response.async_response_gen = _stream_response_wrapper  # Override the generator
                 return agent_response
 
-            except Exception:
+            except Exception as e:
+                last_error = e
                 if attempt >= 2:
                     if self.verbose:
-                        print("LLM call failed. Switching agent configuration.")
+                        print(f"LLM call failed on attempt {attempt}. Switching agent configuration.")
                     self._switch_agent_config()
                 time.sleep(1)
                 attempt += 1
 
         return AgentResponse(
-            response=f"LLM failure can't be resolved after {max_attempts} attempts."
+            response=(
+                f"For {orig_llm} LLM - failure can't be resolved after "
+                f"{max_attempts} attempts ({last_error}."
+            )
         )
 
     #
