@@ -40,7 +40,7 @@ class TestFallback(unittest.TestCase):
         cls.flask_process.send_signal(signal.SIGINT)
         cls.flask_process.wait()
 
-    def test_fallback(self):
+    def test_fallback_from_private(self):
         def mult(x: float, y: float) -> float:
             return x * y
 

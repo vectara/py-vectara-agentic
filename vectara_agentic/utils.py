@@ -92,7 +92,7 @@ def get_llm(
     Get the LLM for the specified role, using the provided config
     or a default if none is provided.
     """
-    max_tokens = 16384
+    max_tokens = 8192
     model_provider, model_name = _get_llm_params_for_role(role, config)
     if model_provider == ModelProvider.OPENAI:
         llm = OpenAI(model=model_name, temperature=0,
@@ -178,5 +178,5 @@ def summarize_vectara_document(corpus_key: str, vectara_api_key, doc_id: str) ->
 
     response = requests.request("POST", url, headers=headers, data=payload, timeout=60)
     if response.status_code != 200:
-        return "Summarization failed"
+        return f"Vectara Summarization failed with error code {response.status_code}, error={response.text}"
     return json.loads(response.text)["summary"]

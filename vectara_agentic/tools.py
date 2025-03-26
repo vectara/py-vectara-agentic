@@ -205,7 +205,9 @@ def _create_tool_from_dynamic_function(
     ]
     all_params = base_params + schema_params
 
-    sig = inspect.Signature(all_params)
+    required_params = [p for p in all_params if p.default is inspect.Parameter.empty]
+    optional_params = [p for p in all_params if p.default is not inspect.Parameter.empty]
+    sig = inspect.Signature(required_params + optional_params)
     function.__signature__ = sig
     function.__annotations__["return"] = dict[str, Any]
     function.__name__ = "_" + re.sub(r"[^A-Za-z0-9_]", "_", tool_name)
@@ -464,7 +466,7 @@ class VectaraToolFactory:
 
             query = kwargs.pop("query")
             top_k = kwargs.pop("top_k", 10)
-            summarize = kwargs.pop("summarize", False)
+            summarize = kwargs.pop("summarize", True)
             try:
                 filter_string = _build_filter_string(kwargs, tool_args_type, fixed_filter)
             except ValueError as e:

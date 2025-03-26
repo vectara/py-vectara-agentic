@@ -1,4 +1,5 @@
 import unittest
+import threading
 from datetime import date
 
 from vectara_agentic.agent import _get_prompt, Agent, AgentType
@@ -8,6 +9,9 @@ from vectara_agentic.tools import ToolsFactory
 
 def mult(x: float, y: float) -> float:
     return x * y
+
+
+ARIZE_LOCK = threading.Lock()
 
 class TestAgentPackage(unittest.TestCase):
     def test_get_prompt(self):
@@ -41,38 +45,39 @@ class TestAgentPackage(unittest.TestCase):
         )
 
     def test_agent_config(self):
-        tools = [ToolsFactory().create_tool(mult)]
-        topic = "AI topic"
-        instructions = "Always do as your father tells you, if your mother agrees!"
-        config = AgentConfig(
-            agent_type=AgentType.REACT,
-            main_llm_provider=ModelProvider.ANTHROPIC,
-            main_llm_model_name="claude-3-5-sonnet-20241022",
-            tool_llm_provider=ModelProvider.TOGETHER,
-            tool_llm_model_name="meta-llama/Llama-3.3-70B-Instruct-Turbo",
-            observer=ObserverType.ARIZE_PHOENIX
-        )
+        with ARIZE_LOCK:
+            tools = [ToolsFactory().create_tool(mult)]
+            topic = "AI topic"
+            instructions = "Always do as your father tells you, if your mother agrees!"
+            config = AgentConfig(
+                agent_type=AgentType.REACT,
+                main_llm_provider=ModelProvider.ANTHROPIC,
+                main_llm_model_name="claude-3-5-sonnet-20241022",
+                tool_llm_provider=ModelProvider.TOGETHER,
+                tool_llm_model_name="meta-llama/Llama-3.3-70B-Instruct-Turbo",
+                observer=ObserverType.ARIZE_PHOENIX
+            )
 
-        agent = Agent(
-            tools=tools,
-            topic=topic,
-            custom_instructions=instructions,
-            agent_config=config
-        )
-        self.assertEqual(agent._topic, topic)
-        self.assertEqual(agent._custom_instructions, instructions)
-        self.assertEqual(agent.agent_type, AgentType.REACT)
-        self.assertEqual(agent.agent_config.observer, ObserverType.ARIZE_PHOENIX)
-        self.assertEqual(agent.agent_config.main_llm_provider, ModelProvider.ANTHROPIC)
-        self.assertEqual(agent.agent_config.tool_llm_provider, ModelProvider.TOGETHER)
+            agent = Agent(
+                tools=tools,
+                topic=topic,
+                custom_instructions=instructions,
+                agent_config=config
+            )
+            self.assertEqual(agent._topic, topic)
+            self.assertEqual(agent._custom_instructions, instructions)
+            self.assertEqual(agent.agent_type, AgentType.REACT)
+            self.assertEqual(agent.agent_config.observer, ObserverType.ARIZE_PHOENIX)
+            self.assertEqual(agent.agent_config.main_llm_provider, ModelProvider.ANTHROPIC)
+            self.assertEqual(agent.agent_config.tool_llm_provider, ModelProvider.TOGETHER)
 
-        # To run this test, you must have ANTHROPIC_API_KEY and TOGETHER_API_KEY in your environment
-        self.assertEqual(
-            agent.chat(
-                "What is 5 times 10. Only give the answer, nothing else"
-            ).response.replace("$", "\\$"),
-            "50",
-        )
+            # To run this test, you must have ANTHROPIC_API_KEY and TOGETHER_API_KEY in your environment
+            self.assertEqual(
+                agent.chat(
+                    "What is 5 times 10. Only give the answer, nothing else"
+                ).response.replace("$", "\\$"),
+                "50",
+            )
 
     def test_multiturn(self):
         tools = [ToolsFactory().create_tool(mult)]
@@ -102,42 +107,41 @@ class TestAgentPackage(unittest.TestCase):
         self.assertEqual(agent._topic, "question answering")
 
     def test_serialization(self):
-        config = AgentConfig(
-            agent_type=AgentType.REACT,
-            main_llm_provider=ModelProvider.ANTHROPIC,
-            main_llm_model_name="claude-3-5-sonnet-20241022",
-            tool_llm_provider=ModelProvider.TOGETHER,
-            tool_llm_model_name="meta-llama/Llama-3.3-70B-Instruct-Turbo",
-            observer=ObserverType.ARIZE_PHOENIX
-        )
+        with ARIZE_LOCK:
+            config = AgentConfig(
+                agent_type=AgentType.REACT,
+                main_llm_provider=ModelProvider.ANTHROPIC,
+                tool_llm_provider=ModelProvider.TOGETHER,
+                observer=ObserverType.ARIZE_PHOENIX
+            )
 
-        agent = Agent.from_corpus(
-            tool_name="RAG Tool",
-            agent_config=config,
-            vectara_corpus_key="corpus_key",
-            vectara_api_key="api_key",
-            data_description="information",
-            assistant_specialty="question answering",
-        )
+            agent = Agent.from_corpus(
+                tool_name="RAG Tool",
+                agent_config=config,
+                vectara_corpus_key="corpus_key",
+                vectara_api_key="api_key",
+                data_description="information",
+                assistant_specialty="question answering",
+            )
 
-        agent_reloaded = agent.loads(agent.dumps())
-        agent_reloaded_again = agent_reloaded.loads(agent_reloaded.dumps())
+            agent_reloaded = agent.loads(agent.dumps())
+            agent_reloaded_again = agent_reloaded.loads(agent_reloaded.dumps())
 
-        self.assertIsInstance(agent_reloaded, Agent)
-        self.assertEqual(agent, agent_reloaded)
-        self.assertEqual(agent.agent_type, agent_reloaded.agent_type)
+            self.assertIsInstance(agent_reloaded, Agent)
+            self.assertEqual(agent, agent_reloaded)
+            self.assertEqual(agent.agent_type, agent_reloaded.agent_type)
 
-        self.assertEqual(agent.agent_config.observer, agent_reloaded.agent_config.observer)
-        self.assertEqual(agent.agent_config.main_llm_provider, agent_reloaded.agent_config.main_llm_provider)
-        self.assertEqual(agent.agent_config.tool_llm_provider, agent_reloaded.agent_config.tool_llm_provider)
+            self.assertEqual(agent.agent_config.observer, agent_reloaded.agent_config.observer)
+            self.assertEqual(agent.agent_config.main_llm_provider, agent_reloaded.agent_config.main_llm_provider)
+            self.assertEqual(agent.agent_config.tool_llm_provider, agent_reloaded.agent_config.tool_llm_provider)
 
-        self.assertIsInstance(agent_reloaded, Agent)
-        self.assertEqual(agent, agent_reloaded_again)
-        self.assertEqual(agent.agent_type, agent_reloaded_again.agent_type)
+            self.assertIsInstance(agent_reloaded, Agent)
+            self.assertEqual(agent, agent_reloaded_again)
+            self.assertEqual(agent.agent_type, agent_reloaded_again.agent_type)
 
-        self.assertEqual(agent.agent_config.observer, agent_reloaded_again.agent_config.observer)
-        self.assertEqual(agent.agent_config.main_llm_provider, agent_reloaded_again.agent_config.main_llm_provider)
-        self.assertEqual(agent.agent_config.tool_llm_provider, agent_reloaded_again.agent_config.tool_llm_provider)
+            self.assertEqual(agent.agent_config.observer, agent_reloaded_again.agent_config.observer)
+            self.assertEqual(agent.agent_config.main_llm_provider, agent_reloaded_again.agent_config.main_llm_provider)
+            self.assertEqual(agent.agent_config.tool_llm_provider, agent_reloaded_again.agent_config.tool_llm_provider)
 
     def test_chat_history(self):
         tools = [ToolsFactory().create_tool(mult)]

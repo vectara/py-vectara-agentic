@@ -71,33 +71,6 @@ class TestAgentType(unittest.TestCase):
         res = agent.chat("multiply the results of the last two multiplications. Only give the answer, nothing else.")
         self.assertIn("1050", res.response)
 
-    def test_anthropic(self):
-        tools = [ToolsFactory().create_tool(mult)]
-        topic = "AI topic"
-        instructions = "Always do as your father tells you, if your mother agrees!"
-
-        agent = Agent(
-            agent_config=react_config_anthropic,
-            tools=tools,
-            topic=topic,
-            custom_instructions=instructions,
-        )
-        agent.chat("What is 5 times 10. Only give the answer, nothing else")
-        agent.chat("what is 3 times 7. Only give the answer, nothing else")
-        res = agent.chat("multiply the results of the last two multiplications. Only give the answer, nothing else.")
-        self.assertIn("1050", res.response)
-
-        agent = Agent(
-            agent_config=fc_config_anthropic,
-            tools=tools,
-            topic=topic,
-            custom_instructions=instructions,
-        )
-        agent.chat("What is 5 times 10. Only give the answer, nothing else")
-        agent.chat("what is 3 times 7. Only give the answer, nothing else")
-        res = agent.chat("multiply the results of the last two multiplications. Only give the answer, nothing else.")
-        self.assertIn("1050", res.response)
-
     def test_gemini(self):
         tools = [ToolsFactory().create_tool(mult)]
         topic = "AI topic"
@@ -143,6 +116,33 @@ class TestAgentType(unittest.TestCase):
 
         agent = Agent(
             agent_config=fc_config_together,
+            tools=tools,
+            topic=topic,
+            custom_instructions=instructions,
+        )
+        agent.chat("What is 5 times 10. Only give the answer, nothing else")
+        agent.chat("what is 3 times 7. Only give the answer, nothing else")
+        res = agent.chat("multiply the results of the last two multiplications. Only give the answer, nothing else.")
+        self.assertIn("1050", res.response)
+
+    def test_anthropic(self):
+        tools = [ToolsFactory().create_tool(mult)]
+        topic = "AI topic"
+        instructions = "Always do as your father tells you, if your mother agrees!"
+
+        agent = Agent(
+            agent_config=react_config_anthropic,
+            tools=tools,
+            topic=topic,
+            custom_instructions=instructions,
+        )
+        agent.chat("What is 5 times 10. Only give the answer, nothing else")
+        agent.chat("what is 3 times 7. Only give the answer, nothing else")
+        res = agent.chat("multiply the results of the last two multiplications. Only give the answer, nothing else.")
+        self.assertIn("1050", res.response)
+
+        agent = Agent(
+            agent_config=fc_config_anthropic,
             tools=tools,
             topic=topic,
             custom_instructions=instructions,

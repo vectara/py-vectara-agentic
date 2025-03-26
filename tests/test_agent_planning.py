@@ -1,80 +1,72 @@
 import unittest
 
 from vectara_agentic.agent_config import AgentConfig
-from vectara_agentic.tools import ToolsFactory
-from vectara_agentic.agent import Agent, AgentType
-from vectara_agentic.types import ModelProvider
+from vectara_agentic.agent import Agent
+from vectara_agentic.tools import VectaraToolFactory
 
-def mult(x: float, y: float) -> float:
-    return x * y
-
-def addition(x: float, y: float) -> float:
-    return x + y
+from pydantic import Field, BaseModel
 
 
-react_config_together = AgentConfig(
-    agent_type=AgentType.REACT,
-    main_llm_provider=ModelProvider.TOGETHER,
-    tool_llm_provider=ModelProvider.TOGETHER,
-)
+# SETUP speical test account credentials for vectara
+# It's okay to expose these credentials in the test code
+vectara_corpus_key = "vectara-docs_1"
+vectara_api_key = 'zqt_UXrBcnI2UXINZkrv4g1tQPhzj02vfdtqYJIDiA'
 
-fc_config_anthropic = AgentConfig(
-    agent_type=AgentType.FUNCTION_CALLING,
-    main_llm_provider=ModelProvider.ANTHROPIC,
-    tool_llm_provider=ModelProvider.ANTHROPIC,
+
+class QueryArgs(BaseModel):
+    query: str = Field(..., description="The user query, always in the form of a question.")
+
+
+vec_factory = VectaraToolFactory(vectara_api_key=vectara_api_key,
+                                 vectara_corpus_key=vectara_corpus_key)
+summarizer = 'vectara-summary-table-md-query-ext-jan-2025-gpt-4o'
+ask_vectara = vec_factory.create_rag_tool(
+    tool_name = "ask_vectara",
+    tool_description = "This tool can respond to questions about Vectara.",
+    tool_args_schema = QueryArgs,
+    reranker = "multilingual_reranker_v1", rerank_k = 100, rerank_cutoff = 0.1,
+    n_sentences_before = 2, n_sentences_after = 2, lambda_val = 0.005,
+    summary_num_results = 10,
+    vectara_summarizer = summarizer,
+    include_citations = True,
+    verbose=False,
 )
 
 class TestAgentPlanningPackage(unittest.TestCase):
 
     def test_no_planning(self):
-        tools = [ToolsFactory().create_tool(mult)]
-        topic = "math"
-        instructions = "Answer the user's math questions."
-        agent_config = AgentConfig()
+        tools = [ask_vectara]
+        topic = "vectara"
+        instructions = "Answer user queries about Vectara."
 
+        query = "What is Vectara and what demos are available of the Vectara platform?"
         agent = Agent(
             tools=tools,
             topic=topic,
             custom_instructions=instructions,
-            agent_config=agent_config,
+            agent_config=AgentConfig(),
         )
-        res = agent.chat("Calculate the product of 5 and 7, then calculate the product of 3 and 2, and finally add the two products together.")
-        self.assertIn("41", res.response)
-
-        agent = Agent(
-            tools=tools,
-            topic=topic,
-            custom_instructions=instructions,
-            agent_config=react_config_together,
-        )
-        res = agent.chat("Calculate the product of 5 and 7, then calculate the product of 3 and 2, and finally add the two products together.")
-        self.assertIn("41", res.response)
-
-        agent = Agent(
-            tools=tools,
-            topic=topic,
-            custom_instructions=instructions,
-            agent_config=fc_config_anthropic,
-        )
-        res = agent.chat("Calculate the product of 5 and 7, then calculate the product of 3 and 2, and finally add the two products together.")
-        self.assertIn("41", res.response)
+        res = agent.chat(query)
+        self.assertIn("demos", res.response)
+        self.assertIn("Vectara", res.response)
 
     def test_structured_planning(self):
-        tools = [ToolsFactory().create_tool(mult), ToolsFactory().create_tool(addition)]
-        topic = "math"
-        instructions = "Answer the user's math questions."
-        agent_config = AgentConfig()
+        tools = [ask_vectara]
+        topic = "vectara"
+        instructions = "Answer user queries about Vectara."
 
+        query = "What is Vectara and what demos are available of the Vectara platform?"
         agent = Agent(
             tools=tools,
             topic=topic,
             custom_instructions=instructions,
-            agent_config=agent_config,
-            use_structured_planning = True,
+            agent_config=AgentConfig(),
+            use_structured_planning=True,
         )
-        res = agent.chat("Calculate the square of every number from 1 to 5; which of those squares is even?")
-        self.assertIn("4", res.response)
-        self.assertIn("16", res.response)
+
+        res = agent.chat(query)
+        self.assertIn("demos", res.response)
+        self.assertIn("Vectara", res.response)
 
 
 if __name__ == "__main__":

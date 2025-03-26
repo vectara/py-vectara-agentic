@@ -279,11 +279,12 @@ class SequentialSubQuestionsWorkflow(Workflow):
         if await ctx.get("verbose"):
             print(f"Sub-question is {ev.question}")
         agent = await ctx.get("agent")
+        sub_questions = await ctx.get("sub_questions")
         if ev.prev_answer:
-            prev_question = await ctx.get("sub_questions")[ev.num - 1]
+            prev_question = sub_questions[ev.num - 1]
             prompt = f"""
-                The answer to {prev_question} is: {ev.prev_answer}
-                Now answewr {ev.question}
+                The answer to the question '{prev_question}' is: '{ev.prev_answer}'
+                Now answer the following question: '{ev.question}'
             """
             response = await agent.achat(prompt)
         else:
