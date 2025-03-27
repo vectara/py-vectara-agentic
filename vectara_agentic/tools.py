@@ -112,6 +112,15 @@ class VectaraTool(FunctionTool):
         vectara_tool = cls(tool_type=tool_type, fn=tool.fn, metadata=tool.metadata, async_fn=tool.async_fn)
         return vectara_tool
 
+    def __str__(self) -> str:
+        return (
+            f"Tool(name={self.metadata.name}, "
+            f"Tool metadata={self.metadata})"
+        )
+
+    def __repr__(self) -> str:
+        return str(self)
+
     def __eq__(self, other):
         if not isinstance(other, VectaraTool):
             return False
