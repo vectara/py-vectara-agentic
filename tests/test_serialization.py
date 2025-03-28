@@ -1,5 +1,6 @@
 import unittest
 import threading
+import os
 
 from vectara_agentic.agent import Agent, AgentType
 from vectara_agentic.agent_config import AgentConfig
@@ -16,6 +17,13 @@ def mult(x: float, y: float) -> float:
 ARIZE_LOCK = threading.Lock()
 
 class TestAgentSerialization(unittest.TestCase):
+
+    @classmethod
+    def tearDown(cls):
+        try:
+            os.remove('ev_database.db')
+        except FileNotFoundError:
+            pass
 
     def test_serialization(self):
         with ARIZE_LOCK:
