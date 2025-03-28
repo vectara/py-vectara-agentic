@@ -109,8 +109,7 @@ class DatabaseTools(BaseReader):
         Returns:
             List[Document]: a list of Document objects from the database.
         """
-        # Extract the query from the positional arguments or load_kwargs
-        query = args[0] if args else load_kwargs.get("query")
+        query = args[0] if args else load_kwargs.get("args",{}).get("query")
         if query is None:
             raise ValueError("A query parameter is necessary to filter the data")
 
