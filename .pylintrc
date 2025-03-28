@@ -24,4 +24,5 @@ disable =
     too-many-arguments,
     too-many-positional-arguments,
     no-else-return,
+    too-many-boolean-expressions,
 

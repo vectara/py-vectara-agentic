@@ -20,7 +20,7 @@ from llama_index.core.workflow.context import Context
 
 from .types import ToolType
 from .tools_catalog import ToolsCatalog, get_bad_topics
-from .db_tools import DBLoadSampleData, DBLoadUniqueValues, DBLoadData
+from .db_tools import DatabaseTools
 from .utils import is_float, summarize_vectara_document
 from .agent_config import AgentConfig
 
@@ -31,7 +31,6 @@ LI_packages = {
     "exa": ToolType.QUERY,
     "neo4j": ToolType.QUERY,
     "kuzu": ToolType.QUERY,
-    "database": ToolType.QUERY,
     "google": {
         "GmailToolSpec": {
             "load_data": ToolType.QUERY,
@@ -934,24 +933,16 @@ class ToolsFactory:
             dbname (str, optional): The database name. Defaults to "postgres".
                You must specify either the sql_database object or the scheme, host, port, user, password, and dbname.
             max_rows (int, optional): if specified, instructs the load_data tool to never return more than max_rows
-               rows. Defaults to 500.
+               rows. Defaults to 1000.
 
         Returns:
             List[VectaraTool]: A list of VectaraTool objects.
         """
         if sql_database:
-            tools = self.get_llama_index_tools(
-                tool_package_name="database",
-                tool_spec_name="DatabaseToolSpec",
-                tool_name_prefix=tool_name_prefix,
-                sql_database=sql_database,
-            )
+            dbt = DatabaseTools(sql_database=sql_database)
         else:
             if scheme in ["postgresql", "mysql", "sqlite", "mssql", "oracle"]:
-                tools = self.get_llama_index_tools(
-                    tool_package_name="database",
-                    tool_spec_name="DatabaseToolSpec",
-                    tool_name_prefix=tool_name_prefix,
+                dbt = DatabaseTools(
                     scheme=scheme,
                     host=host,
                     port=port,
@@ -966,34 +957,19 @@ class ToolsFactory:
                 )
 
         # Update tools with description
+        tools = dbt.to_tool_list()
+        vtools = []
         for tool in tools:
             if content_description:
                 tool.metadata.description = (
                     tool.metadata.description + f"The database tables include data about {content_description}."
                 )
-
-        # Add two new tools: load_sample_data and load_unique_values
-        load_data_tool_index = next(i for i, t in enumerate(tools) if t.metadata.name.endswith("load_data"))
-        load_data_fn_original = tools[load_data_tool_index].fn
-
-        load_data_fn = DBLoadData(load_data_fn_original, max_rows=max_rows)
-        tool_name = f"{tool_name_prefix}_load_data" if tool_name_prefix else "db_load_data"
-        load_data_fn.__name__ = tool_name
-        load_data_tool = self.create_tool(load_data_fn, ToolType.QUERY)
-        load_data_tool.metadata.name = tool_name 
-
-        sample_data_fn = DBLoadSampleData(load_data_fn_original)
-        tool_name = f"{tool_name_prefix}_load_sample_data" if tool_name_prefix else "db_load_sample_data"
-        sample_data_fn.__name__ = tool_name
-        sample_data_tool = self.create_tool(sample_data_fn, ToolType.QUERY)
-        sample_data_tool.metadata.name = tool_name
-
-        load_unique_values_fn = DBLoadUniqueValues(load_data_fn_original)
-        tool_name = f"{tool_name_prefix}_load_unique_values" if tool_name_prefix else "db_load_unique_values"
-        load_unique_values_fn.__name__ = tool_name
-        load_unique_values_tool = self.create_tool(load_unique_values_fn, ToolType.QUERY)
-        load_unique_values_tool.metadata.name = tool_name
-
-        tools[load_data_tool_index] = load_data_tool
-        tools.extend([sample_data_tool, load_unique_values_tool])
-        return tools
+            if len(tool_name_prefix) > 0:
+                tool.metadata.name = tool_name_prefix + "_" + tool.metadata.name
+            vtool = VectaraTool(
+                tool_type=ToolType.QUERY,
+                fn=tool.fn, async_fn=tool.async_fn,
+                metadata=tool.metadata
+            )
+            vtools.append(vtool)
+        return vtools

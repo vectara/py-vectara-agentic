@@ -1,38 +1,122 @@
 """
-This module contains the code to extend and improve DatabaseToolSpec
-Specifically adding load_sample_data and load_unique_values methods, as well as
-making sure the load_data method returns a list of text values from the database, not Document[] objects.
+This module contains the code adapted from DatabaseToolSpec
+IT makes the following adjustments:
+* Adds load_sample_data and load_unique_values methods, and fixes serialization
+* Makes sure the load_data method returns a list of text values from the database, not Document[] objects.
+* Limits the returned rows to self.max_rows
 """
-from abc import ABC
-from typing import Callable, Any
+from typing import Any, Optional, List, Awaitable, Callable
+import asyncio
+from inspect import signature
 
-#
-# Additional database tool
-#
-class DBTool(ABC):
+from sqlalchemy import MetaData, text
+from sqlalchemy.engine import Engine
+from sqlalchemy.exc import NoSuchTableError
+from sqlalchemy.schema import CreateTable
+
+from llama_index.core.readers.base import BaseReader
+from llama_index.core.utilities.sql_wrapper import SQLDatabase
+from llama_index.core.schema import Document
+from llama_index.core.tools.function_tool import FunctionTool
+from llama_index.core.tools.types import ToolMetadata
+from llama_index.core.tools.utils import create_schema_from_function
+
+
+AsyncCallable = Callable[..., Awaitable[Any]]
+
+class DatabaseTools(BaseReader):
+    """Database tools for vectara-agentic
+    This class provides a set of tools to interact with a database.
+    It allows you to load data, list tables, describe tables, and load unique values.
+    It also provides a method to load sample data from a specified table.
     """
-    A base class for vectara-agentic database tools extensions
-    """
-    def __init__(self, load_data_fn: Callable, max_rows: int = 1000):
-        self.load_data_fn = load_data_fn
+    spec_functions = [
+        "load_data", "load_sample_data", "list_tables",
+        "describe_tables", "load_unique_values",
+    ]
+
+    def __init__(
+        self,
+        *args: Any,
+        max_rows: int = 1000,
+        sql_database: Optional[SQLDatabase] = None,
+        engine: Optional[Engine] = None,
+        uri: Optional[str] = None,
+        scheme: Optional[str] = None,
+        host: Optional[str] = None,
+        port: Optional[str] = None,
+        user: Optional[str] = None,
+        password: Optional[str] = None,
+        dbname: Optional[str] = None,
+        **kwargs: Any,
+    ) -> None:
         self.max_rows = max_rows
 
-class DBLoadData(DBTool):
-    """
-    A tool to Run SQL query on the database and return the result.
-    """
-    def __call__(self, query: str) -> Any:
-        """Query and load data from the Database, returning a list of Documents.
+        if sql_database:
+            self.sql_database = sql_database
+        elif engine:
+            self.sql_database = SQLDatabase(engine, *args, **kwargs)
+        elif uri:
+            self.uri = uri
+            self.sql_database = SQLDatabase.from_uri(uri, *args, **kwargs)
+        elif (scheme and host and port and user and password and dbname):
+            uri = f"{scheme}://{user}:{password}@{host}:{port}/{dbname}"
+            self.uri = uri
+            self.sql_database = SQLDatabase.from_uri(uri, *args, **kwargs)
+        else:
+            raise ValueError(
+                "You must provide either a SQLDatabase, "
+                "a SQL Alchemy Engine, a valid connection URI, or a valid "
+                "set of credentials."
+            )
+        self._uri = getattr(self, "uri", None) or str(self.sql_database.engine.url)
+        self._metadata = MetaData()
+        self._metadata.reflect(bind=self.sql_database.engine)
 
+    def _get_metadata_from_fn_name(
+        self, fn_name: Callable,
+    ) -> Optional[ToolMetadata]:
+        """Return map from function name.
+
+        Return type is Optional, meaning that the schema can be None.
+        In this case, it's up to the downstream tool implementation to infer the schema.
+        """
+        try:
+            func = getattr(self, fn_name)
+        except AttributeError:
+            return None
+        name = fn_name
+        docstring = func.__doc__ or ""
+        description = f"{name}{signature(func)}\n{docstring}"
+        fn_schema = create_schema_from_function(fn_name, getattr(self, fn_name))
+        return ToolMetadata(name=name, description=description, fn_schema=fn_schema)
+
+    def _load_data(self, query: str) -> List[Document]:
+        documents = []
+        with self.sql_database.engine.connect() as connection:
+            if query is None:
+                raise ValueError("A query parameter is necessary to filter the data")
+            result = connection.execute(text(query))
+            for item in result.fetchall():
+                doc_str = ", ".join([str(entry) for entry in item])
+                documents.append(Document(text=doc_str))
+        return documents
+
+    def load_data(self, *args: Any, **load_kwargs: Any) -> List[str]:
+        """Query and load data from the Database, returning a list of Documents.
         Args:
             query (str): an SQL query to filter tables and rows.
-
         Returns:
-            List[text]: a list of text values from the database.
+            List[Document]: a list of Document objects from the database.
         """
+        # Extract the query from the positional arguments or load_kwargs
+        query = args[0] if args else load_kwargs.get("query")
+        if query is None:
+            raise ValueError("A query parameter is necessary to filter the data")
+
         count_query = f"SELECT COUNT(*) FROM ({query})"
         try:
-            count_rows = self.load_data_fn(count_query)
+            count_rows = self._load_data(count_query)
         except Exception as e:
             return [f"Error ({str(e)}) occurred while counting number of rows"]
         num_rows = int(count_rows[0].text)
@@ -42,19 +126,12 @@ class DBLoadData(DBTool):
                 "Please refactor your query to make it return less rows. "
             ]
         try:
-            res = self.load_data_fn(query)
+            res = self._load_data(query)
         except Exception as e:
             return [f"Error ({str(e)}) occurred while executing the query {query}"]
         return [d.text for d in res]
 
-class DBLoadSampleData(DBTool):
-    """
-    A tool to load a sample of data from the specified database table.
-
-    This tool fetches the first num_rows (default 25) rows from the given table
-    using a provided database query function.
-    """
-    def __call__(self, table_name: str, num_rows: int = 25) -> Any:
+    def load_sample_data(self, table_name: str, num_rows: int = 25) -> Any:
         """
         Fetches the first num_rows rows from the specified database table.
 
@@ -65,16 +142,39 @@ class DBLoadSampleData(DBTool):
             Any: The result of the database query.
         """
         try:
-            res = self.load_data_fn(f"SELECT * FROM {table_name} LIMIT {num_rows}")
+            res = self._load_data(f"SELECT * FROM {table_name} LIMIT {num_rows}")
         except Exception as e:
             return [f"Error ({str(e)}) occurred while loading sample data for table {table_name}"]
-        return res
+        return [d.text for d in res]
 
-class DBLoadUniqueValues(DBTool):
-    """
-    A tool to list all unique values for each column in a set of columns of a database table.
-    """
-    def __call__(self, table_name: str, columns: list[str], num_vals: int = 200) -> Any:
+    def list_tables(self) -> List[str]:
+        """List all tables in the database.
+        Returns:
+            List[str]: A list of table names in the database.
+        """
+        return [x.name for x in self._metadata.sorted_tables]
+
+    def describe_tables(self, tables: Optional[List[str]] = None) -> str:
+        """Describe the tables in the database.
+        Args:
+            tables (Optional[List[str]]): A list of table names to describe. If None, all tables are described.
+        Returns:
+            str: A string representation of the table schemas.
+        """
+        table_names = tables or [table.name for table in self._metadata.sorted_tables]
+        table_schemas = []
+        for table_name in table_names:
+            table = next(
+                (table for table in self._metadata.sorted_tables if table.name == table_name),
+                None,
+            )
+            if table is None:
+                raise NoSuchTableError(f"Table '{table_name}' does not exist.")
+            schema = str(CreateTable(table).compile(self.sql_database.engine))
+            table_schemas.append(f"{schema}\n")
+        return "\n".join(table_schemas)
+
+    def load_unique_values(self, table_name: str, columns: list[str], num_vals: int = 200) -> Any:
         """
         Fetches the first num_vals unique values from the specified columns of the database table.
 
@@ -89,8 +189,74 @@ class DBLoadUniqueValues(DBTool):
         res = {}
         try:
             for column in columns:
-                unique_vals = self.load_data_fn(f'SELECT DISTINCT "{column}" FROM {table_name} LIMIT {num_vals}')
+                unique_vals = self._load_data(f'SELECT DISTINCT "{column}" FROM {table_name} LIMIT {num_vals}')
                 res[column] = [d.text for d in unique_vals]
         except Exception as e:
             return {f"Error ({str(e)}) occurred while loading unique values for table {table_name}"}
         return res
+
+    def to_tool_list(self) -> List[FunctionTool]:
+        """
+        Returns a list of tools available.
+        """
+
+        tool_list = []
+        for tool_name in self.spec_functions:
+            func_sync = None
+            func_async = None
+            func = getattr(self, tool_name)
+            if asyncio.iscoroutinefunction(func):
+                func_async = func
+            else:
+                func_sync = func
+            metadata = self._get_metadata_from_fn_name(tool_name)
+
+            if func_sync is None:
+                if func_async is not None:
+                    func_sync = patch_sync(func_async)
+                else:
+                    raise ValueError(
+                        f"Could not retrieve a function for spec: {tool_name}"
+                    )
+
+            tool = FunctionTool.from_defaults(
+                fn=func_sync,
+                async_fn=func_async,
+                tool_metadata=metadata,
+            )
+            tool_list.append(tool)
+        return tool_list
+
+    # Custom pickling: exclude unpickleable objects
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        if "sql_database" in state:
+            state["sql_database_state"] = {"uri": self._uri}
+            del state["sql_database"]
+        if "_metadata" in state:
+            del state["_metadata"]
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        # Reconstruct the sql_database if it was removed
+        if "sql_database_state" in state:
+            uri = state["sql_database_state"].get("uri")
+            if uri:
+                self.sql_database = SQLDatabase.from_uri(uri)
+                self._uri = uri
+            else:
+                raise ValueError("Cannot reconstruct SQLDatabase without URI")
+            # Rebuild metadata after restoring the engine
+            self._metadata = MetaData()
+            self._metadata.reflect(bind=self.sql_database.engine)
+
+
+def patch_sync(func_async: AsyncCallable) -> Callable:
+    """Patch sync function from async function."""
+
+    def patched_sync(*args: Any, **kwargs: Any) -> Any:
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(func_async(*args, **kwargs))
+
+    return patched_sync
