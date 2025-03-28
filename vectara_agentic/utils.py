@@ -6,9 +6,9 @@ from typing import Tuple, Callable, Optional
 from functools import lru_cache
 from inspect import signature
 import json
-import requests
-
+import asyncio
 import tiktoken
+import aiohttp
 
 from llama_index.core.llms import LLM
 from llama_index.llms.openai import OpenAI
@@ -101,13 +101,16 @@ def get_llm(
                      max_tokens=max_tokens
             )
     elif model_provider == ModelProvider.ANTHROPIC:
-        llm = Anthropic(model=model_name, temperature=0, max_tokens=max_tokens)
+        llm = Anthropic(
+            model=model_name, temperature=0,
+            max_tokens=max_tokens, cache_idx=2,
+        )
     elif model_provider == ModelProvider.GEMINI:
         from llama_index.llms.gemini import Gemini
         llm = Gemini(
             model=model_name, temperature=0,
             is_function_calling_model=True,
-            max_tokens=max_tokens
+            max_tokens=max_tokens,
         )
     elif model_provider == ModelProvider.TOGETHER:
         from llama_index.llms.together import TogetherLLM
@@ -159,7 +162,7 @@ def remove_self_from_signature(func):
     func.__signature__ = new_sig
     return func
 
-def summarize_vectara_document(corpus_key: str, vectara_api_key, doc_id: str) -> str:
+async def summarize_vectara_document(corpus_key: str, vectara_api_key: str, doc_id: str) -> str:
     """
     Summarize a document in a Vectara corpus using the Vectara API.
     """
@@ -175,11 +178,32 @@ def summarize_vectara_document(corpus_key: str, vectara_api_key, doc_id: str) ->
         'Accept': 'application/json',
         'x-api-key': vectara_api_key
     }
-
-    response = requests.request("POST", url, headers=headers, data=payload, timeout=60)
-    if response.status_code != 200:
-        return (
-            f"Vectara Summarization failed with error code {response.status_code}"
-            f", error={response.json()['messages'][0]}"
-        )
+    timeout = aiohttp.ClientTimeout(total=60)
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with session.post(url, headers=headers, data=payload) as response:
+            if response.status != 200:
+                error_json = await response.json()
+                return (
+                    f"Vectara Summarization failed with error code {response.status}, "
+                    f"error={error_json['messages'][0]}"
+                )
+            data = await response.json()
+            return data["summary"]
     return json.loads(response.text)["summary"]
+
+async def summarize_documents(
+    vectara_corpus_key: str,
+    vectara_api_key: str,
+    doc_ids: list[str]
+) -> dict[str, str]:
+    """
+    Summarize multiple documents in a Vectara corpus using the Vectara API.
+    """
+    if not doc_ids:
+        return {}
+    tasks = [
+        summarize_vectara_document(vectara_corpus_key, vectara_api_key, doc_id)
+        for doc_id in doc_ids
+    ]
+    summaries = await asyncio.gather(*tasks, return_exceptions=True)
+    return dict(zip(doc_ids, summaries))

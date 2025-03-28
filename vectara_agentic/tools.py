@@ -6,6 +6,7 @@ import inspect
 import re
 import importlib
 import os
+import asyncio
 
 from typing import Callable, List, Dict, Any, Optional, Union, Type
 from pydantic import BaseModel, Field, create_model
@@ -21,7 +22,7 @@ from llama_index.core.workflow.context import Context
 from .types import ToolType
 from .tools_catalog import ToolsCatalog, get_bad_topics
 from .db_tools import DatabaseTools
-from .utils import is_float, summarize_vectara_document
+from .utils import is_float, summarize_documents
 from .agent_config import AgentConfig
 
 LI_packages = {
@@ -518,17 +519,29 @@ class VectaraToolFactory:
                     raw_input={"args": args, "kwargs": kwargs},
                     raw_output={"response": msg},
                 )
-            tool_output = "Matching documents:\n"
             unique_ids = set()
+            docs = []
             for doc in response:
                 if doc.id_ in unique_ids:
                     continue
                 unique_ids.add(doc.id_)
-                if summarize:
-                    summary = summarize_vectara_document(self.vectara_corpus_key, self.vectara_api_key, doc.id_)
-                    tool_output += f"document_id: '{doc.id_}'\nmetadata: '{doc.metadata}'\nsummary: '{summary}'\n\n"
-                else:
+                docs.append((doc.id_, doc.metadata))
+            tool_output = "Matching documents:\n"
+            if summarize:
+                summaries_dict = asyncio.run(
+                    summarize_documents(
+                        self.vectara_corpus_key,
+                        self.vectara_api_key,
+                        list(unique_ids)
+                    )
+                )
+                for doc_id, metadata in docs:
+                    summary = summaries_dict.get(doc_id, "")
+                    tool_output += f"document_id: '{doc_id}'\nmetadata: '{metadata}'\nsummary: '{summary}'\n\n"
+            else:
+                for doc in docs:
                     tool_output += f"document_id: '{doc.id_}'\nmetadata: '{doc.metadata}'\n\n"
+
             out = ToolOutput(
                 tool_name=search_function.__name__,
                 content=tool_output,
@@ -539,12 +552,14 @@ class VectaraToolFactory:
 
         base_params = [
             inspect.Parameter("query", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=str),
-            inspect.Parameter("top_k", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=10, annotation=int),
+            inspect.Parameter("top_k", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=int),
             inspect.Parameter("summarize", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=True, annotation=bool),
         ]
         search_tool_extra_desc = tool_description + "\n" + """
+        This tool is meant to perform a search for relevant document, it is not meant for asking questions.
         The response includes metadata about each relevant document.
-        If summarize=True, it also includes a summary of each document.
+        If summarize=True, it also includes a summary of each document, but takes a lot longer to respond,
+        so avoid using it unless necessary.
         """
 
         tool = _create_tool_from_dynamic_function(
