@@ -6,6 +6,7 @@ import inspect
 import re
 import importlib
 import os
+import asyncio
 
 from typing import Callable, List, Dict, Any, Optional, Union, Type
 from pydantic import BaseModel, Field, create_model
@@ -20,8 +21,8 @@ from llama_index.core.workflow.context import Context
 
 from .types import ToolType
 from .tools_catalog import ToolsCatalog, get_bad_topics
-from .db_tools import DBLoadSampleData, DBLoadUniqueValues, DBLoadData
-from .utils import is_float, summarize_vectara_document
+from .db_tools import DatabaseTools
+from .utils import is_float, summarize_documents
 from .agent_config import AgentConfig
 
 LI_packages = {
@@ -31,7 +32,6 @@ LI_packages = {
     "exa": ToolType.QUERY,
     "neo4j": ToolType.QUERY,
     "kuzu": ToolType.QUERY,
-    "database": ToolType.QUERY,
     "google": {
         "GmailToolSpec": {
             "load_data": ToolType.QUERY,
@@ -109,8 +109,19 @@ class VectaraTool(FunctionTool):
             fn, name, description, return_direct, fn_schema, async_fn, tool_metadata,
             callback, async_callback
         )
-        vectara_tool = cls(tool_type=tool_type, fn=tool.fn, metadata=tool.metadata, async_fn=tool.async_fn)
+        vectara_tool = cls(
+            tool_type=tool_type, fn=tool.fn, metadata=tool.metadata, async_fn=tool.async_fn,
+        )
         return vectara_tool
+
+    def __str__(self) -> str:
+        return (
+            f"Tool(name={self.metadata.name}, "
+            f"Tool metadata={self.metadata})"
+        )
+
+    def __repr__(self) -> str:
+        return str(self)
 
     def __eq__(self, other):
         if not isinstance(other, VectaraTool):
@@ -508,17 +519,29 @@ class VectaraToolFactory:
                     raw_input={"args": args, "kwargs": kwargs},
                     raw_output={"response": msg},
                 )
-            tool_output = "Matching documents:\n"
             unique_ids = set()
+            docs = []
             for doc in response:
                 if doc.id_ in unique_ids:
                     continue
                 unique_ids.add(doc.id_)
-                if summarize:
-                    summary = summarize_vectara_document(self.vectara_corpus_key, self.vectara_api_key, doc.id_)
-                    tool_output += f"document_id: '{doc.id_}'\nmetadata: '{doc.metadata}'\nsummary: '{summary}'\n\n"
-                else:
+                docs.append((doc.id_, doc.metadata))
+            tool_output = "Matching documents:\n"
+            if summarize:
+                summaries_dict = asyncio.run(
+                    summarize_documents(
+                        self.vectara_corpus_key,
+                        self.vectara_api_key,
+                        list(unique_ids)
+                    )
+                )
+                for doc_id, metadata in docs:
+                    summary = summaries_dict.get(doc_id, "")
+                    tool_output += f"document_id: '{doc_id}'\nmetadata: '{metadata}'\nsummary: '{summary}'\n\n"
+            else:
+                for doc in docs:
                     tool_output += f"document_id: '{doc.id_}'\nmetadata: '{doc.metadata}'\n\n"
+
             out = ToolOutput(
                 tool_name=search_function.__name__,
                 content=tool_output,
@@ -529,12 +552,14 @@ class VectaraToolFactory:
 
         base_params = [
             inspect.Parameter("query", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=str),
-            inspect.Parameter("top_k", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=10, annotation=int),
+            inspect.Parameter("top_k", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=int),
             inspect.Parameter("summarize", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=True, annotation=bool),
         ]
         search_tool_extra_desc = tool_description + "\n" + """
+        This tool is meant to perform a search for relevant documents, it is not meant for asking questions.
         The response includes metadata about each relevant document.
-        If summarize=True, it also includes a summary of each document.
+        If summarize=True, it also includes a summary of each document, but takes a lot longer to respond,
+        so avoid using it unless necessary.
         """
 
         tool = _create_tool_from_dynamic_function(
@@ -905,7 +930,7 @@ class ToolsFactory:
         user: str = "postgres",
         password: str = "Password",
         dbname: str = "postgres",
-        max_rows: int = 500,
+        max_rows: int = 1000,
     ) -> List[VectaraTool]:
         """
         Returns a list of database tools.
@@ -923,24 +948,16 @@ class ToolsFactory:
             dbname (str, optional): The database name. Defaults to "postgres".
                You must specify either the sql_database object or the scheme, host, port, user, password, and dbname.
             max_rows (int, optional): if specified, instructs the load_data tool to never return more than max_rows
-               rows. Defaults to 500.
+               rows. Defaults to 1000.
 
         Returns:
             List[VectaraTool]: A list of VectaraTool objects.
         """
         if sql_database:
-            tools = self.get_llama_index_tools(
-                tool_package_name="database",
-                tool_spec_name="DatabaseToolSpec",
-                tool_name_prefix=tool_name_prefix,
-                sql_database=sql_database,
-            )
+            dbt = DatabaseTools(sql_database=sql_database)
         else:
             if scheme in ["postgresql", "mysql", "sqlite", "mssql", "oracle"]:
-                tools = self.get_llama_index_tools(
-                    tool_package_name="database",
-                    tool_spec_name="DatabaseToolSpec",
-                    tool_name_prefix=tool_name_prefix,
+                dbt = DatabaseTools(
                     scheme=scheme,
                     host=host,
                     port=port,
@@ -955,28 +972,19 @@ class ToolsFactory:
                 )
 
         # Update tools with description
+        tools = dbt.to_tool_list()
+        vtools = []
         for tool in tools:
             if content_description:
                 tool.metadata.description = (
                     tool.metadata.description + f"The database tables include data about {content_description}."
                 )
-
-        # Add two new tools: load_sample_data and load_unique_values
-        load_data_tool_index = next(i for i, t in enumerate(tools) if t.metadata.name.endswith("load_data"))
-        load_data_fn_original = tools[load_data_tool_index].fn
-
-        load_data_fn = DBLoadData(load_data_fn_original, max_rows=max_rows)
-        load_data_fn.__name__ = f"{tool_name_prefix}_load_data"
-        load_data_tool = self.create_tool(load_data_fn, ToolType.QUERY)
-
-        sample_data_fn = DBLoadSampleData(load_data_fn_original)
-        sample_data_fn.__name__ = f"{tool_name_prefix}_load_sample_data"
-        sample_data_tool = self.create_tool(sample_data_fn, ToolType.QUERY)
-
-        load_unique_values_fn = DBLoadUniqueValues(load_data_fn_original)
-        load_unique_values_fn.__name__ = f"{tool_name_prefix}_load_unique_values"
-        load_unique_values_tool = self.create_tool(load_unique_values_fn, ToolType.QUERY)
-
-        tools[load_data_tool_index] = load_data_tool
-        tools.extend([sample_data_tool, load_unique_values_tool])
-        return tools
+            if len(tool_name_prefix) > 0:
+                tool.metadata.name = tool_name_prefix + "_" + tool.metadata.name
+            vtool = VectaraTool(
+                tool_type=ToolType.QUERY,
+                fn=tool.fn, async_fn=tool.async_fn,
+                metadata=tool.metadata
+            )
+            vtools.append(vtool)
+        return vtools
