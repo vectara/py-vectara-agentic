@@ -1,9 +1,10 @@
 """
 This module contains the code adapted from DatabaseToolSpec
-IT makes the following adjustments:
-* Adds load_sample_data and load_unique_values methods, and fixes serialization
-* Makes sure the load_data method returns a list of text values from the database, not Document[] objects.
-* Limits the returned rows to self.max_rows
+It makes the following adjustments:
+* Adds load_sample_data and load_unique_values methods.
+* Fixes serialization.
+* Makes sure the load_data method returns a list of text values from the database (and not Document[] objects).
+* Limits the returned rows to self.max_rows.
 """
 from typing import Any, Optional, List, Awaitable, Callable
 import asyncio

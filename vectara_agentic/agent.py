@@ -801,7 +801,7 @@ class Agent:
         return AgentResponse(
             response=(
                 f"For {orig_llm} LLM - failure can't be resolved after "
-                f"{max_attempts} attempts ({last_error}."
+                f"{max_attempts} attempts ({last_error})."
             )
         )
 

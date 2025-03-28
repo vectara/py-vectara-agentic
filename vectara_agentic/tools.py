@@ -556,7 +556,7 @@ class VectaraToolFactory:
             inspect.Parameter("summarize", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=True, annotation=bool),
         ]
         search_tool_extra_desc = tool_description + "\n" + """
-        This tool is meant to perform a search for relevant document, it is not meant for asking questions.
+        This tool is meant to perform a search for relevant documents, it is not meant for asking questions.
         The response includes metadata about each relevant document.
         If summarize=True, it also includes a summary of each document, but takes a lot longer to respond,
         so avoid using it unless necessary.
