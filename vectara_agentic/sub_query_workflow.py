@@ -102,7 +102,7 @@ class SubQuestionQueryWorkflow(Workflow):
             - What is the name of the mayor of San Jose?
             Here is the user question: {await ctx.get('original_query')}.
             Here are previous chat messages: {chat_history}.
-            And here is the list of tools: {await ctx.get('tools')}
+            And here is the list of tools: {ev.tools}
             """,
         )
 
@@ -236,7 +236,6 @@ class SequentialSubQuestionsWorkflow(Workflow):
             print(f"Query is {await ctx.get('original_query')}")
 
         llm = await ctx.get("llm")
-        tools = await ctx.get("tools")
         orig_query = await ctx.get("original_query")
         response = llm.complete(
             f"""
@@ -260,7 +259,7 @@ class SequentialSubQuestionsWorkflow(Workflow):
             The answer to the second question is Matt Mahan.
             Here is the user question: {orig_query}.
             Here are previous chat messages: {chat_history}.
-            And here is the list of tools: {tools}
+            And here is the list of tools: {ev.tools}
             """,
         )
 

@@ -109,7 +109,9 @@ class VectaraTool(FunctionTool):
             fn, name, description, return_direct, fn_schema, async_fn, tool_metadata,
             callback, async_callback
         )
-        vectara_tool = cls(tool_type=tool_type, fn=tool.fn, metadata=tool.metadata, async_fn=tool.async_fn)
+        vectara_tool = cls(
+            tool_type=tool_type, fn=tool.fn, metadata=tool.metadata, async_fn=tool.async_fn,
+        )
         return vectara_tool
 
     def __str__(self) -> str:
@@ -914,7 +916,7 @@ class ToolsFactory:
         user: str = "postgres",
         password: str = "Password",
         dbname: str = "postgres",
-        max_rows: int = 500,
+        max_rows: int = 1000,
     ) -> List[VectaraTool]:
         """
         Returns a list of database tools.
@@ -975,16 +977,22 @@ class ToolsFactory:
         load_data_fn_original = tools[load_data_tool_index].fn
 
         load_data_fn = DBLoadData(load_data_fn_original, max_rows=max_rows)
-        load_data_fn.__name__ = f"{tool_name_prefix}_load_data"
+        tool_name = f"{tool_name_prefix}_load_data" if tool_name_prefix else "db_load_data"
+        load_data_fn.__name__ = tool_name
         load_data_tool = self.create_tool(load_data_fn, ToolType.QUERY)
+        load_data_tool.metadata.name = tool_name 
 
         sample_data_fn = DBLoadSampleData(load_data_fn_original)
-        sample_data_fn.__name__ = f"{tool_name_prefix}_load_sample_data"
+        tool_name = f"{tool_name_prefix}_load_sample_data" if tool_name_prefix else "db_load_sample_data"
+        sample_data_fn.__name__ = tool_name
         sample_data_tool = self.create_tool(sample_data_fn, ToolType.QUERY)
+        sample_data_tool.metadata.name = tool_name
 
         load_unique_values_fn = DBLoadUniqueValues(load_data_fn_original)
-        load_unique_values_fn.__name__ = f"{tool_name_prefix}_load_unique_values"
+        tool_name = f"{tool_name_prefix}_load_unique_values" if tool_name_prefix else "db_load_unique_values"
+        load_unique_values_fn.__name__ = tool_name
         load_unique_values_tool = self.create_tool(load_unique_values_fn, ToolType.QUERY)
+        load_unique_values_tool.metadata.name = tool_name
 
         tools[load_data_tool_index] = load_data_tool
         tools.extend([sample_data_tool, load_unique_values_tool])

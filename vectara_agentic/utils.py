@@ -178,5 +178,8 @@ def summarize_vectara_document(corpus_key: str, vectara_api_key, doc_id: str) ->
 
     response = requests.request("POST", url, headers=headers, data=payload, timeout=60)
     if response.status_code != 200:
-        return f"Vectara Summarization failed with error code {response.status_code}, error={response.json()['messages'][0]}"
+        return (
+            f"Vectara Summarization failed with error code {response.status_code}"
+            f", error={response.json()['messages'][0]}"
+        )
     return json.loads(response.text)["summary"]

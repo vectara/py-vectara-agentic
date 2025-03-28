@@ -866,7 +866,6 @@ class Agent:
     def to_dict(self) -> Dict[str, Any]:
         """Serialize the Agent instance to a dictionary."""
         tool_info = []
-
         for tool in self.tools:
             if hasattr(tool.metadata, "fn_schema"):
                 fn_schema_cls = tool.metadata.fn_schema
