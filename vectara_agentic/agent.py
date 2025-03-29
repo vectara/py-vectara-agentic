@@ -33,7 +33,7 @@ from llama_index.core.agent.types import BaseAgent
 from llama_index.core.workflow import Workflow
 
 from .types import (
-    AgentType, AgentStatusType, LLMRole, ToolType,
+    AgentType, AgentStatusType, LLMRole, ToolType, ModelProvider,
     AgentResponse, AgentStreamingResponse, AgentConfigType
 )
 from .utils import get_llm, get_tokenizer_for_model
@@ -278,6 +278,10 @@ class Agent:
         llm.callback_manager = llm_callback_manager
 
         if agent_type == AgentType.FUNCTION_CALLING:
+            if config.tool_llm_provider == ModelProvider.OPENAI:
+                raise ValueError(
+                    "Vectara-agentic: Function calling agent type is not supported with the OpenAI LLM."
+                )
             prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, self._topic, self._custom_instructions)
             agent = FunctionCallingAgent.from_tools(
                 tools=self.tools,
@@ -301,6 +305,10 @@ class Agent:
                 callable_manager=llm_callback_manager,
             )
         elif agent_type == AgentType.OPENAI:
+            if config.tool_llm_provider != ModelProvider.OPENAI:
+                raise ValueError(
+                    "Vectara-agentic: OPENAI agent type requires the OpenAI LLM."
+                )
             prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, self._topic, self._custom_instructions)
             agent = OpenAIAgent.from_tools(
                 tools=self.tools,
