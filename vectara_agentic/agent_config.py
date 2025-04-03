@@ -71,6 +71,15 @@ class AgentConfig:
         default_factory=lambda: int(os.getenv("VECTARA_AGENTIC_MAX_REASONING_STEPS", "50"))
     )
 
+    def __post_init__(self):
+        # Use object.__setattr__ since the dataclass is frozen
+        if isinstance(self.agent_type, str):
+            object.__setattr__(self, "agent_type", AgentType(self.agent_type))
+        if isinstance(self.main_llm_provider, str):
+            object.__setattr__(self, "main_llm_provider", ModelProvider(self.main_llm_provider))
+        if isinstance(self.tool_llm_provider, str):
+            object.__setattr__(self, "tool_llm_provider", ModelProvider(self.tool_llm_provider))
+
     def to_dict(self) -> dict:
         """
         Convert the AgentConfig to a dictionary.
