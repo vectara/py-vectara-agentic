@@ -539,8 +539,8 @@ class VectaraToolFactory:
                     summary = summaries_dict.get(doc_id, "")
                     tool_output += f"document_id: '{doc_id}'\nmetadata: '{metadata}'\nsummary: '{summary}'\n\n"
             else:
-                for doc in docs:
-                    tool_output += f"document_id: '{doc.id_}'\nmetadata: '{doc.metadata}'\n\n"
+                for doc_id, metadata in docs:
+                    tool_output += f"document_id: '{doc_id}'\nmetadata: '{metadata}'\n\n"
 
             out = ToolOutput(
                 tool_name=search_function.__name__,

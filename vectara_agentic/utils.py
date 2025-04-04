@@ -43,7 +43,7 @@ def _get_llm_params_for_role(
     config = config or AgentConfig()  # fallback to default config
 
     if role == LLMRole.TOOL:
-        model_provider = config.tool_llm_provider
+        model_provider = ModelProvider(config.tool_llm_provider)
         # If the user hasn’t explicitly set a tool_llm_model_name,
         # fallback to provider default from provider_to_default_model_name
         model_name = (
@@ -51,7 +51,7 @@ def _get_llm_params_for_role(
             or provider_to_default_model_name.get(model_provider)
         )
     else:
-        model_provider = config.main_llm_provider
+        model_provider = ModelProvider(config.main_llm_provider)
         model_name = (
             config.main_llm_model_name
             or provider_to_default_model_name.get(model_provider)
@@ -110,6 +110,7 @@ def get_llm(
         llm = Gemini(
             model=model_name, temperature=0,
             is_function_calling_model=True,
+            allow_parallel_tool_calls=True,
             max_tokens=max_tokens,
         )
     elif model_provider == ModelProvider.TOGETHER:
