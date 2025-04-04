@@ -11,24 +11,6 @@ from llama_index.core.callbacks.schema import CBEventType, EventPayload
 
 from .types import AgentStatusType
 
-def wrap_callback_fn_TEMP(callback):
-    if callback is None:
-        return None
-    try:
-        sig = inspect.signature(callback)
-    except ValueError:
-        # If signature inspection fails, return the callback as is.
-        return callback
-
-    # Check if the callback expects fewer than 3 parameters.
-    if len(sig.parameters) < 3:
-        def new_callback(status, message, event_id=None):
-            # Call the original callback ignoring event_id.
-            return callback(status, message)
-        return new_callback
-    return callback
-
-
 def wrap_callback_fn(callback):
     if callback is None:
         return None
