@@ -12,6 +12,11 @@ from llama_index.core.callbacks.schema import CBEventType, EventPayload
 from .types import AgentStatusType
 
 def wrap_callback_fn(callback):
+    """
+    Wrap a callback function to ensure it only receives the parameters it can accept.
+    This is useful for ensuring that the callback function does not receive unexpected
+    parameters, especially when the callback is called from different contexts.
+    """
     if callback is None:
         return None
     try:
@@ -26,7 +31,7 @@ def wrap_callback_fn(callback):
         # Filter kwargs to only those that the original callback accepts.
         filtered_kwargs = {k: v for k, v in kwargs.items() if k in allowed_params}
         return callback(*args, **filtered_kwargs)
-    
+
     return new_callback
 
 class AgentCallbackHandler(BaseCallbackHandler):
