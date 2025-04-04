@@ -79,6 +79,8 @@ class AgentConfig:
             object.__setattr__(self, "main_llm_provider", ModelProvider(self.main_llm_provider))
         if isinstance(self.tool_llm_provider, str):
             object.__setattr__(self, "tool_llm_provider", ModelProvider(self.tool_llm_provider))
+        if isinstance(self.observer, str):
+            object.__setattr__(self, "observer", ObserverType(self.observer))
 
     def to_dict(self) -> dict:
         """
