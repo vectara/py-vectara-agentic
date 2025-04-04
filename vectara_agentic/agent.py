@@ -290,7 +290,7 @@ class Agent:
                 verbose=self.verbose,
                 max_function_calls=config.max_reasoning_steps,
                 callback_manager=llm_callback_manager,
-                system_prompt = prompt,
+                system_prompt=prompt,
                 allow_parallel_tool_calls=True,
             )
         elif agent_type == AgentType.REACT:

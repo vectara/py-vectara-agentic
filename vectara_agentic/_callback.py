@@ -268,7 +268,11 @@ class AgentCallbackHandler(BaseCallbackHandler):
         elif EventPayload.PROMPT in payload:
             prompt = str(payload.get(EventPayload.PROMPT))
             if self.fn:
-                self.fn(AgentStatusType.AGENT_UPDATE, prompt)
+                self.fn(
+                    status_type=AgentStatusType.AGENT_UPDATE,
+                    msg=prompt,
+                    event_id=event_id,
+                )
         else:
             print(
                 f"vectara-agentic llm callback: no messages or prompt found in payload {payload}"

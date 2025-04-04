@@ -110,6 +110,7 @@ def get_llm(
         llm = Gemini(
             model=model_name, temperature=0,
             is_function_calling_model=True,
+            allow_parallel_tool_calls=True,
             max_tokens=max_tokens,
         )
     elif model_provider == ModelProvider.TOGETHER:
