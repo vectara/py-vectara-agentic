@@ -238,11 +238,12 @@ class SequentialSubQuestionsWorkflow(Workflow):
             await ctx.set("verbose", ev.verbose)
         else:
             await ctx.set("verbose", False)
+
+        original_query = await ctx.get("original_query")
         if ev.verbose:
-            print(f"Query is {await ctx.get('original_query')}")
+            print(f"Query is {original_query}")
 
         llm = await ctx.get("llm")
-        orig_query = await ctx.get("original_query")
         response = llm.complete(
             f"""
             Given a user question, and a list of tools, output a list of
@@ -263,14 +264,14 @@ class SequentialSubQuestionsWorkflow(Workflow):
             - Who is the mayor of this city?
             The answer to the first question is San Jose, which is given as context to the second question.
             The answer to the second question is Matt Mahan.
-            Here is the user question: {orig_query}.
+            Here is the user question: {original_query}.
             Here are previous chat messages: {chat_history}.
             And here is the list of tools: {ev.tools}
             """,
         )
 
         if not str(response):
-            raise ValueError(f"No response from LLM for query {orig_query}")
+            raise ValueError(f"No response from LLM for query {original_query}")
 
         response_obj = json.loads(str(response))
         sub_questions = response_obj["sub_questions"]
