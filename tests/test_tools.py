@@ -2,7 +2,12 @@ import unittest
 
 from pydantic import Field, BaseModel
 
-from vectara_agentic.tools import VectaraTool, VectaraToolFactory, ToolsFactory, ToolType
+from vectara_agentic.tools import (
+    VectaraTool,
+    VectaraToolFactory,
+    ToolsFactory,
+    ToolType,
+)
 from vectara_agentic.agent import Agent
 from vectara_agentic.agent_config import AgentConfig
 
@@ -13,9 +18,7 @@ class TestToolsPackage(unittest.TestCase):
     def test_vectara_tool_factory(self):
         vectara_corpus_key = "corpus_key"
         vectara_api_key = "api_key"
-        vec_factory = VectaraToolFactory(
-            vectara_corpus_key, vectara_api_key
-        )
+        vec_factory = VectaraToolFactory(vectara_corpus_key, vectara_api_key)
 
         self.assertEqual(vectara_corpus_key, vec_factory.vectara_corpus_key)
         self.assertEqual(vectara_api_key, vec_factory.vectara_api_key)
@@ -46,6 +49,48 @@ class TestToolsPackage(unittest.TestCase):
         self.assertIsInstance(search_tool, FunctionTool)
         self.assertEqual(search_tool.metadata.tool_type, ToolType.QUERY)
 
+    def test_vectara_tool_validation(self):
+        vectara_corpus_key = "corpus_key"
+        vectara_api_key = "api_key"
+        vec_factory = VectaraToolFactory(vectara_corpus_key, vectara_api_key)
+
+        class QueryToolArgs(BaseModel):
+            query: str = Field(description="The user query")
+            year: int = Field(
+                description="The year of the document",
+                example=2023,
+            )
+            ticker: str = Field(
+                description="The stock ticker",
+                example="AAPL",
+            )
+
+        query_tool = vec_factory.create_rag_tool(
+            tool_name="rag_tool",
+            tool_description="""
+            Returns a response (str) to the user query based on the data in this corpus.
+            """,
+            tool_args_schema=QueryToolArgs,
+        )
+        res = query_tool(
+            query="What is the stock price?",
+            the_year=2023,
+        )
+        self.assertIn("Malfunction", str(res))
+
+        search_tool = vec_factory.create_search_tool(
+            tool_name="search_tool",
+            tool_description="""
+            Returns a list of documents (str) that match the user query.
+            """,
+            tool_args_schema=QueryToolArgs,
+        )
+        res = search_tool(
+            query="What is the stock price?",
+            the_year=2023,
+        )
+        self.assertIn("Malfunction", str(res))
+
     def test_tool_factory(self):
         def mult(x: float, y: float) -> float:
             return x * y
@@ -60,8 +105,7 @@ class TestToolsPackage(unittest.TestCase):
         tools_factory = ToolsFactory()
 
         llama_tools = tools_factory.get_llama_index_tools(
-            tool_package_name="arxiv",
-            tool_spec_name="ArxivToolSpec"
+            tool_package_name="arxiv", tool_spec_name="ArxivToolSpec"
         )
 
         arxiv_tool = llama_tools[0]
@@ -80,10 +124,12 @@ class TestToolsPackage(unittest.TestCase):
             tool_name="ask_vectara",
             data_description="data from Vectara website",
             assistant_specialty="RAG as a service",
-            vectara_summarizer="mockingbird-1.0-2024-07-16"
+            vectara_summarizer="mockingbird-1.0-2024-07-16",
         )
 
-        self.assertIn("Vectara is an end-to-end platform", str(agent.chat("What is Vectara?")))
+        self.assertIn(
+            "Vectara is an end-to-end platform", str(agent.chat("What is Vectara?"))
+        )
 
     def test_class_method_as_tool(self):
         class TestClass:
@@ -102,7 +148,7 @@ class TestToolsPackage(unittest.TestCase):
             tools=tools,
             topic=topic,
             custom_instructions=instructions,
-            agent_config=config
+            agent_config=config,
         )
 
         self.assertEqual(

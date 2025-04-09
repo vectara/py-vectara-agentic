@@ -164,7 +164,7 @@ class VectaraTool(FunctionTool):
         except Exception as e:
             err_output = ToolOutput(
                 tool_name=self.metadata.name,
-                content=f"Tool Malfunction: {str(e)}",
+                content=f"Tool {self.metadata.name} Malfunction: {str(e)}",
                 raw_input={"args": args, "kwargs": kwargs},
                 raw_output={"response": str(e)},
             )
@@ -178,7 +178,7 @@ class VectaraTool(FunctionTool):
         except Exception as e:
             err_output = ToolOutput(
                 tool_name=self.metadata.name,
-                content=f"Tool Malfunction: {str(e)}",
+                content=f"Tool {self.metadata.name} Malfunction: {str(e)}",
                 raw_input={"args": args, "kwargs": kwargs},
                 raw_output={"response": str(e)},
             )

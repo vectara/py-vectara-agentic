@@ -252,7 +252,7 @@ class Agent:
 
         # Setup observability
         try:
-            self.observability_enabled = setup_observer(self.agent_config)
+            self.observability_enabled = setup_observer(self.agent_config, self.verbose)
         except Exception as e:
             print(f"Failed to set up observer ({e}), ignoring")
             self.observability_enabled = False
