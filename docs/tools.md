@@ -121,10 +121,11 @@ In addition to the tools above, vectara-agentic also supports these
 additional tools from the LlamaIndex Tools hub:
 
 1.  `arxiv`: A tool that queries the arXiv respository of papers.
-2.  `tavily_research`: A tool that queries the web using Tavily
+2.  `tavily_research`: A tool that queries the web using Tavily.
 3.  `kuzu`: A tool that queries the Kuzu graph database.
-4.  `exa.ai`: A tool that uses Exa.ai search.
-5.  `neo4j`: A tool that queries a Neo4J graph database.
-6.  `google`: A set of tools that interact with Google services,
+4.  `exa.ai`: A tool that uses EXA.AI search.
+5.  `brave`: A tool that uses Brave Search.
+6.  `neo4j`: A tool that queries a Neo4J graph database.
+7.  `google`: A set of tools that interact with Google services,
     including Gmail, Google Calendar, and Google Search.
-7.  `slack`: A tool that interacts with Slack.
+8.  `slack`: A tool that interacts with Slack.

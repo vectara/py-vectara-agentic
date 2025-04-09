@@ -308,7 +308,7 @@ specified in the Agent configuration.
 - `load_unique_values`: returns the top unique values for a given column
 
 In addition, we include various other tools from LlamaIndex ToolSpecs:
-* Tavily search and EXA.AI
+* Tavily search, EXA.AI and Brave Search
 * arxiv
 * neo4j & Kuzu for Graph DB integration
 * Google tools (including gmail, calendar, and search)

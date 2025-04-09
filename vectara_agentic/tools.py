@@ -30,6 +30,7 @@ LI_packages = {
     "arxiv": ToolType.QUERY,
     "tavily_research": ToolType.QUERY,
     "exa": ToolType.QUERY,
+    "brave": ToolType.QUERY,
     "neo4j": ToolType.QUERY,
     "kuzu": ToolType.QUERY,
     "google": {

@@ -16,6 +16,7 @@ llama-index-tools-arxiv==0.3.0
 llama-index-tools-database==0.3.0
 llama-index-tools-google==0.3.0
 llama-index-tools-tavily_research==0.3.0
+llama_index.tools.brave_search==0.3.0
 llama-index-tools-neo4j==0.3.0
 llama-index-graph-stores-kuzu==0.7.0
 llama-index-tools-slack==0.3.0
