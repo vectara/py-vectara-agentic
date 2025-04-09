@@ -2,6 +2,7 @@
 This module contains the SubQuestionQueryEngine workflow, which is a workflow
 that takes a user question and a list of tools, and outputs a list of sub-questions.
 """
+
 import json
 from pydantic import BaseModel
 
@@ -14,6 +15,7 @@ from llama_index.core.workflow import (
     StopEvent,
 )
 
+
 class SubQuestionQueryWorkflow(Workflow):
     """
     Workflow for sub-question query engine.
@@ -24,21 +26,25 @@ class SubQuestionQueryWorkflow(Workflow):
         """
         Inputs for the workflow.
         """
+
         query: str
 
     class OutputsModel(BaseModel):
         """
         Outputs for the workflow.
         """
+
         response: str
 
     # Workflow Event types
     class QueryEvent(Event):
         """Event for a query."""
+
         question: str
 
     class AnswerEvent(Event):
         """Event for an answer."""
+
         question: str
         answer: str
 
@@ -51,35 +57,29 @@ class SubQuestionQueryWorkflow(Workflow):
         """
         if not hasattr(ev, "inputs"):
             raise ValueError("No inputs provided to workflow Start Event.")
-        if hasattr(ev, "inputs") and not isinstance(ev.inputs, self.InputsModel):
+        if not isinstance(ev.inputs, self.InputsModel):
             raise ValueError(f"Expected inputs to be of type {self.InputsModel}")
-        if hasattr(ev, "inputs"):
-            query = ev.inputs.query
-            await ctx.set("original_query", query)
-            print(f"Query is {await ctx.get('original_query')}")
 
-        if hasattr(ev, "agent"):
-            await ctx.set("agent", ev.agent)
-        else:
-            raise ValueError("Agent not provided to workflow Start Event.")
+        query = ev.inputs.query
+        await ctx.set("original_query", query)
+        print(f"Query is {query}")
+
+        required_attrs = ["agent", "llm", "tools"]
+        for attr in required_attrs:
+            if not hasattr(ev, attr):
+                raise ValueError(
+                    f"{attr.capitalize()} not provided to workflow Start Event."
+                )
+
+        await ctx.set("agent", ev.agent)
+        await ctx.set("llm", ev.llm)
+        await ctx.set("tools", ev.tools)
+        await ctx.set("verbose", getattr(ev, "verbose", False))
+
         chat_history = [str(msg) for msg in ev.agent.memory.get()]
 
-        if hasattr(ev, "llm"):
-            await ctx.set("llm", ev.llm)
-        else:
-            raise ValueError("LLM not provided to workflow Start Event.")
-
-        if hasattr(ev, "tools"):
-            await ctx.set("tools", ev.tools)
-        else:
-            raise ValueError("Tools not provided to workflow Start Event.")
-
-        if hasattr(ev, "verbose"):
-            await ctx.set("verbose", ev.verbose)
-        else:
-            await ctx.set("verbose", False)
-
         llm = await ctx.get("llm")
+        original_query = await ctx.get("original_query")
         response = llm.complete(
             f"""
             Given a user question, and a list of tools, output a list of
@@ -100,7 +100,7 @@ class SubQuestionQueryWorkflow(Workflow):
             the sub-questions could be:
             - What is the largest city within 50 miles of San Francisco? (answer is San Jose)
             - What is the name of the mayor of San Jose?
-            Here is the user question: {await ctx.get('original_query')}.
+            Here is the user question: {original_query}.
             Here are previous chat messages: {chat_history}.
             And here is the list of tools: {ev.tools}
             """,
@@ -109,17 +109,25 @@ class SubQuestionQueryWorkflow(Workflow):
         if await ctx.get("verbose"):
             print(f"Sub-questions are {response}")
 
-        response_obj = json.loads(str(response))
-        sub_questions = response_obj["sub_questions"]
+        if not str(response):
+            raise ValueError(
+                f"No response from LLM when generating sub-questions for query {original_query}"
+            )
+
+        try:
+            sub_questions = json.loads(str(response))["sub_questions"]
+            if not sub_questions:
+                raise ValueError("LLM returned empty sub-questions list")
+        except (json.JSONDecodeError, KeyError) as e:
+            raise ValueError(f"Invalid LLM response format: {response}") from e
 
         await ctx.set("sub_question_count", len(sub_questions))
-
         for question in sub_questions:
             ctx.send_event(self.QueryEvent(question=question))
 
         return None
 
-    @step(num_workers=3)
+    @step(num_workers=4)
     async def sub_question(self, ctx: Context, ev: QueryEvent) -> AnswerEvent:
         """
         Given a sub-question, return the answer to the sub-question, using the agent.
@@ -131,9 +139,7 @@ class SubQuestionQueryWorkflow(Workflow):
         return self.AnswerEvent(question=ev.question, answer=str(response))
 
     @step
-    async def combine_answers(
-        self, ctx: Context, ev: AnswerEvent
-    ) -> StopEvent | None:
+    async def combine_answers(self, ctx: Context, ev: AnswerEvent) -> StopEvent | None:
         """
         Given a list of answers to sub-questions, combine them into a single answer.
         """
@@ -144,10 +150,7 @@ class SubQuestionQueryWorkflow(Workflow):
             return None
 
         answers = "\n\n".join(
-            [
-                f"Question: {event.question}: \n Answer: {event.answer}"
-                for event in ready
-            ]
+            f"Question: {event.question}\nAnswer: {event.answer}" for event in ready
         )
 
         prompt = f"""
@@ -169,8 +172,8 @@ class SubQuestionQueryWorkflow(Workflow):
         if await ctx.get("verbose"):
             print("Final response is", response)
 
-        output = self.OutputsModel(response=str(response))
-        return StopEvent(result=output)
+        return StopEvent(result=self.OutputsModel(response=str(response)))
+
 
 class SequentialSubQuestionsWorkflow(Workflow):
     """
@@ -182,17 +185,20 @@ class SequentialSubQuestionsWorkflow(Workflow):
         """
         Inputs for the workflow.
         """
+
         query: str
 
     class OutputsModel(BaseModel):
         """
         Outputs for the workflow.
         """
+
         response: str
 
     # Workflow Event types
     class QueryEvent(Event):
         """Event for a query."""
+
         question: str
         prev_answer: str
         num: int
@@ -263,6 +269,9 @@ class SequentialSubQuestionsWorkflow(Workflow):
             """,
         )
 
+        if not str(response):
+            raise ValueError(f"No response from LLM for query {orig_query}")
+
         response_obj = json.loads(str(response))
         sub_questions = response_obj["sub_questions"]
 
@@ -273,7 +282,9 @@ class SequentialSubQuestionsWorkflow(Workflow):
         return self.QueryEvent(question=sub_questions[0], prev_answer="", num=0)
 
     @step
-    async def sub_question(self, ctx: Context, ev: QueryEvent) -> StopEvent | QueryEvent:
+    async def sub_question(
+        self, ctx: Context, ev: QueryEvent
+    ) -> StopEvent | QueryEvent:
         """
         Given a sub-question, return the answer to the sub-question, using the agent.
         """
@@ -297,8 +308,8 @@ class SequentialSubQuestionsWorkflow(Workflow):
         if ev.num + 1 < len(sub_questions):
             return self.QueryEvent(
                 question=sub_questions[ev.num + 1],
-                prev_answer = response.response,
-                num=ev.num + 1
+                prev_answer=response.response,
+                num=ev.num + 1,
             )
 
         output = self.OutputsModel(response=response.response)
