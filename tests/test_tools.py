@@ -119,7 +119,6 @@ class TestToolsPackage(unittest.TestCase):
         self.assertIsInstance(yfinance_tool, FunctionTool)
         self.assertEqual(yfinance_tool.metadata.tool_type, ToolType.QUERY)
 
-
     def test_public_repo(self):
         vectara_corpus_key = "vectara-docs_1"
         vectara_api_key = "zqt_UXrBcnI2UXINZkrv4g1tQPhzj02vfdtqYJIDiA"
