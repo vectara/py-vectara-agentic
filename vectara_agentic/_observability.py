@@ -8,7 +8,7 @@ import pandas as pd
 from .types import ObserverType
 from .agent_config import AgentConfig
 
-def setup_observer(config: AgentConfig) -> bool:
+def setup_observer(config: AgentConfig, verbose: bool) -> bool:
     '''
     Setup the observer.
     '''
@@ -31,7 +31,8 @@ def setup_observer(config: AgentConfig) -> bool:
             tracer_provider = register(endpoint=phoenix_endpoint, project_name="vectara-agentic")
         LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
         return True
-    print("No observer set.")
+    if verbose:
+        print("No observer set.")
     return False
 
 

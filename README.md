@@ -108,7 +108,7 @@ query_financial_reports_tool = vec_factory.create_rag_tool(
 )
 ```
 
-See the [docs](https://vectara.github.io/vectara-agentic-docs/) for additional arguments to customize your Vectara RAG tool.
+See the [docs](https://vectara.github.io/py-vectara-agentic/latest/) for additional arguments to customize your Vectara RAG tool.
 
 ### 3. Create other tools (optional)
 
@@ -137,7 +137,7 @@ agent = Agent(
 )
 ```
 
-See the [docs](https://vectara.github.io/vectara-agentic-docs/) for additional arguments, including `agent_progress_callback` and `query_logging_callback`.
+See the [docs](https://vectara.github.io/py-vectara-agentic/latest/) for additional arguments, including `agent_progress_callback` and `query_logging_callback`.
 
 ### 5. Run a chat interaction
 
@@ -308,7 +308,7 @@ specified in the Agent configuration.
 - `load_unique_values`: returns the top unique values for a given column
 
 In addition, we include various other tools from LlamaIndex ToolSpecs:
-* Tavily search and EXA.AI
+* Tavily search, EXA.AI and Brave Search
 * arxiv
 * neo4j & Kuzu for Graph DB integration
 * Google tools (including gmail, calendar, and search)
