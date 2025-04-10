@@ -104,15 +104,21 @@ class TestToolsPackage(unittest.TestCase):
     def test_llama_index_tools(self):
         tools_factory = ToolsFactory()
 
-        llama_tools = tools_factory.get_llama_index_tools(
+        arxiv_tool = tools_factory.get_llama_index_tools(
             tool_package_name="arxiv", tool_spec_name="ArxivToolSpec"
-        )
-
-        arxiv_tool = llama_tools[0]
+        )[0]
 
         self.assertIsInstance(arxiv_tool, VectaraTool)
         self.assertIsInstance(arxiv_tool, FunctionTool)
         self.assertEqual(arxiv_tool.metadata.tool_type, ToolType.QUERY)
+
+        yfinance_tool = tools_factory.get_llama_index_tools(
+            tool_package_name="yahoo_finance", tool_spec_name="YahooFinanceToolSpec"
+        )[0]
+        self.assertIsInstance(yfinance_tool, VectaraTool)
+        self.assertIsInstance(yfinance_tool, FunctionTool)
+        self.assertEqual(yfinance_tool.metadata.tool_type, ToolType.QUERY)
+
 
     def test_public_repo(self):
         vectara_corpus_key = "vectara-docs_1"

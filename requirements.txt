@@ -23,7 +23,6 @@ llama-index-tools-slack==0.3.0
 llama-index-tools-exa==0.3.0
 tavily-python==0.5.4
 exa-py==1.9.1
-yahoo-finance==1.4.0
 openinference-instrumentation-llama-index==3.3.3
 opentelemetry-proto==1.31.0
 arize-phoenix==8.14.1
