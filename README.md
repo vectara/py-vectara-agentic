@@ -108,7 +108,7 @@ query_financial_reports_tool = vec_factory.create_rag_tool(
 )
 ```
 
-See the [docs](https://vectara.github.io/vectara-agentic-docs/) for additional arguments to customize your Vectara RAG tool.
+See the [docs](https://vectara.github.io/py-vectara-agentic/latest/) for additional arguments to customize your Vectara RAG tool.
 
 ### 3. Create other tools (optional)
 
@@ -137,7 +137,7 @@ agent = Agent(
 )
 ```
 
-See the [docs](https://vectara.github.io/vectara-agentic-docs/) for additional arguments, including `agent_progress_callback` and `query_logging_callback`.
+See the [docs](https://vectara.github.io/py-vectara-agentic/latest/) for additional arguments, including `agent_progress_callback` and `query_logging_callback`.
 
 ### 5. Run a chat interaction
 
