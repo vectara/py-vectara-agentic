@@ -103,14 +103,13 @@ class DatabaseTools(BaseReader):
                 documents.append(Document(text=doc_str))
         return documents
 
-    def load_data(self, *args: Any, **load_kwargs: Any) -> List[str]:
+    def load_data(self, query: str) -> List[str]:
         """Query and load data from the Database, returning a list of Documents.
         Args:
             query (str): an SQL query to filter tables and rows.
         Returns:
             List[Document]: a list of Document objects from the database.
         """
-        query = args[0] if args else load_kwargs.get("args",{}).get("query")
         if query is None:
             raise ValueError("A query parameter is necessary to filter the data")
 
