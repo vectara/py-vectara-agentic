@@ -3,6 +3,7 @@ This module contains the SubQuestionQueryEngine workflow, which is a workflow
 that takes a user question and a list of tools, and outputs a list of sub-questions.
 """
 
+import re
 import json
 from pydantic import BaseModel
 
@@ -273,7 +274,15 @@ class SequentialSubQuestionsWorkflow(Workflow):
         if not str(response):
             raise ValueError(f"No response from LLM for query {original_query}")
 
-        response_obj = json.loads(str(response))
+        try:
+            response_obj = json.loads(str(response))
+
+        except:
+            try:
+                json_response = re.search(r'\{.*\}', str(response), re.DOTALL)
+                response_obj = json.loads(json_response.group(0))
+            except:
+                raise ValueError(f"Failed to extract JSON object from LLM response: {str(response)}")
         sub_questions = response_obj["sub_questions"]
 
         await ctx.set("sub_questions", sub_questions)
