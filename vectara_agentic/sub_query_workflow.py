@@ -277,11 +277,11 @@ class SequentialSubQuestionsWorkflow(Workflow):
         try:
             response_obj = json.loads(str(response))
 
-        except:
+        except Exception:
             try:
                 json_response = re.search(r'\{.*\}', str(response), re.DOTALL)
                 response_obj = json.loads(json_response.group(0))
-            except:
+            except Exception:
                 raise ValueError(f"Failed to extract JSON object from LLM response: {str(response)}")
         sub_questions = response_obj["sub_questions"]
 
