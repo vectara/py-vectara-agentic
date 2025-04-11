@@ -141,6 +141,11 @@ class DatabaseTools:
         Returns:
             Any: The result of the database query.
         """
+        if table_name not in self.list_tables():
+            return (
+                f"Table {table_name} does not exist in the database."
+                f"Valid table names are: {self.list_tables()}"
+            )
         try:
             res = self._load_data(f"SELECT * FROM {table_name} LIMIT {num_rows}")
         except Exception as e:
@@ -162,6 +167,13 @@ class DatabaseTools:
             str: A string representation of the table schemas.
         """
         table_names = tables or [table.name for table in self._metadata.sorted_tables]
+        for table_name in table_names:
+            if table_name not in self.list_tables():
+                return (
+                    f"Table {table_name} does not exist in the database."
+                    f"Valid table names are: {self.list_tables()}"
+                )
+
         table_schemas = []
         for table_name in table_names:
             table = next(
@@ -186,6 +198,12 @@ class DatabaseTools:
         Returns:
             Any: the result of the database query
         """
+        if table_name not in self.list_tables():
+            return (
+                f"Table {table_name} does not exist in the database."
+                f"Valid table names are: {self.list_tables()}"
+            )
+
         res = {}
         try:
             for column in columns:
