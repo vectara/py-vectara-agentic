@@ -49,9 +49,11 @@ class DatabaseTools(BaseReader):
         user: Optional[str] = None,
         password: Optional[str] = None,
         dbname: Optional[str] = None,
+        tool_name_prefix: str = "db",
         **kwargs: Any,
     ) -> None:
         self.max_rows = max_rows
+        self.tool_name_prefix = tool_name_prefix
 
         if sql_database:
             self.sql_database = sql_database
@@ -86,7 +88,7 @@ class DatabaseTools(BaseReader):
             func = getattr(self, fn_name)
         except AttributeError:
             return None
-        name = fn_name
+        name = self.tool_name_prefix + "_" + fn_name if self.tool_name_prefix else fn_name
         docstring = func.__doc__ or ""
         description = f"{name}{signature(func)}\n{docstring}"
         fn_schema = create_schema_from_function(fn_name, getattr(self, fn_name))

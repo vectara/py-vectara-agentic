@@ -222,7 +222,7 @@ def _create_tool_from_dynamic_function(
     sig = inspect.Signature(required_params + optional_params)
     function.__signature__ = sig
     function.__annotations__["return"] = dict[str, Any]
-    function.__name__ = "_" + re.sub(r"[^A-Za-z0-9_]", "_", tool_name)
+    function.__name__ = re.sub(r"[^A-Za-z0-9_]", "_", tool_name)
 
     # Create the tool function signature string
     param_strs = []
@@ -955,16 +955,22 @@ class ToolsFactory:
             List[VectaraTool]: A list of VectaraTool objects.
         """
         if sql_database:
-            dbt = DatabaseTools(sql_database=sql_database)
+            dbt = DatabaseTools(
+                tool_name_prefix=tool_name_prefix, 
+                sql_database=sql_database,
+                max_rows=max_rows,
+            )
         else:
             if scheme in ["postgresql", "mysql", "sqlite", "mssql", "oracle"]:
                 dbt = DatabaseTools(
+                    tool_name_prefix=tool_name_prefix,
                     scheme=scheme,
                     host=host,
                     port=port,
                     user=user,
                     password=password,
                     dbname=dbname,
+                    max_rows=max_rows,
                 )
             else:
                 raise ValueError(
@@ -980,12 +986,10 @@ class ToolsFactory:
                 tool.metadata.description = (
                     tool.metadata.description + f"The database tables include data about {content_description}."
                 )
-            if len(tool_name_prefix) > 0:
-                tool.metadata.name = tool_name_prefix + "_" + tool.metadata.name
             vtool = VectaraTool(
                 tool_type=ToolType.QUERY,
                 fn=tool.fn, async_fn=tool.async_fn,
-                metadata=tool.metadata
+                    metadata=tool.metadata
             )
             vtools.append(vtool)
         return vtools
