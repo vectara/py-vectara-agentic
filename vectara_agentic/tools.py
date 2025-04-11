@@ -55,13 +55,15 @@ LI_packages = {
             "send_message": ToolType.ACTION,
             "fetch_channel": ToolType.QUERY,
         }
-    }
+    },
 }
+
 
 class VectaraToolMetadata(ToolMetadata):
     """
     A subclass of ToolMetadata adding the tool_type attribute.
     """
+
     tool_type: ToolType
 
     def __init__(self, tool_type: ToolType, **kwargs):
@@ -88,7 +90,9 @@ class VectaraTool(FunctionTool):
         fn: Optional[Callable[..., Any]] = None,
         async_fn: Optional[AsyncCallable] = None,
     ) -> None:
-        metadata_dict = metadata.dict() if hasattr(metadata, 'dict') else metadata.__dict__
+        metadata_dict = (
+            metadata.dict() if hasattr(metadata, "dict") else metadata.__dict__
+        )
         vm = VectaraToolMetadata(tool_type=tool_type, **metadata_dict)
         super().__init__(fn, vm, async_fn)
 
@@ -107,19 +111,26 @@ class VectaraTool(FunctionTool):
         tool_type: ToolType = ToolType.QUERY,
     ) -> "VectaraTool":
         tool = FunctionTool.from_defaults(
-            fn, name, description, return_direct, fn_schema, async_fn, tool_metadata,
-            callback, async_callback
+            fn,
+            name,
+            description,
+            return_direct,
+            fn_schema,
+            async_fn,
+            tool_metadata,
+            callback,
+            async_callback,
         )
         vectara_tool = cls(
-            tool_type=tool_type, fn=tool.fn, metadata=tool.metadata, async_fn=tool.async_fn,
+            tool_type=tool_type,
+            fn=tool.fn,
+            metadata=tool.metadata,
+            async_fn=tool.async_fn,
         )
         return vectara_tool
 
     def __str__(self) -> str:
-        return (
-            f"Tool(name={self.metadata.name}, "
-            f"Tool metadata={self.metadata})"
-        )
+        return f"Tool(name={self.metadata.name}, " f"Tool metadata={self.metadata})"
 
     def __repr__(self) -> str:
         return str(self)
@@ -137,19 +148,20 @@ class VectaraTool(FunctionTool):
         # If schema is a dict-like object, compare the dict representation
         try:
             # Try to get schema as dict if possible
-            if hasattr(self.metadata.fn_schema, 'schema'):
+            if hasattr(self.metadata.fn_schema, "schema"):
                 self_schema = self.metadata.fn_schema.schema
                 other_schema = other.metadata.fn_schema.schema
 
                 # Compare only properties and required fields
-                self_props = self_schema.get('properties', {})
-                other_props = other_schema.get('properties', {})
+                self_props = self_schema.get("properties", {})
+                other_props = other_schema.get("properties", {})
 
-                self_required = self_schema.get('required', [])
-                other_required = other_schema.get('required', [])
+                self_required = self_schema.get("required", [])
+                other_required = other_schema.get("required", [])
 
-                return (self_props.keys() == other_props.keys() and
-                        set(self_required) == set(other_required))
+                return self_props.keys() == other_props.keys() and set(
+                    self_required
+                ) == set(other_required)
         except Exception:
             # If any exception occurs during schema comparison, fall back to name comparison
             pass
@@ -184,6 +196,7 @@ class VectaraTool(FunctionTool):
             )
             return err_output
 
+
 def _create_tool_from_dynamic_function(
     function: Callable[..., ToolOutput],
     tool_name: str,
@@ -197,11 +210,17 @@ def _create_tool_from_dynamic_function(
     """
     fields = {}
     for param in base_params:
-        default_value = param.default if param.default != inspect.Parameter.empty else ...
+        default_value = (
+            param.default if param.default != inspect.Parameter.empty else ...
+        )
         fields[param.name] = (param.annotation, default_value)
     for field_name, field_info in tool_args_schema.model_fields.items():
         if field_name not in fields:
-            default_value = field_info.default if field_info.default is not PydanticUndefined else ...
+            default_value = (
+                field_info.default
+                if field_info.default is not PydanticUndefined
+                else ...
+            )
             fields[field_name] = (field_info.annotation, default_value)
     fn_schema = create_model(f"{tool_name}", **fields)
 
@@ -209,8 +228,16 @@ def _create_tool_from_dynamic_function(
         inspect.Parameter(
             name=field_name,
             kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
-            default=field_info.default if field_info.default is not PydanticUndefined else inspect.Parameter.empty,
-            annotation=field_info.annotation if hasattr(field_info, 'annotation') else field_info,
+            default=(
+                field_info.default
+                if field_info.default is not PydanticUndefined
+                else inspect.Parameter.empty
+            ),
+            annotation=(
+                field_info.annotation
+                if hasattr(field_info, "annotation")
+                else field_info
+            ),
         )
         for field_name, field_info in tool_args_schema.model_fields.items()
         if field_name not in [p.name for p in base_params]
@@ -218,7 +245,9 @@ def _create_tool_from_dynamic_function(
     all_params = base_params + schema_params
 
     required_params = [p for p in all_params if p.default is inspect.Parameter.empty]
-    optional_params = [p for p in all_params if p.default is not inspect.Parameter.empty]
+    optional_params = [
+        p for p in all_params if p.default is not inspect.Parameter.empty
+    ]
     sig = inspect.Signature(required_params + optional_params)
     function.__signature__ = sig
     function.__annotations__["return"] = dict[str, Any]
@@ -228,7 +257,9 @@ def _create_tool_from_dynamic_function(
     param_strs = []
     for param in all_params:
         annotation = param.annotation
-        type_name = annotation.__name__ if hasattr(annotation, '__name__') else str(annotation)
+        type_name = (
+            annotation.__name__ if hasattr(annotation, "__name__") else str(annotation)
+        )
         param_strs.append(f"{param.name}: {type_name}")
     args_str = ", ".join(param_strs)
     function_str = f"{tool_name}({args_str}) -> str"
@@ -243,7 +274,10 @@ def _create_tool_from_dynamic_function(
     )
     return tool
 
-def _build_filter_string(kwargs: Dict[str, Any], tool_args_type: Dict[str, dict], fixed_filter: str) -> str:
+
+def _build_filter_string(
+    kwargs: Dict[str, Any], tool_args_type: Dict[str, dict], fixed_filter: str
+) -> str:
     """
     Build filter string for Vectara from kwargs
     """
@@ -257,9 +291,9 @@ def _build_filter_string(kwargs: Dict[str, Any], tool_args_type: Dict[str, dict]
 
         # Determine the prefix for the key. Valid values are "doc" or "part"
         # default to 'doc' if not specified
-        tool_args_dict = tool_args_type.get(key, {'type': 'doc', 'is_list': False})
+        tool_args_dict = tool_args_type.get(key, {"type": "doc", "is_list": False})
         prefix = tool_args_dict.get(key, "doc")
-        is_list = tool_args_dict.get('is_list', False)
+        is_list = tool_args_dict.get("is_list", False)
 
         if prefix not in ["doc", "part"]:
             raise ValueError(
@@ -312,12 +346,10 @@ def _build_filter_string(kwargs: Dict[str, Any], tool_args_type: Dict[str, dict]
                     range_conditions.append(f"{prefix}.{key} {operator} {end_val}")
 
                 # Join the range conditions with AND
-                filter_parts.append('( ' + " AND ".join(range_conditions) + ' )')
+                filter_parts.append("( " + " AND ".join(range_conditions) + " )")
                 continue
 
-            raise ValueError(
-                f"Range operator requires two values for {key}: {value}"
-            )
+            raise ValueError(f"Range operator requires two values for {key}: {value}")
 
         # Check if value contains a known comparison operator at the start
         matched_operator = None
@@ -329,7 +361,7 @@ def _build_filter_string(kwargs: Dict[str, Any], tool_args_type: Dict[str, dict]
         # Break down operator from value
         # e.g. val_str = ">2022" --> operator = ">", rhs = "2022"
         if matched_operator:
-            rhs = val_str[len(matched_operator):].strip()
+            rhs = val_str[len(matched_operator) :].strip()
 
             if matched_operator in numeric_only_ops:
                 # Must be numeric
@@ -343,7 +375,9 @@ def _build_filter_string(kwargs: Dict[str, Any], tool_args_type: Dict[str, dict]
                 if rhs.isdigit() or is_float(rhs):
                     filter_parts.append(f"{prefix}.{key}{matched_operator}{rhs}")
                 elif rhs.lower() in ["true", "false"]:
-                    filter_parts.append(f"{prefix}.{key}{matched_operator}{rhs.lower()}")
+                    filter_parts.append(
+                        f"{prefix}.{key}{matched_operator}{rhs.lower()}"
+                    )
                 else:
                     # For string operands, wrap them in quotes
                     filter_parts.append(f"{prefix}.{key}{matched_operator}'{rhs}'")
@@ -372,6 +406,7 @@ def _build_filter_string(kwargs: Dict[str, Any], tool_args_type: Dict[str, dict]
         return f"({fixed_filter}) AND ({filter_str})"
     else:
         return fixed_filter or filter_str
+
 
 class VectaraToolFactory:
     """
@@ -480,7 +515,9 @@ class VectaraToolFactory:
             top_k = kwargs.pop("top_k", 10)
             summarize = kwargs.pop("summarize", True)
             try:
-                filter_string = _build_filter_string(kwargs, tool_args_type, fixed_filter)
+                filter_string = _build_filter_string(
+                    kwargs, tool_args_type, fixed_filter
+                )
             except ValueError as e:
                 return ToolOutput(
                     tool_name=search_function.__name__,
@@ -493,7 +530,11 @@ class VectaraToolFactory:
                 summary_enabled=False,
                 similarity_top_k=top_k,
                 reranker=reranker,
-                rerank_k=rerank_k if rerank_k * self.num_corpora <= 100 else int(100 / self.num_corpora),
+                rerank_k=(
+                    rerank_k
+                    if rerank_k * self.num_corpora <= 100
+                    else int(100 / self.num_corpora)
+                ),
                 rerank_limit=rerank_limit,
                 rerank_cutoff=rerank_cutoff,
                 mmr_diversity_bias=mmr_diversity_bias,
@@ -531,9 +572,7 @@ class VectaraToolFactory:
             if summarize:
                 summaries_dict = asyncio.run(
                     summarize_documents(
-                        self.vectara_corpus_key,
-                        self.vectara_api_key,
-                        list(unique_ids)
+                        self.vectara_corpus_key, self.vectara_api_key, list(unique_ids)
                     )
                 )
                 for doc_id, metadata in docs:
@@ -541,7 +580,9 @@ class VectaraToolFactory:
                     tool_output += f"document_id: '{doc_id}'\nmetadata: '{metadata}'\nsummary: '{summary}'\n\n"
             else:
                 for doc_id, metadata in docs:
-                    tool_output += f"document_id: '{doc_id}'\nmetadata: '{metadata}'\n\n"
+                    tool_output += (
+                        f"document_id: '{doc_id}'\nmetadata: '{metadata}'\n\n"
+                    )
 
             out = ToolOutput(
                 tool_name=search_function.__name__,
@@ -552,16 +593,29 @@ class VectaraToolFactory:
             return out
 
         base_params = [
-            inspect.Parameter("query", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=str),
-            inspect.Parameter("top_k", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=int),
-            inspect.Parameter("summarize", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=True, annotation=bool),
+            inspect.Parameter(
+                "query", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=str
+            ),
+            inspect.Parameter(
+                "top_k", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=int
+            ),
+            inspect.Parameter(
+                "summarize",
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                default=True,
+                annotation=bool,
+            ),
         ]
-        search_tool_extra_desc = tool_description + "\n" + """
+        search_tool_extra_desc = (
+            tool_description
+            + "\n"
+            + """
         This tool is meant to perform a search for relevant documents, it is not meant for asking questions.
         The response includes metadata about each relevant document.
         If summarize=True, it also includes a summary of each document, but takes a lot longer to respond,
         so avoid using it unless necessary.
         """
+        )
 
         tool = _create_tool_from_dynamic_function(
             search_function,
@@ -684,7 +738,9 @@ class VectaraToolFactory:
 
             query = kwargs.pop("query")
             try:
-                filter_string = _build_filter_string(kwargs, tool_args_type, fixed_filter)
+                filter_string = _build_filter_string(
+                    kwargs, tool_args_type, fixed_filter
+                )
             except ValueError as e:
                 return ToolOutput(
                     tool_name=rag_function.__name__,
@@ -701,7 +757,11 @@ class VectaraToolFactory:
                 summary_prompt_name=vectara_summarizer,
                 prompt_text=vectara_prompt_text,
                 reranker=reranker,
-                rerank_k=rerank_k if rerank_k * self.num_corpora <= 100 else int(100 / self.num_corpora),
+                rerank_k=(
+                    rerank_k
+                    if rerank_k * self.num_corpora <= 100
+                    else int(100 / self.num_corpora)
+                ),
                 rerank_limit=rerank_limit,
                 rerank_cutoff=rerank_cutoff,
                 mmr_diversity_bias=mmr_diversity_bias,
@@ -793,7 +853,9 @@ class VectaraToolFactory:
             return out
 
         base_params = [
-            inspect.Parameter("query", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=str),
+            inspect.Parameter(
+                "query", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=str
+            ),
         ]
         tool = _create_tool_from_dynamic_function(
             rag_function,
@@ -804,6 +866,7 @@ class VectaraToolFactory:
         )
         return tool
 
+
 class ToolsFactory:
     """
     A factory class for creating agent tools.
@@ -812,7 +875,9 @@ class ToolsFactory:
     def __init__(self, agent_config: AgentConfig = None) -> None:
         self.agent_config = agent_config
 
-    def create_tool(self, function: Callable, tool_type: ToolType = ToolType.QUERY) -> VectaraTool:
+    def create_tool(
+        self, function: Callable, tool_type: ToolType = ToolType.QUERY
+    ) -> VectaraTool:
         """
         Create a tool from a function.
 
@@ -846,7 +911,9 @@ class ToolsFactory:
         """
         # Dynamically install and import the module
         if tool_package_name not in LI_packages:
-            raise ValueError(f"Tool package {tool_package_name} from LlamaIndex not supported by Vectara-agentic.")
+            raise ValueError(
+                f"Tool package {tool_package_name} from LlamaIndex not supported by Vectara-agentic."
+            )
 
         module_name = f"llama_index.tools.{tool_package_name}"
         module = importlib.import_module(module_name)
@@ -861,11 +928,18 @@ class ToolsFactory:
                 tool.metadata.name = tool_name_prefix + "_" + tool.metadata.name
             if isinstance(func_type, dict):
                 if tool_spec_name not in func_type.keys():
-                    raise ValueError(f"Tool spec {tool_spec_name} not found in package {tool_package_name}.")
+                    raise ValueError(
+                        f"Tool spec {tool_spec_name} not found in package {tool_package_name}."
+                    )
                 tool_type = func_type[tool_spec_name]
             else:
                 tool_type = func_type
-            vtool = VectaraTool(tool_type=tool_type, fn=tool.fn, metadata=tool.metadata, async_fn=tool.async_fn)
+            vtool = VectaraTool(
+                tool_type=tool_type,
+                fn=tool.fn,
+                metadata=tool.metadata,
+                async_fn=tool.async_fn,
+            )
             vtools.append(vtool)
         return vtools
 
@@ -874,7 +948,10 @@ class ToolsFactory:
         Create a list of standard tools.
         """
         tc = ToolsCatalog(self.agent_config)
-        return [self.create_tool(tool) for tool in [tc.summarize_text, tc.rephrase_text, tc.critique_text]]
+        return [
+            self.create_tool(tool)
+            for tool in [tc.summarize_text, tc.rephrase_text, tc.critique_text]
+        ]
 
     def guardrail_tools(self) -> List[FunctionTool]:
         """
@@ -886,7 +963,9 @@ class ToolsFactory:
         """
         Create a list of financial tools.
         """
-        return self.get_llama_index_tools(tool_package_name="yahoo_finance", tool_spec_name="YahooFinanceToolSpec")
+        return self.get_llama_index_tools(
+            tool_package_name="yahoo_finance", tool_spec_name="YahooFinanceToolSpec"
+        )
 
     def legal_tools(self) -> List[FunctionTool]:
         """
@@ -918,7 +997,9 @@ class ToolsFactory:
                 """,
             )
 
-        return [self.create_tool(tool) for tool in [summarize_legal_text, critique_as_judge]]
+        return [
+            self.create_tool(tool) for tool in [summarize_legal_text, critique_as_judge]
+        ]
 
     def database_tools(
         self,
@@ -956,7 +1037,7 @@ class ToolsFactory:
         """
         if sql_database:
             dbt = DatabaseTools(
-                tool_name_prefix=tool_name_prefix, 
+                tool_name_prefix=tool_name_prefix,
                 sql_database=sql_database,
                 max_rows=max_rows,
             )
@@ -984,12 +1065,14 @@ class ToolsFactory:
         for tool in tools:
             if content_description:
                 tool.metadata.description = (
-                    tool.metadata.description + f"The database tables include data about {content_description}."
+                    tool.metadata.description
+                    + f"The database tables include data about {content_description}."
                 )
             vtool = VectaraTool(
                 tool_type=ToolType.QUERY,
-                fn=tool.fn, async_fn=tool.async_fn,
-                    metadata=tool.metadata
+                fn=tool.fn,
+                async_fn=tool.async_fn,
+                metadata=tool.metadata,
             )
             vtools.append(vtool)
         return vtools

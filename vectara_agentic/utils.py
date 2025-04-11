@@ -106,8 +106,8 @@ def get_llm(
             max_tokens=max_tokens, cache_idx=2,
         )
     elif model_provider == ModelProvider.GEMINI:
-        from llama_index.llms.gemini import Gemini
-        llm = Gemini(
+        from llama_index.llms.google_genai import GoogleGenAI
+        llm = GoogleGenAI(
             model=model_name, temperature=0,
             is_function_calling_model=True,
             allow_parallel_tool_calls=True,

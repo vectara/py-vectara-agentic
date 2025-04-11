@@ -15,7 +15,6 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.schema import CreateTable
 
-from llama_index.core.readers.base import BaseReader
 from llama_index.core.utilities.sql_wrapper import SQLDatabase
 from llama_index.core.schema import Document
 from llama_index.core.tools.function_tool import FunctionTool
@@ -25,7 +24,7 @@ from llama_index.core.tools.utils import create_schema_from_function
 
 AsyncCallable = Callable[..., Awaitable[Any]]
 
-class DatabaseTools(BaseReader):
+class DatabaseTools:
     """Database tools for vectara-agentic
     This class provides a set of tools to interact with a database.
     It allows you to load data, list tables, describe tables, and load unique values.
@@ -94,28 +93,28 @@ class DatabaseTools(BaseReader):
         fn_schema = create_schema_from_function(fn_name, getattr(self, fn_name))
         return ToolMetadata(name=name, description=description, fn_schema=fn_schema)
 
-    def _load_data(self, query: str) -> List[Document]:
+    def _load_data(self, sql_query: str) -> List[Document]:
         documents = []
         with self.sql_database.engine.connect() as connection:
-            if query is None:
+            if sql_query is None:
                 raise ValueError("A query parameter is necessary to filter the data")
-            result = connection.execute(text(query))
+            result = connection.execute(text(sql_query))
             for item in result.fetchall():
                 doc_str = ", ".join([str(entry) for entry in item])
                 documents.append(Document(text=doc_str))
         return documents
 
-    def load_data(self, query: str) -> List[str]:
+    def load_data(self, sql_query: str) -> List[str]:
         """Query and load data from the Database, returning a list of Documents.
         Args:
-            query (str): an SQL query to filter tables and rows.
+            sql_query (str): an SQL query to filter tables and rows.
         Returns:
-            List[Document]: a list of Document objects from the database.
+            List[str]: a list of Document objects from the database.
         """
-        if query is None:
+        if sql_query is None:
             raise ValueError("A query parameter is necessary to filter the data")
 
-        count_query = f"SELECT COUNT(*) FROM ({query})"
+        count_query = f"SELECT COUNT(*) FROM ({sql_query})"
         try:
             count_rows = self._load_data(count_query)
         except Exception as e:
@@ -127,9 +126,9 @@ class DatabaseTools(BaseReader):
                 "Please refactor your query to make it return less rows. "
             ]
         try:
-            res = self._load_data(query)
+            res = self._load_data(sql_query)
         except Exception as e:
-            return [f"Error ({str(e)}) occurred while executing the query {query}"]
+            return [f"Error ({str(e)}) occurred while executing the query {sql_query}"]
         return [d.text for d in res]
 
     def load_sample_data(self, table_name: str, num_rows: int = 25) -> Any:
