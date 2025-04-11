@@ -110,17 +110,27 @@ class SubQuestionQueryWorkflow(Workflow):
         if await ctx.get("verbose"):
             print(f"Sub-questions are {response}")
 
-        if not str(response):
+        response_str = str(response)
+        if not response_str:
             raise ValueError(
                 f"No response from LLM when generating sub-questions for query {original_query}"
             )
-
         try:
-            sub_questions = json.loads(str(response))["sub_questions"]
-            if not sub_questions:
-                raise ValueError("LLM returned empty sub-questions list")
-        except (json.JSONDecodeError, KeyError) as e:
-            raise ValueError(f"Invalid LLM response format: {response}") from e
+            data = json.loads(response_str)
+        except json.JSONDecodeError as e1:
+            match = re.search(r"\{.*\}", response_str, re.DOTALL)
+            if not match:
+                raise ValueError(f"Invalid LLM response format: {response_str}") from e1
+            try:
+                data = json.loads(match.group(0))
+            except json.JSONDecodeError as e2:
+                raise ValueError(f"Invalid LLM response format: {response_str}") from e2
+
+        sub_questions = data.get("sub_questions")
+        if sub_questions is None:
+            raise ValueError(f"Invalid LLM response format: {response_str}")
+        if not sub_questions:
+            raise ValueError("LLM returned empty sub-questions list")
 
         await ctx.set("sub_question_count", len(sub_questions))
         for question in sub_questions:
@@ -274,16 +284,23 @@ class SequentialSubQuestionsWorkflow(Workflow):
         if not str(response):
             raise ValueError(f"No response from LLM for query {original_query}")
 
+        response_str = str(response)
         try:
-            response_obj = json.loads(str(response))
-
-        except:
+            response_obj = json.loads(response_str)
+        except json.JSONDecodeError as e1:
+            match = re.search(r"\{.*\}", response_str, re.DOTALL)
+            if not match:
+                raise ValueError(
+                    f"Failed to extract JSON object with subquestions from LLM response: {response_str}"
+                ) from e1
             try:
-                json_response = re.search(r'\{.*\}', str(response), re.DOTALL)
-                response_obj = json.loads(json_response.group(0))
-            except:
-                raise ValueError(f"Failed to extract JSON object from LLM response: {str(response)}")
-        sub_questions = response_obj["sub_questions"]
+                response_obj = json.loads(match.group(0))
+            except json.JSONDecodeError as e2:
+                raise ValueError(
+                    f"Failed to extract JSON object with subquestions from LLM response: {response_str}"
+                ) from e2
+
+        sub_questions = response_obj.get("sub_questions")
 
         await ctx.set("sub_questions", sub_questions)
         if await ctx.get("verbose"):
@@ -314,7 +331,6 @@ class SequentialSubQuestionsWorkflow(Workflow):
         if await ctx.get("verbose"):
             print(f"Answer is {response}")
 
-        sub_questions = await ctx.get("sub_questions")
         if ev.num + 1 < len(sub_questions):
             return self.QueryEvent(
                 question=sub_questions[ev.num + 1],

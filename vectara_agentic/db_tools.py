@@ -15,7 +15,6 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.schema import CreateTable
 
-from llama_index.core.readers.base import BaseReader
 from llama_index.core.utilities.sql_wrapper import SQLDatabase
 from llama_index.core.schema import Document
 from llama_index.core.tools.function_tool import FunctionTool
@@ -25,7 +24,7 @@ from llama_index.core.tools.utils import create_schema_from_function
 
 AsyncCallable = Callable[..., Awaitable[Any]]
 
-class DatabaseTools(BaseReader):
+class DatabaseTools:
     """Database tools for vectara-agentic
     This class provides a set of tools to interact with a database.
     It allows you to load data, list tables, describe tables, and load unique values.
@@ -49,9 +48,11 @@ class DatabaseTools(BaseReader):
         user: Optional[str] = None,
         password: Optional[str] = None,
         dbname: Optional[str] = None,
+        tool_name_prefix: str = "db",
         **kwargs: Any,
     ) -> None:
         self.max_rows = max_rows
+        self.tool_name_prefix = tool_name_prefix
 
         if sql_database:
             self.sql_database = sql_database
@@ -86,35 +87,34 @@ class DatabaseTools(BaseReader):
             func = getattr(self, fn_name)
         except AttributeError:
             return None
-        name = fn_name
+        name = self.tool_name_prefix + "_" + fn_name if self.tool_name_prefix else fn_name
         docstring = func.__doc__ or ""
         description = f"{name}{signature(func)}\n{docstring}"
         fn_schema = create_schema_from_function(fn_name, getattr(self, fn_name))
         return ToolMetadata(name=name, description=description, fn_schema=fn_schema)
 
-    def _load_data(self, query: str) -> List[Document]:
+    def _load_data(self, sql_query: str) -> List[Document]:
         documents = []
         with self.sql_database.engine.connect() as connection:
-            if query is None:
+            if sql_query is None:
                 raise ValueError("A query parameter is necessary to filter the data")
-            result = connection.execute(text(query))
+            result = connection.execute(text(sql_query))
             for item in result.fetchall():
                 doc_str = ", ".join([str(entry) for entry in item])
                 documents.append(Document(text=doc_str))
         return documents
 
-    def load_data(self, *args: Any, **load_kwargs: Any) -> List[str]:
+    def load_data(self, sql_query: str) -> List[str]:
         """Query and load data from the Database, returning a list of Documents.
         Args:
-            query (str): an SQL query to filter tables and rows.
+            sql_query (str): an SQL query to filter tables and rows.
         Returns:
-            List[Document]: a list of Document objects from the database.
+            List[str]: a list of Document objects from the database.
         """
-        query = args[0] if args else load_kwargs.get("args",{}).get("query")
-        if query is None:
+        if sql_query is None:
             raise ValueError("A query parameter is necessary to filter the data")
 
-        count_query = f"SELECT COUNT(*) FROM ({query})"
+        count_query = f"SELECT COUNT(*) FROM ({sql_query})"
         try:
             count_rows = self._load_data(count_query)
         except Exception as e:
@@ -126,9 +126,9 @@ class DatabaseTools(BaseReader):
                 "Please refactor your query to make it return less rows. "
             ]
         try:
-            res = self._load_data(query)
+            res = self._load_data(sql_query)
         except Exception as e:
-            return [f"Error ({str(e)}) occurred while executing the query {query}"]
+            return [f"Error ({str(e)}) occurred while executing the query {sql_query}"]
         return [d.text for d in res]
 
     def load_sample_data(self, table_name: str, num_rows: int = 25) -> Any:
@@ -141,6 +141,11 @@ class DatabaseTools(BaseReader):
         Returns:
             Any: The result of the database query.
         """
+        if table_name not in self.list_tables():
+            return (
+                f"Table {table_name} does not exist in the database."
+                f"Valid table names are: {self.list_tables()}"
+            )
         try:
             res = self._load_data(f"SELECT * FROM {table_name} LIMIT {num_rows}")
         except Exception as e:
@@ -162,6 +167,15 @@ class DatabaseTools(BaseReader):
             str: A string representation of the table schemas.
         """
         table_names = tables or [table.name for table in self._metadata.sorted_tables]
+        if len(table_names) == 0:
+            return "You must specify at least one table name to describe."
+        for table_name in table_names:
+            if table_name not in self.list_tables():
+                return (
+                    f"Table {table_name} does not exist in the database."
+                    f"Valid table names are: {self.list_tables()}"
+                )
+
         table_schemas = []
         for table_name in table_names:
             table = next(
@@ -186,6 +200,12 @@ class DatabaseTools(BaseReader):
         Returns:
             Any: the result of the database query
         """
+        if table_name not in self.list_tables():
+            return (
+                f"Table {table_name} does not exist in the database."
+                f"Valid table names are: {self.list_tables()}"
+            )
+
         res = {}
         try:
             for column in columns:

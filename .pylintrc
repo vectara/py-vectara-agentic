@@ -25,4 +25,5 @@ disable =
     too-many-positional-arguments,
     no-else-return,
     too-many-boolean-expressions,
+    too-many-lines,
 

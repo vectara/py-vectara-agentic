@@ -37,10 +37,11 @@ GENERAL_INSTRUCTIONS = """
 - If including latex equations in the markdown response, make sure the equations are on a separate line and enclosed in double dollar signs.
 - Always respond in the language of the question, and in text (no images, videos or code).
 - If you are provided with database tools use them for analytical queries (such as counting, calculating max, min, average, sum, or other statistics).
-  For each database, the database tools include: x_list_tables, x_load_data, x_describe_tables, and x_load_sample_data, where 'x' in the database name.
-  The x_list_tables tool provides a list of available tables in the x database. Always use x_list_tables before using other database tools, to understand valid table names.
-  Before using the x_load_data with a SQL query, always follow these steps:
-  - Use the x_describe_tables tool to understand the schema of each table.
+  For each database, the database tools include: x_list_tables, x_load_data, x_describe_tables, x_load_unique_values, and x_load_sample_data, where 'x' in the database name.
+  for example, if the database name is "ev", the tools are: ev_list_tables, ev_load_data, ev_describe_tables, ev_load_unique_values, and ev_load_sample_data.
+  Before using the x_load_data with a SQL query, always follow these discovery steps:
+  - call the x_list_tables tool to list of available tables in the x database.
+  - Call the x_describe_tables tool to understand the schema of each table you want to query data from.
   - Use the x_load_unique_values tool to understand the unique values in each column.
     Sometimes the user may ask for a specific column value, but the actual value in the table may be different, and you will need to use the correct value.
   - Use the x_load_sample_data tool to understand the column names, and typical values in each column.

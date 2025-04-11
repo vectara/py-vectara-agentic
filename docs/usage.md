@@ -194,6 +194,7 @@ That's it: now the `ask_transcripts` tool is ready to be added to the
 agent.
 
 Notes:
+
 - You can use the `VectaraToolFactory` to generate more than one RAG tool
 with different parameters, depending on your needs.
 - `create_rag_tool` and `create_search_tool` both support the `vectara_base_url` 
@@ -465,6 +466,7 @@ def agent_progress_callback(status_type: AgentStatusType, msg: str):
 **agent_config**
 The `agent_config` argument is an optional object that you can use to
 explicitly specify the configuration of your agent, including the following:
+
 - `agent_type`: the agent type. Valid values are `REACT`, `LLMCOMPILER`, `LATS`, `FUNCTION_CALLING` or `OPENAI` (default: `OPENAI`).
 - `main_llm_provider` and `tool_llm_provider`: the LLM provider for main agent and for the tools. Valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI` or `FIREWORKS` (default: `OPENAI`).
 - `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider).
@@ -601,11 +603,12 @@ class MyWorkflow(Workflow):
 ```
 
 When the `run()` method in vectara-agentic is invoked, it calls the workflow with the following variables in the StartEvent:
-* `agent`: the agent object used to call `run()` (self)
-* `tools`: the tools provided to the agent. Those can be used as needed in the flow.
-* `llm`: a pointer to a LlamaIndex llm, so it can be used in the workflow. For example, one of the steps may call `llm.acomplete(prompt)`
-* `verbose`: controls whether extra debug information is displayed
-* `inputs`: this is the actual inputs to the workflow provided by the call to `run()` and must be of type `InputsModel`
+
+- `agent`: the agent object used to call `run()` (self)
+- `tools`: the tools provided to the agent. Those can be used as needed in the flow.
+- `llm`: a pointer to a LlamaIndex llm, so it can be used in the workflow. For example, one of the steps may call `llm.acomplete(prompt)`
+- `verbose`: controls whether extra debug information is displayed
+- `inputs`: this is the actual inputs to the workflow provided by the call to `run()` and must be of type `InputsModel`
 
 ### Integrating the Workflow with Your Agent
 
