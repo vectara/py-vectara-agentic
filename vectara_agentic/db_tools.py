@@ -167,6 +167,8 @@ class DatabaseTools:
             str: A string representation of the table schemas.
         """
         table_names = tables or [table.name for table in self._metadata.sorted_tables]
+        if len(table_names) == 0:
+            return "You must specify at least one table name to describe."
         for table_name in table_names:
             if table_name not in self.list_tables():
                 return (
