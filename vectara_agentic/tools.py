@@ -182,7 +182,7 @@ class VectaraTool(FunctionTool):
                 tool_name=self.metadata.name,
                 content=(
                     f"Wrong argument used when calling {self.metadata.name}: {str(e)}. "
-                    f"Expected parameters: {params_str}. Please call the tool again. with the correct parameters."
+                    f"Valid arguments: {params_str}. please call the tool again with the correct arguments."
                 ),
                 raw_input={"args": args, "kwargs": kwargs},
                 raw_output={"response": str(e)},
@@ -211,7 +211,7 @@ class VectaraTool(FunctionTool):
                 tool_name=self.metadata.name,
                 content=(
                     f"Wrong argument used when calling {self.metadata.name}: {str(e)}. "
-                    f"Expected parameters: {params_str}. Please call the tool again. with the correct parameters."
+                    f"Valid arguments: {params_str}. please call the tool again with the correct arguments."
                 ),
                 raw_input={"args": args, "kwargs": kwargs},
                 raw_output={"response": str(e)},
@@ -632,7 +632,7 @@ class VectaraToolFactory:
             return out
 
         class SearchToolBaseParams(BaseModel):
-            query: str = Field(..., description="The search query to perform. always in the form of a question.")
+            query: str = Field(..., description="The search query to perform, always in the form of a question.")
             top_k: int = Field(10, description="The number of top documents to retrieve.")
             summarize: bool = Field(True, description="Flag that indicates whether to summarize the retrieved documents.")
         search_tool_extra_desc = (
@@ -877,7 +877,7 @@ class VectaraToolFactory:
             return out
 
         class RagToolBaseParams(BaseModel):
-            query: str = Field(..., description="The search query to perform. always in the form of a question")
+            query: str = Field(..., description="The search query to perform, always in the form of a question")
         tool = _create_tool_from_dynamic_function(
             rag_function,
             tool_name,
