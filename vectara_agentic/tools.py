@@ -231,99 +231,79 @@ def _create_tool_from_dynamic_function(
     function: Callable[..., ToolOutput],
     tool_name: str,
     tool_description: str,
-    base_params: list[inspect.Parameter],
-    tool_args_schema: type[BaseModel],
+    base_params_model: Type[BaseModel],  # Now a Pydantic BaseModel
+    tool_args_schema: Type[BaseModel],
 ) -> VectaraTool:
-    """
-    Create a VectaraTool from a dynamic function, including
-    setting the function signature and creating the tool schema.
-    """
     fields = {}
-    for param in base_params:
-        default_value = (
-            param.default if param.default != inspect.Parameter.empty else ...
+    base_params = []
+    
+    # Create inspect.Parameter objects for base_params_model fields.
+    for param_name, model_field in base_params_model.model_fields.items():
+        field_type = base_params_model.__annotations__.get(param_name, str)  # default to str if not found
+        default_value = model_field.default if model_field.default is not None else inspect.Parameter.empty
+        base_params.append(
+            inspect.Parameter(
+                param_name,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                default=default_value,
+                annotation=field_type,
+            )
         )
-        fields[param.name] = (param.annotation, default_value)
+        fields[param_name] = (field_type, model_field.default if model_field.default is not None else ...)
+    
+    # Add tool_args_schema fields to the fields dict if not already included.
+    # Also add them to the function signature by creating new inspect.Parameter objects.
     for field_name, field_info in tool_args_schema.model_fields.items():
         if field_name not in fields:
-            default_value = (
-                field_info.default
-                if field_info.default is not PydanticUndefined
-                else ...
+            default_value = field_info.default if field_info.default is not None else ...
+            field_type = tool_args_schema.__annotations__.get(field_name, None)
+            fields[field_name] = (field_type, default_value)
+            # Append these fields to the signature.
+            base_params.append(
+                inspect.Parameter(
+                    field_name,
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                    default=default_value if default_value is not ... else inspect.Parameter.empty,
+                    annotation=field_type,
+                )
             )
-            fields[field_name] = (
-                field_info.annotation, 
-                Field(default_value, description=field_info.description)
-            )
-    fn_schema = create_model(f"{tool_name}", **fields)
 
-    schema_params = [
-        inspect.Parameter(
-            name=field_name,
-            kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
-            default=(
-                field_info.default
-                if field_info.default is not PydanticUndefined
-                else inspect.Parameter.empty
-            ),
-            annotation=(
-                field_info.annotation
-                if hasattr(field_info, "annotation")
-                else field_info
-            ),
-        )
-        for field_name, field_info in tool_args_schema.model_fields.items()
-        if field_name not in [p.name for p in base_params]
-    ]
-    all_params = base_params + schema_params
+    # Create the dynamic schema with both base_params_model and tool_args_schema fields.
+    fn_schema = create_model(f"{tool_name}_schema", **fields)
 
+    # Combine parameters into a function signature.
+    all_params = base_params[:]  # Now all_params contains parameters from both models.
     required_params = [p for p in all_params if p.default is inspect.Parameter.empty]
-    optional_params = [
-        p for p in all_params if p.default is not inspect.Parameter.empty
-    ]
+    optional_params = [p for p in all_params if p.default is not inspect.Parameter.empty]
     function.__signature__ = inspect.Signature(required_params + optional_params)
     function.__annotations__["return"] = dict[str, Any]
     function.__name__ = re.sub(r"[^A-Za-z0-9_]", "_", tool_name)
 
-    # Create the tool function signature string
-    param_strs = []
-    for param in all_params:
-        annotation = param.annotation
-        type_name = (
-            annotation.__name__ if hasattr(annotation, "__name__") else str(annotation)
-        )
-        param_strs.append(f"{param.name}: {type_name}")
-    args_str = ", ".join(param_strs)
-    function_signature_line = f"{tool_name}({args_str}) -> dict[str, Any]"
-
+    # Build a docstring using parameter descriptions from the BaseModels.
     doc_lines = [
-        function_signature_line,
+        f"{tool_name}({', '.join(f'{p.name}: {p.annotation.__name__ if hasattr(p.annotation, '__name__') else p.annotation}' for p in all_params)}) -> dict[str, Any]",
         "",
         tool_description.strip(),
         "",
         "Args:"
     ]
-
-    # For each parameter, include its type, default (if any) and a description.
     for param in all_params:
-        annotation = param.annotation
-        type_name = annotation.__name__ if hasattr(annotation, "__name__") else str(annotation)
-        default_text = f", default={param.default!r}" if param.default is not inspect.Parameter.empty else ""
-        if param.name in tool_args_schema.model_fields:
-            field_desc = tool_args_schema.model_fields[param.name].description
-            description = field_desc if field_desc else "No description provided."
-        else:
+        description = ""
+        if param.name in base_params_model.model_fields:
+            description = base_params_model.model_fields[param.name].description
+        elif param.name in tool_args_schema.model_fields:
+            description = tool_args_schema.model_fields[param.name].description
+        if not description:
             description = "No description provided."
+        type_name = param.annotation.__name__ if hasattr(param.annotation, "__name__") else str(param.annotation)
+        default_text = f", default={param.default!r}" if param.default is not inspect.Parameter.empty else ""
         doc_lines.append(f"    {param.name} ({type_name}){default_text}: {description}")
-    
     doc_lines.append("")
     doc_lines.append("Returns:")
-    # Allow the function to optionally provide a return description.
     return_desc = getattr(function, "__return_description__", "A dictionary containing the result data.")
     doc_lines.append(f"    dict[str, Any]: {return_desc}")
     function.__doc__ = "\n".join(doc_lines)
 
-    # Create the tool
     tool = VectaraTool.from_defaults(
         fn=function,
         name=tool_name,
@@ -651,20 +631,10 @@ class VectaraToolFactory:
             )
             return out
 
-        base_params = [
-            inspect.Parameter(
-                "query", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=str
-            ),
-            inspect.Parameter(
-                "top_k", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=int
-            ),
-            inspect.Parameter(
-                "summarize",
-                inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                default=True,
-                annotation=bool,
-            ),
-        ]
+        class SearchToolBaseParams(BaseModel):
+            query: str = Field(..., description="The search query to perform. always in the form of a question.")
+            top_k: int = Field(10, description="The number of top documents to retrieve.")
+            summarize: bool = Field(True, description="Flag that indicates whether to summarize the retrieved documents.")
         search_tool_extra_desc = (
             tool_description
             + "\n"
@@ -675,7 +645,7 @@ class VectaraToolFactory:
             search_function,
             tool_name,
             search_tool_extra_desc,
-            base_params,
+            SearchToolBaseParams,
             tool_args_schema,
         )
         return tool
@@ -906,16 +876,13 @@ class VectaraToolFactory:
             )
             return out
 
-        base_params = [
-            inspect.Parameter(
-                "query", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=str
-            ),
-        ]
+        class RagToolBaseParams(BaseModel):
+            query: str = Field(..., description="The search query to perform. always in the form of a question")
         tool = _create_tool_from_dynamic_function(
             rag_function,
             tool_name,
             tool_description,
-            base_params,
+            RagToolBaseParams,
             tool_args_schema,
         )
         return tool

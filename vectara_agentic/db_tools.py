@@ -118,7 +118,7 @@ class DatabaseTools:
         try:
             count_rows = self._load_data(count_query)
         except Exception as e:
-            return [f"Error ({str(e)}) occurred while counting number of rows"]
+            return [f"Error ({str(e)}) occurred while counting number of rows, check your query."]
         num_rows = int(count_rows[0].text)
         if num_rows > self.max_rows:
             return [
@@ -128,7 +128,7 @@ class DatabaseTools:
         try:
             res = self._load_data(sql_query)
         except Exception as e:
-            return [f"Error ({str(e)}) occurred while executing the query {sql_query}"]
+            return [f"Error ({str(e)}) occurred while executing the query {sql_query}, check your query."]
         return [d.text for d in res]
 
     def load_sample_data(self, table_name: str, num_rows: int = 25) -> Any:

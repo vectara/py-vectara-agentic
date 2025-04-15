@@ -22,8 +22,8 @@ GENERAL_INSTRUCTIONS = """
   3) If a tool fails, try other tools that might be appropriate to gain the information you need.
 - If after retrying you can't get the information or answer the question, respond with "I don't know".
 - If a tool provides citations or references in markdown as part of its response, include the references in your response.
-- Ensure that every URL in your responses includes descriptive anchor text that clearly explains what the user can expect from the linked content.
-  Avoid using generic terms like “source” or “reference” as the anchor text.
+- Ensure that every URL in your response includes descriptive anchor text that clearly explains what the user can expect from the linked content.
+  Avoid using generic terms like “source” or “reference”, or the full URL, as the anchor text.
 - If a tool returns in the metadata a valid URL pointing to a PDF file, along with page number - then combine the URL and page number in the response.
   For example, if the URL returned from the tool is "https://example.com/doc.pdf" and "page=5", then the combined URL would be "https://example.com/doc.pdf#page=5".
   If a tool returns in the metadata invalid URLs or an URL empty (e.g. "[[1]()]"), ignore it and do not include that citation or reference in your response.
