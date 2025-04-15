@@ -173,6 +173,21 @@ class VectaraTool(FunctionTool):
     ) -> ToolOutput:
         try:
             return super().call(*args, ctx=ctx, **kwargs)
+        except TypeError as e:
+            sig = inspect.signature(self.metadata.fn_schema)
+            valid_parameters = list(sig.parameters.keys())
+            params_str = ", ".join(valid_parameters)
+            
+            err_output = ToolOutput(
+                tool_name=self.metadata.name,
+                content=(
+                    f"Wrong argument used when calling {self.metadata.name}: {str(e)}. "
+                    f"Expected parameters: {params_str}. Please call the tool again. with the correct parameters."
+                ),
+                raw_input={"args": args, "kwargs": kwargs},
+                raw_output={"response": str(e)},
+            )
+            return err_output        
         except Exception as e:
             err_output = ToolOutput(
                 tool_name=self.metadata.name,
@@ -187,6 +202,21 @@ class VectaraTool(FunctionTool):
     ) -> ToolOutput:
         try:
             return await super().acall(*args, ctx=ctx, **kwargs)
+        except TypeError as e:
+            sig = inspect.signature(self.metadata.fn_schema)
+            valid_parameters = list(sig.parameters.keys())
+            params_str = ", ".join(valid_parameters)
+            
+            err_output = ToolOutput(
+                tool_name=self.metadata.name,
+                content=(
+                    f"Wrong argument used when calling {self.metadata.name}: {str(e)}. "
+                    f"Expected parameters: {params_str}. Please call the tool again. with the correct parameters."
+                ),
+                raw_input={"args": args, "kwargs": kwargs},
+                raw_output={"response": str(e)},
+            )
+            return err_output        
         except Exception as e:
             err_output = ToolOutput(
                 tool_name=self.metadata.name,
@@ -221,7 +251,10 @@ def _create_tool_from_dynamic_function(
                 if field_info.default is not PydanticUndefined
                 else ...
             )
-            fields[field_name] = (field_info.annotation, default_value)
+            fields[field_name] = (
+                field_info.annotation, 
+                Field(default_value, description=field_info.description)
+            )
     fn_schema = create_model(f"{tool_name}", **fields)
 
     schema_params = [
@@ -276,7 +309,6 @@ def _create_tool_from_dynamic_function(
         annotation = param.annotation
         type_name = annotation.__name__ if hasattr(annotation, "__name__") else str(annotation)
         default_text = f", default={param.default!r}" if param.default is not inspect.Parameter.empty else ""
-        # If the parameter is defined in the Pydantic schema, try to include its description.
         if param.name in tool_args_schema.model_fields:
             field_desc = tool_args_schema.model_fields[param.name].description
             description = field_desc if field_desc else "No description provided."
@@ -289,7 +321,6 @@ def _create_tool_from_dynamic_function(
     # Allow the function to optionally provide a return description.
     return_desc = getattr(function, "__return_description__", "A dictionary containing the result data.")
     doc_lines.append(f"    dict[str, Any]: {return_desc}")
-
     function.__doc__ = "\n".join(doc_lines)
 
     # Create the tool
@@ -637,12 +668,7 @@ class VectaraToolFactory:
         search_tool_extra_desc = (
             tool_description
             + "\n"
-            + """
-        This tool is meant to perform a search for relevant documents, it is not meant for asking questions.
-        The response includes metadata about each relevant document.
-        If summarize=True, it also includes a summary of each document, but takes a lot longer to respond,
-        so avoid using it unless necessary.
-        """
+            + "This tool is meant to perform a search for relevant documents, it is not meant for asking questions."
         )
 
         tool = _create_tool_from_dynamic_function(

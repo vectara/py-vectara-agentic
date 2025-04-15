@@ -124,7 +124,8 @@ def get_llm(
         from llama_index.llms.groq import Groq
         llm = Groq(
             model=model_name, temperature=0,
-            is_function_calling_model=True, max_tokens=max_tokens
+            is_function_calling_model=True,
+            max_tokens=max_tokens
         )
     elif model_provider == ModelProvider.FIREWORKS:
         from llama_index.llms.fireworks import Fireworks
