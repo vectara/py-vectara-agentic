@@ -248,8 +248,7 @@ def _create_tool_from_dynamic_function(
     optional_params = [
         p for p in all_params if p.default is not inspect.Parameter.empty
     ]
-    sig = inspect.Signature(required_params + optional_params)
-    function.__signature__ = sig
+    function.__signature__ = inspect.Signature(required_params + optional_params)
     function.__annotations__["return"] = dict[str, Any]
     function.__name__ = re.sub(r"[^A-Za-z0-9_]", "_", tool_name)
 
@@ -262,13 +261,42 @@ def _create_tool_from_dynamic_function(
         )
         param_strs.append(f"{param.name}: {type_name}")
     args_str = ", ".join(param_strs)
-    function_str = f"{tool_name}({args_str}) -> str"
+    function_signature_line = f"{tool_name}({args_str}) -> dict[str, Any]"
+
+    doc_lines = [
+        function_signature_line,
+        "",
+        tool_description.strip(),
+        "",
+        "Args:"
+    ]
+
+    # For each parameter, include its type, default (if any) and a description.
+    for param in all_params:
+        annotation = param.annotation
+        type_name = annotation.__name__ if hasattr(annotation, "__name__") else str(annotation)
+        default_text = f", default={param.default!r}" if param.default is not inspect.Parameter.empty else ""
+        # If the parameter is defined in the Pydantic schema, try to include its description.
+        if param.name in tool_args_schema.model_fields:
+            field_desc = tool_args_schema.model_fields[param.name].description
+            description = field_desc if field_desc else "No description provided."
+        else:
+            description = "No description provided."
+        doc_lines.append(f"    {param.name} ({type_name}){default_text}: {description}")
+    
+    doc_lines.append("")
+    doc_lines.append("Returns:")
+    # Allow the function to optionally provide a return description.
+    return_desc = getattr(function, "__return_description__", "A dictionary containing the result data.")
+    doc_lines.append(f"    dict[str, Any]: {return_desc}")
+
+    function.__doc__ = "\n".join(doc_lines)
 
     # Create the tool
     tool = VectaraTool.from_defaults(
         fn=function,
         name=tool_name,
-        description=function_str + "\n" + tool_description,
+        description=function.__doc__,
         fn_schema=fn_schema,
         tool_type=ToolType.QUERY,
     )
