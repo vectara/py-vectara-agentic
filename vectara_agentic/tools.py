@@ -177,7 +177,7 @@ class VectaraTool(FunctionTool):
             sig = inspect.signature(self.metadata.fn_schema)
             valid_parameters = list(sig.parameters.keys())
             params_str = ", ".join(valid_parameters)
-            
+
             err_output = ToolOutput(
                 tool_name=self.metadata.name,
                 content=(
@@ -187,7 +187,7 @@ class VectaraTool(FunctionTool):
                 raw_input={"args": args, "kwargs": kwargs},
                 raw_output={"response": str(e)},
             )
-            return err_output        
+            return err_output
         except Exception as e:
             err_output = ToolOutput(
                 tool_name=self.metadata.name,
@@ -206,7 +206,7 @@ class VectaraTool(FunctionTool):
             sig = inspect.signature(self.metadata.fn_schema)
             valid_parameters = list(sig.parameters.keys())
             params_str = ", ".join(valid_parameters)
-            
+
             err_output = ToolOutput(
                 tool_name=self.metadata.name,
                 content=(
@@ -216,7 +216,7 @@ class VectaraTool(FunctionTool):
                 raw_input={"args": args, "kwargs": kwargs},
                 raw_output={"response": str(e)},
             )
-            return err_output        
+            return err_output
         except Exception as e:
             err_output = ToolOutput(
                 tool_name=self.metadata.name,
@@ -236,11 +236,17 @@ def _create_tool_from_dynamic_function(
 ) -> VectaraTool:
     fields = {}
     base_params = []
-    
+
     # Create inspect.Parameter objects for base_params_model fields.
     for param_name, model_field in base_params_model.model_fields.items():
-        field_type = base_params_model.__annotations__.get(param_name, str)  # default to str if not found
-        default_value = model_field.default if model_field.default is not None else inspect.Parameter.empty
+        field_type = base_params_model.__annotations__.get(
+            param_name, str
+        )  # default to str if not found
+        default_value = (
+            model_field.default
+            if model_field.default is not None
+            else inspect.Parameter.empty
+        )
         base_params.append(
             inspect.Parameter(
                 param_name,
@@ -249,13 +255,18 @@ def _create_tool_from_dynamic_function(
                 annotation=field_type,
             )
         )
-        fields[param_name] = (field_type, model_field.default if model_field.default is not None else ...)
-    
+        fields[param_name] = (
+            field_type,
+            model_field.default if model_field.default is not None else ...,
+        )
+
     # Add tool_args_schema fields to the fields dict if not already included.
     # Also add them to the function signature by creating new inspect.Parameter objects.
     for field_name, field_info in tool_args_schema.model_fields.items():
         if field_name not in fields:
-            default_value = field_info.default if field_info.default is not None else ...
+            default_value = (
+                field_info.default if field_info.default is not None else ...
+            )
             field_type = tool_args_schema.__annotations__.get(field_name, None)
             fields[field_name] = (field_type, default_value)
             # Append these fields to the signature.
@@ -263,7 +274,11 @@ def _create_tool_from_dynamic_function(
                 inspect.Parameter(
                     field_name,
                     inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                    default=default_value if default_value is not ... else inspect.Parameter.empty,
+                    default=(
+                        default_value
+                        if default_value is not ...
+                        else inspect.Parameter.empty
+                    ),
                     annotation=field_type,
                 )
             )
@@ -274,18 +289,25 @@ def _create_tool_from_dynamic_function(
     # Combine parameters into a function signature.
     all_params = base_params[:]  # Now all_params contains parameters from both models.
     required_params = [p for p in all_params if p.default is inspect.Parameter.empty]
-    optional_params = [p for p in all_params if p.default is not inspect.Parameter.empty]
+    optional_params = [
+        p for p in all_params if p.default is not inspect.Parameter.empty
+    ]
     function.__signature__ = inspect.Signature(required_params + optional_params)
     function.__annotations__["return"] = dict[str, Any]
     function.__name__ = re.sub(r"[^A-Za-z0-9_]", "_", tool_name)
 
     # Build a docstring using parameter descriptions from the BaseModels.
+    params_str = ",\n    ".join(
+        f"{p.name}: {p.annotation.__name__ if hasattr(p.annotation, '__name__') else p.annotation}"
+        for p in all_params
+    )
+    signature_line = f"{tool_name}(\n    {params_str}\n) -> dict[str, Any]"
     doc_lines = [
-        f"{tool_name}({', '.join(f'{p.name}: {p.annotation.__name__ if hasattr(p.annotation, '__name__') else p.annotation}' for p in all_params)}) -> dict[str, Any]",
+        signature_line,
         "",
         tool_description.strip(),
         "",
-        "Args:"
+        "Args:",
     ]
     for param in all_params:
         description = ""
@@ -295,12 +317,22 @@ def _create_tool_from_dynamic_function(
             description = tool_args_schema.model_fields[param.name].description
         if not description:
             description = "No description provided."
-        type_name = param.annotation.__name__ if hasattr(param.annotation, "__name__") else str(param.annotation)
-        default_text = f", default={param.default!r}" if param.default is not inspect.Parameter.empty else ""
+        type_name = (
+            param.annotation.__name__
+            if hasattr(param.annotation, "__name__")
+            else str(param.annotation)
+        )
+        default_text = (
+            f", default={param.default!r}"
+            if param.default is not inspect.Parameter.empty
+            else ""
+        )
         doc_lines.append(f"    {param.name} ({type_name}){default_text}: {description}")
     doc_lines.append("")
     doc_lines.append("Returns:")
-    return_desc = getattr(function, "__return_description__", "A dictionary containing the result data.")
+    return_desc = getattr(
+        function, "__return_description__", "A dictionary containing the result data."
+    )
     doc_lines.append(f"    dict[str, Any]: {return_desc}")
     function.__doc__ = "\n".join(doc_lines)
 
@@ -632,9 +664,19 @@ class VectaraToolFactory:
             return out
 
         class SearchToolBaseParams(BaseModel):
-            query: str = Field(..., description="The search query to perform, always in the form of a question.")
-            top_k: int = Field(10, description="The number of top documents to retrieve.")
-            summarize: bool = Field(True, description="Flag that indicates whether to summarize the retrieved documents.")
+            """Model for the base parameters of the search tool."""
+            query: str = Field(
+                ...,
+                description="The search query to perform, always in the form of a question.",
+            )
+            top_k: int = Field(
+                10, description="The number of top documents to retrieve."
+            )
+            summarize: bool = Field(
+                True,
+                description="Flag that indicates whether to summarize the retrieved documents.",
+            )
+
         search_tool_extra_desc = (
             tool_description
             + "\n"
@@ -877,7 +919,12 @@ class VectaraToolFactory:
             return out
 
         class RagToolBaseParams(BaseModel):
-            query: str = Field(..., description="The search query to perform, always in the form of a question")
+            """Model for the base parameters of the RAG tool."""
+            query: str = Field(
+                ...,
+                description="The search query to perform, always in the form of a question",
+            )
+
         tool = _create_tool_from_dynamic_function(
             rag_function,
             tool_name,
