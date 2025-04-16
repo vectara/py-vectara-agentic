@@ -73,7 +73,6 @@ from vectara_agentic.tools import VectaraToolFactory
 
 vec_factory = VectaraToolFactory(
     vectara_api_key=os.environ['VECTARA_API_KEY'],
-    vectara_customer_id=os.environ['VECTARA_CUSTOMER_ID'],
     vectara_corpus_key=os.environ['VECTARA_CORPUS_KEY']
 )
 ```
@@ -94,7 +93,6 @@ tickers = {
 }
 
 class QueryFinancialReportsArgs(BaseModel):
-    query: str = Field(..., description="The user query.")
     year: int | str = Field(..., description=f"The year this query relates to. An integer between {min(years)} and {max(years)} or a string specifying a condition on the year (example: '>2020').")
     ticker: str = Field(..., description=f"The company ticker. Must be a valid ticket symbol from the list {tickers.keys()}.")
 
@@ -107,6 +105,8 @@ query_financial_reports_tool = vec_factory.create_rag_tool(
     # Additional arguments
 )
 ```
+
+Note that we only defined the `year` and `ticker` arguments. The `query` argument is automatically added by `vectara-agentic`.
 
 See the [docs](https://vectara.github.io/py-vectara-agentic/latest/) for additional arguments to customize your Vectara RAG tool.
 

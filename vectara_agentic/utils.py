@@ -103,7 +103,7 @@ def get_llm(
     elif model_provider == ModelProvider.ANTHROPIC:
         llm = Anthropic(
             model=model_name, temperature=0,
-            max_tokens=max_tokens, cache_idx=2,
+            max_tokens=max_tokens,
         )
     elif model_provider == ModelProvider.GEMINI:
         from llama_index.llms.gemini import Gemini
@@ -124,7 +124,8 @@ def get_llm(
         from llama_index.llms.groq import Groq
         llm = Groq(
             model=model_name, temperature=0,
-            is_function_calling_model=True, max_tokens=max_tokens
+            is_function_calling_model=True,
+            max_tokens=max_tokens
         )
     elif model_provider == ModelProvider.FIREWORKS:
         from llama_index.llms.fireworks import Fireworks

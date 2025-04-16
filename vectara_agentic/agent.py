@@ -661,7 +661,7 @@ class Agent:
         for tool in self.tools:
             if hasattr(tool, 'metadata'):
                 if detailed:
-                    print(f"- {tool.metadata.name} - {tool.metadata.description}")
+                    print(f"- {tool.metadata.description}")
                 else:
                     print(f"- {tool.metadata.name}")
             else:

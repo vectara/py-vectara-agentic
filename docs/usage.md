@@ -50,16 +50,16 @@ from pydantic import BaseModel
 
 # define the arguments schema for the tool
 class QueryTranscriptsArgs(BaseModel):
-    query: str = Field(..., description="The user query.")
     year: int = Field(..., description=f"The year. An integer between {min(years)} and {max(years)}.")
     ticker: str = Field(..., description=f"The company ticker. Must be a valid ticket symbol from the list {tickers.keys()}.")
 ```
 
-Note that the arguments for this tool are defined using Python's
-`pydantic` package with the `Field` class. By defining the tool in this
-way, we provide a good description for each argument so that the agent
-LLM can easily understand the tool's functionality and how to use it
-properly.
+Note that:
+
+- The arguments for this tool are defined using Python's `pydantic` package with the `Field` class. By defining the tool in this
+  way, we provide a good description for each argument so that the agent LLM can easily understand the tool's functionality 
+  and how to use it properly.
+- The `query` argument is added automatically to the RAG tool, and you don't need to specify it here
 
 You can also define an argument to support optional conditional
 arguments, for example:
@@ -69,7 +69,6 @@ from pydantic import BaseModel
 
 # define the arguments schema for the tool
 class QueryTranscriptsArgs(BaseModel):
-    query: str = Field(..., description="The user query.")
     year: int | str = Field(
         default=None,
         description=f"The year this query relates to. An integer between {min(years)} and {max(years)} or a string specifying a condition on the year",
