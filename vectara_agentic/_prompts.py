@@ -52,7 +52,7 @@ GENERAL_INSTRUCTIONS = """
 """
 
 #
-# For OpenAI and other agents that just require systems
+# For OpenAI and other agents that just require a systems prompt
 #
 GENERAL_PROMPT_TEMPLATE = """
 You are a helpful chatbot in conversation with a user, with expertise in {chat_topic}.
@@ -65,9 +65,7 @@ IMPORTANT - FOLLOW THESE INSTRUCTIONS CAREFULLY:
 {INSTRUCTIONS}
 {custom_instructions}
 
-""".replace(
-    "{INSTRUCTIONS}", GENERAL_INSTRUCTIONS
-)
+"""
 
 #
 # Custom REACT prompt
@@ -132,9 +130,7 @@ Answer: [your answer here (In the same language as the user's question)]
 ## Current Conversation
 
 Below is the current conversation consisting of interleaving human and assistant messages.
-""".replace(
-    "{INSTRUCTIONS}", GENERAL_INSTRUCTIONS
-)
+"""
 
 #
 # Prompts for structured planning agent

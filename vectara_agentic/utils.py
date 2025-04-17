@@ -20,8 +20,8 @@ from .agent_config import AgentConfig
 provider_to_default_model_name = {
     ModelProvider.OPENAI: "gpt-4o",
     ModelProvider.ANTHROPIC: "claude-3-7-sonnet-20250219",
-    ModelProvider.TOGETHER: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
-    ModelProvider.GROQ: "llama-3.3-70b-versatile",
+    ModelProvider.TOGETHER: "meta-llama/Llama-4-Scout-17B-16E-Instruct",
+    ModelProvider.GROQ: "meta-llama/llama-4-scout-17b-16e-instruct",
     ModelProvider.FIREWORKS: "accounts/fireworks/models/firefunction-v2",
     ModelProvider.BEDROCK: "anthropic.claude-3-5-sonnet-20241022-v2:0",
     ModelProvider.COHERE: "command-r-plus",
@@ -124,8 +124,7 @@ def get_llm(
         from llama_index.llms.groq import Groq
         llm = Groq(
             model=model_name, temperature=0,
-            is_function_calling_model=True,
-            max_tokens=max_tokens
+            is_function_calling_model=True, max_tokens=max_tokens
         )
     elif model_provider == ModelProvider.FIREWORKS:
         from llama_index.llms.fireworks import Fireworks

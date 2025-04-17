@@ -29,6 +29,7 @@ def setup_observer(config: AgentConfig, verbose: bool) -> bool:
             tracer_provider = register(endpoint=phoenix_endpoint, project_name="vectara-agentic")
         else:       # Self hosted Phoenix
             tracer_provider = register(endpoint=phoenix_endpoint, project_name="vectara-agentic")
+        print(f"DEBUG - tracer_provider: {tracer_provider}")
         LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
         return True
     if verbose:

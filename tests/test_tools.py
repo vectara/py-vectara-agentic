@@ -1,5 +1,4 @@
 import unittest
-
 from pydantic import Field, BaseModel
 
 from vectara_agentic.tools import (
@@ -23,15 +22,11 @@ class TestToolsPackage(unittest.TestCase):
         self.assertEqual(vectara_corpus_key, vec_factory.vectara_corpus_key)
         self.assertEqual(vectara_api_key, vec_factory.vectara_api_key)
 
-        class QueryToolArgs(BaseModel):
-            query: str = Field(description="The user query")
-
         query_tool = vec_factory.create_rag_tool(
             tool_name="rag_tool",
             tool_description="""
             Returns a response (str) to the user query based on the data in this corpus.
             """,
-            tool_args_schema=QueryToolArgs,
         )
 
         self.assertIsInstance(query_tool, VectaraTool)
@@ -43,11 +38,23 @@ class TestToolsPackage(unittest.TestCase):
             tool_description="""
             Returns a list of documents (str) that match the user query.
             """,
-            tool_args_schema=QueryToolArgs,
         )
         self.assertIsInstance(search_tool, VectaraTool)
         self.assertIsInstance(search_tool, FunctionTool)
         self.assertEqual(search_tool.metadata.tool_type, ToolType.QUERY)
+        self.assertIn("summarize", search_tool.metadata.description)
+
+        search_tool = vec_factory.create_search_tool(
+            tool_name="search_tool",
+            tool_description="""
+            Returns a list of documents (str) that match the user query.
+            """,
+            summarize_docs=False,
+        )
+        self.assertIsInstance(search_tool, VectaraTool)
+        self.assertIsInstance(search_tool, FunctionTool)
+        self.assertEqual(search_tool.metadata.tool_type, ToolType.QUERY)
+        self.assertNotIn("summarize", search_tool.metadata.description)
 
     def test_vectara_tool_validation(self):
         vectara_corpus_key = "corpus_key"
@@ -55,14 +62,11 @@ class TestToolsPackage(unittest.TestCase):
         vec_factory = VectaraToolFactory(vectara_corpus_key, vectara_api_key)
 
         class QueryToolArgs(BaseModel):
-            query: str = Field(description="The user query")
-            year: int = Field(
-                description="The year of the document",
-                example=2023,
-            )
-            ticker: str = Field(
-                description="The stock ticker",
-                example="AAPL",
+            ticker: str = Field(description="The ticker symbol for the company", examples=['AAPL', 'GOOG'])
+            year: int | str = Field(
+                default=None,
+                description="The year this query relates to. An integer between 2015 and 2024 or a string specifying a condition on the year",
+                examples=[2020, '>2021', '<2023', '>=2021', '<=2023', '[2021, 2023]', '[2021, 2023)']
             )
 
         query_tool = vec_factory.create_rag_tool(
@@ -72,11 +76,12 @@ class TestToolsPackage(unittest.TestCase):
             """,
             tool_args_schema=QueryToolArgs,
         )
+
         res = query_tool(
             query="What is the stock price?",
             the_year=2023,
         )
-        self.assertIn("Malfunction", str(res))
+        self.assertIn("got an unexpected keyword argument 'the_year'", str(res))
 
         search_tool = vec_factory.create_search_tool(
             tool_name="search_tool",
@@ -89,7 +94,7 @@ class TestToolsPackage(unittest.TestCase):
             query="What is the stock price?",
             the_year=2023,
         )
-        self.assertIn("Malfunction", str(res))
+        self.assertIn("got an unexpected keyword argument 'the_year'", str(res))
 
     def test_tool_factory(self):
         def mult(x: float, y: float) -> float:
@@ -104,20 +109,21 @@ class TestToolsPackage(unittest.TestCase):
     def test_llama_index_tools(self):
         tools_factory = ToolsFactory()
 
-        arxiv_tool = tools_factory.get_llama_index_tools(
-            tool_package_name="arxiv", tool_spec_name="ArxivToolSpec"
-        )[0]
+        for name, spec in [
+            ("arxiv", "ArxivToolSpec"),
+            ("yahoo_finance", "YahooFinanceToolSpec"),
+            ("brave_search", "BraveSearchToolSpec"),
+            ("bing_search", "BingSearchToolSpec"),
+            ("exa_search", "ExaToolSpec"),
+            ("wikipedia", "WikipediaToolSpec"),
+        ]:
+            tool = tools_factory.get_llama_index_tools(
+                tool_package_name=name, tool_spec_name=spec
+            )[0]
+            self.assertIsInstance(tool, VectaraTool)
+            self.assertIsInstance(tool, FunctionTool)
+            self.assertEqual(tool.metadata.tool_type, ToolType.QUERY)
 
-        self.assertIsInstance(arxiv_tool, VectaraTool)
-        self.assertIsInstance(arxiv_tool, FunctionTool)
-        self.assertEqual(arxiv_tool.metadata.tool_type, ToolType.QUERY)
-
-        yfinance_tool = tools_factory.get_llama_index_tools(
-            tool_package_name="yahoo_finance", tool_spec_name="YahooFinanceToolSpec"
-        )[0]
-        self.assertIsInstance(yfinance_tool, VectaraTool)
-        self.assertIsInstance(yfinance_tool, FunctionTool)
-        self.assertEqual(yfinance_tool.metadata.tool_type, ToolType.QUERY)
 
     def test_public_repo(self):
         vectara_corpus_key = "vectara-docs_1"
