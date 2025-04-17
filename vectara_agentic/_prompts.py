@@ -42,7 +42,7 @@ GENERAL_INSTRUCTIONS = """
   Before using the x_load_data with a SQL query, always follow these discovery steps:
   - call the x_list_tables tool to list of available tables in the x database.
   - Call the x_describe_tables tool to understand the schema of each table you want to query data from.
-  - Use the x_load_unique_values tool to understand the unique values in each column.
+  - Use the x_load_unique_values tool to retrieve the unique values in each column, before crafting any SQL query.
     Sometimes the user may ask for a specific column value, but the actual value in the table may be different, and you will need to use the correct value.
   - Use the x_load_sample_data tool to understand the column names, and typical values in each column.
   - For x_load_data, if the tool response indicates the output data is too large, try to refine or refactor your query to return fewer rows.
