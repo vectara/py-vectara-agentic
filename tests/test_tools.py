@@ -156,14 +156,17 @@ class TestToolsPackage(unittest.TestCase):
             """,
             tool_args_schema=QueryToolArgs,
         )
-        res = query_tool(
-            query="What is the stock price?",
-            arg1="val1", arg2="val2", arg3="val3", arg4="val4", arg5="val5",
-            arg6="val6", arg7="val7", arg8="val8", arg9="val9", arg10="val10",            
-        )
-        print(f"DEBUG res = {res}")
-#        self.assertIn("got an unexpected keyword argument 'the_year'", str(res))
 
+        config = AgentConfig()
+        agent = Agent(
+            tools=[query_tool],
+            topic="Sample topic",
+            custom_instructions="Call the tool with 20 arguments",
+            agent_config=config,
+        )
+        res = agent.chat("What is the stock price?")
+        print(f"DEBUG res = {res}")
+        self.assertIn("got an unexpected keyword argument 'the_year'", str(res))
 
     def test_public_repo(self):
         vectara_corpus_key = "vectara-docs_1"

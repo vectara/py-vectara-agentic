@@ -89,7 +89,7 @@ def _get_prompt(prompt_template: str, general_instructions: str, topic: str, cus
 
 
 def _get_llm_compiler_prompt(
-    prompt: str, general_instructions: str, 
+    prompt: str, general_instructions: str,
     topic: str, custom_instructions: str
 ) -> str:
     """
@@ -332,12 +332,26 @@ class Agent:
                 callback_manager=llm_callback_manager,
             )
             agent_worker.system_prompt = _get_prompt(
-                _get_llm_compiler_prompt(agent_worker.system_prompt, GENERAL_INSTRUCTIONS, self._topic, self._custom_instructions),
-                self._topic, self._custom_instructions
+                prompt_template=_get_llm_compiler_prompt(
+                    prompt=agent_worker.system_prompt,
+                    general_instructions=GENERAL_INSTRUCTIONS,
+                    topic=self._topic,
+                    custom_instructions=self._custom_instructions
+                ),
+                general_instructions=GENERAL_INSTRUCTIONS,
+                topic=self._topic,
+                custom_instructions=self._custom_instructions
             )
             agent_worker.system_prompt_replan = _get_prompt(
-                _get_llm_compiler_prompt(agent_worker.system_prompt_replan, GENERAL_INSTRUCTIONS, self._topic, self._custom_instructions),
-                self._topic, self._custom_instructions
+                prompt_template=_get_llm_compiler_prompt(
+                    prompt=agent_worker.system_prompt_replan,
+                    general_instructions=GENERAL_INSTRUCTIONS,
+                    topic=self._topic,
+                    custom_instructions=self._custom_instructions
+                ),
+                general_instructions=GENERAL_INSTRUCTIONS,
+                topic=self._topic,
+                custom_instructions=self._custom_instructions
             )
             agent = agent_worker.as_agent()
         elif agent_type == AgentType.LATS:
@@ -349,7 +363,7 @@ class Agent:
                 verbose=self.verbose,
                 callback_manager=llm_callback_manager,
             )
-            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, self._topic, self._custom_instructions)
+            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, GENERAL_INSTRUCTIONS, self._topic, self._custom_instructions)
             agent_worker.chat_formatter = ReActChatFormatter(system_header=prompt)
             agent = agent_worker.as_agent()
         else:

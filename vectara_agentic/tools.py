@@ -312,7 +312,7 @@ def _create_tool_from_dynamic_function(
     signature_line = f"{tool_name}({params_str}) -> dict[str, Any]"
     if compact_docstring:
         doc_lines = [
-            tool_description.strip(),            
+            tool_description.strip(),
         ]
     else:
         doc_lines = [
