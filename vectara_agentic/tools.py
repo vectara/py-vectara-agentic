@@ -220,9 +220,6 @@ class VectaraTool(FunctionTool):
             )
             return err_output
         except Exception as e:
-            import traceback
-
-            print(f"DEBUG: {traceback.format_exc()}")
             err_output = ToolOutput(
                 tool_name=self.metadata.name,
                 content=f"Tool {self.metadata.name} Malfunction: {str(e)}",

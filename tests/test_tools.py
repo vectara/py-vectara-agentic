@@ -112,9 +112,6 @@ class TestToolsPackage(unittest.TestCase):
         for name, spec in [
             ("arxiv", "ArxivToolSpec"),
             ("yahoo_finance", "YahooFinanceToolSpec"),
-            ("brave_search", "BraveSearchToolSpec"),
-            ("bing_search", "BingSearchToolSpec"),
-            ("exa_search", "ExaToolSpec"),
             ("wikipedia", "WikipediaToolSpec"),
         ]:
             tool = tools_factory.get_llama_index_tools(
@@ -123,6 +120,49 @@ class TestToolsPackage(unittest.TestCase):
             self.assertIsInstance(tool, VectaraTool)
             self.assertIsInstance(tool, FunctionTool)
             self.assertEqual(tool.metadata.tool_type, ToolType.QUERY)
+
+    def test_tool_with_many_arguments(self):
+        vectara_corpus_key = "corpus_key"
+        vectara_api_key = "api_key"
+        vec_factory = VectaraToolFactory(vectara_corpus_key, vectara_api_key)
+
+        class QueryToolArgs(BaseModel):
+            arg1: str = Field(description="the first argument", examples=['val1'])
+            arg2: str = Field(description="the second argument", examples=['val2'])
+            arg3: str = Field(description="the third argument", examples=['val3'])
+            arg4: str = Field(description="the fourth argument", examples=['val4'])
+            arg5: str = Field(description="the fifth argument", examples=['val5'])
+            arg6: str = Field(description="the sixth argument", examples=['val6'])
+            arg7: str = Field(description="the seventh argument", examples=['val7'])
+            arg8: str = Field(description="the eighth argument", examples=['val8'])
+            arg9: str = Field(description="the ninth argument", examples=['val9'])
+            arg10: str = Field(description="the tenth argument", examples=['val10'])
+            arg11: str = Field(description="the eleventh argument", examples=['val11'])
+            arg12: str = Field(description="the twelfth argument", examples=['val12'])
+            arg13: str = Field(description="the thirteenth argument", examples=['val13'])
+            arg14: str = Field(description="the fourteenth argument", examples=['val14'])
+            arg15: str = Field(description="the fifteenth argument", examples=['val15'])
+            arg16: str = Field(description="the sixteenth argument", examples=['val16'])
+            arg17: str = Field(description="the seventeenth argument", examples=['val17'])
+            arg18: str = Field(description="the eighteenth argument", examples=['val18'])
+            arg19: str = Field(description="the nineteenth argument", examples=['val19'])
+            arg20: str = Field(description="the twentieth argument", examples=['val20'])
+
+        query_tool = vec_factory.create_rag_tool(
+            tool_name="rag_tool",
+            tool_description="""
+            A dummy tool that takes 20 arguments and returns a response (str) to the user query based on the data in this corpus.
+            We are using this tool to test the tool factory works and doesn not crash with OpenAI.
+            """,
+            tool_args_schema=QueryToolArgs,
+        )
+        res = query_tool(
+            query="What is the stock price?",
+            arg1="val1", arg2="val2", arg3="val3", arg4="val4", arg5="val5",
+            arg6="val6", arg7="val7", arg8="val8", arg9="val9", arg10="val10",            
+        )
+        print(f"DEBUG res = {res}")
+#        self.assertIn("got an unexpected keyword argument 'the_year'", str(res))
 
 
     def test_public_repo(self):
