@@ -142,13 +142,8 @@ class TestToolsPackage(unittest.TestCase):
             arg13: str = Field(description="the thirteenth argument", examples=['val13'])
             arg14: str = Field(description="the fourteenth argument", examples=['val14'])
             arg15: str = Field(description="the fifteenth argument", examples=['val15'])
-            arg16: str = Field(description="the sixteenth argument", examples=['val16'])
-            arg17: str = Field(description="the seventeenth argument", examples=['val17'])
-            arg18: str = Field(description="the eighteenth argument", examples=['val18'])
-            arg19: str = Field(description="the nineteenth argument", examples=['val19'])
-            arg20: str = Field(description="the twentieth argument", examples=['val20'])
 
-        query_tool = vec_factory.create_rag_tool(
+        query_tool_1 = vec_factory.create_rag_tool(
             tool_name="rag_tool",
             tool_description="""
             A dummy tool that takes 20 arguments and returns a response (str) to the user query based on the data in this corpus.
@@ -159,13 +154,36 @@ class TestToolsPackage(unittest.TestCase):
 
         config = AgentConfig()
         agent = Agent(
-            tools=[query_tool],
+            tools=[query_tool_1],
             topic="Sample topic",
             custom_instructions="Call the tool with 20 arguments",
             agent_config=config,
         )
+        agent.report(detailed=True)
         res = agent.chat("What is the stock price?")
         self.assertIn("maximum length of 1024 characters", str(res))
+
+        vec_factory = VectaraToolFactory(vectara_corpus_key, vectara_api_key, compact_docstring=True)
+        query_tool_2 = vec_factory.create_rag_tool(
+            tool_name="rag_tool",
+            tool_description="""
+            A dummy tool that takes 15 arguments and returns a response (str) to the user query based on the data in this corpus.
+            We are using this tool to test the tool factory works and doesn not crash with OpenAI.
+            """,
+            tool_args_schema=QueryToolArgs,
+        )
+
+        config = AgentConfig()
+        agent = Agent(
+            tools=[query_tool_2],
+            topic="Sample topic",
+            custom_instructions="Call the tool with 20 arguments",
+            agent_config=config,
+        )
+        agent.report(detailed=True)
+        res = agent.chat("What is the stock price?")
+        self.assertIn("stock price", str(res))
+
 
     def test_public_repo(self):
         vectara_corpus_key = "vectara-docs_1"
