@@ -165,8 +165,7 @@ class TestToolsPackage(unittest.TestCase):
             agent_config=config,
         )
         res = agent.chat("What is the stock price?")
-        print(f"DEBUG res = {res}")
-        self.assertIn("got an unexpected keyword argument 'the_year'", str(res))
+        self.assertIn("maximum length of 1024 characters", str(res))
 
     def test_public_repo(self):
         vectara_corpus_key = "vectara-docs_1"
