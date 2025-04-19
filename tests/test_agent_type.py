@@ -9,6 +9,7 @@ import nest_asyncio
 nest_asyncio.apply()
 
 def mult(x: float, y: float) -> float:
+    "Multiply two numbers"
     return x * y
 
 

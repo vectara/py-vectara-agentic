@@ -19,12 +19,12 @@ from .agent_config import AgentConfig
 
 provider_to_default_model_name = {
     ModelProvider.OPENAI: "gpt-4o",
-    ModelProvider.ANTHROPIC: "claude-3-7-sonnet-20250219",
-    ModelProvider.TOGETHER: "meta-llama/Llama-4-Scout-17B-16E-Instruct",
+    ModelProvider.ANTHROPIC: "claude-3-7-sonnet-latest",
+    ModelProvider.TOGETHER: "Qwen/Qwen2.5-72B-Instruct-Turbo",
     ModelProvider.GROQ: "meta-llama/llama-4-scout-17b-16e-instruct",
     ModelProvider.FIREWORKS: "accounts/fireworks/models/firefunction-v2",
-    ModelProvider.BEDROCK: "anthropic.claude-3-5-sonnet-20241022-v2:0",
-    ModelProvider.COHERE: "command-r-plus",
+    ModelProvider.BEDROCK: "anthropic.claude-3-7-sonnet-20250219-v1:0",
+    ModelProvider.COHERE: "command-a-03-2025",
     ModelProvider.GEMINI: "models/gemini-2.0-flash",
 }
 
@@ -82,7 +82,6 @@ def get_tokenizer_for_model(
         return Anthropic().tokenizer
     return None
 
-
 @lru_cache(maxsize=None)
 def get_llm(
     role: LLMRole,
@@ -118,13 +117,14 @@ def get_llm(
         llm = TogetherLLM(
             model=model_name, temperature=0,
             is_function_calling_model=True,
-            max_tokens=max_tokens
+            max_tokens=max_tokens,
         )
     elif model_provider == ModelProvider.GROQ:
         from llama_index.llms.groq import Groq
         llm = Groq(
             model=model_name, temperature=0,
-            is_function_calling_model=True, max_tokens=max_tokens
+            is_function_calling_model=True,
+            max_tokens=max_tokens,
         )
     elif model_provider == ModelProvider.FIREWORKS:
         from llama_index.llms.fireworks import Fireworks
@@ -163,21 +163,26 @@ def remove_self_from_signature(func):
     func.__signature__ = new_sig
     return func
 
-async def summarize_vectara_document(corpus_key: str, vectara_api_key: str, doc_id: str) -> str:
+async def summarize_vectara_document(
+    llm_name: str,
+    corpus_key: str, 
+    api_key: str, 
+    doc_id: str
+) -> str:
     """
     Summarize a document in a Vectara corpus using the Vectara API.
     """
     url = f"https://api.vectara.io/v2/corpora/{corpus_key}/documents/{doc_id}/summarize"
 
     payload = json.dumps({
-        "llm_name": "gpt-4o",
-        "model_parameters": {},
+        "llm_name": llm_name,
+        "model_parameters": { 'temperature': 0.0 },
         "stream_response": False
     })
     headers = {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'x-api-key': vectara_api_key
+        'x-api-key': api_key
     }
     timeout = aiohttp.ClientTimeout(total=60)
     async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -193,17 +198,25 @@ async def summarize_vectara_document(corpus_key: str, vectara_api_key: str, doc_
     return json.loads(response.text)["summary"]
 
 async def summarize_documents(
-    vectara_corpus_key: str,
-    vectara_api_key: str,
-    doc_ids: list[str]
+    corpus_key: str,
+    api_key: str,
+    doc_ids: list[str],
+    llm_name: str = "gpt-4o",
 ) -> dict[str, str]:
     """
     Summarize multiple documents in a Vectara corpus using the Vectara API.
     """
     if not doc_ids:
         return {}
+    if llm_name is None:
+        llm_name = "gpt-4o"
     tasks = [
-        summarize_vectara_document(vectara_corpus_key, vectara_api_key, doc_id)
+        summarize_vectara_document(
+            corpus_key=corpus_key, 
+            api_key=api_key, 
+            llm_name=llm_name, 
+            doc_id=doc_id
+        )
         for doc_id in doc_ids
     ]
     summaries = await asyncio.gather(*tasks, return_exceptions=True)

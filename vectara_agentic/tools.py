@@ -540,6 +540,7 @@ class VectaraToolFactory:
         tool_args_schema: type[BaseModel] = None,
         tool_args_type: Dict[str, str] = {},
         summarize_docs: Optional[bool] = None,
+        summarize_llm_name: Optional[str] = None,
         fixed_filter: str = "",
         lambda_val: Union[List[float], float] = 0.005,
         semantics: Union[List[str] | str] = "default",
@@ -676,7 +677,10 @@ class VectaraToolFactory:
             if summarize:
                 summaries_dict = asyncio.run(
                     summarize_documents(
-                        self.vectara_corpus_key, self.vectara_api_key, list(unique_ids)
+                        corpus_key = self.vectara_corpus_key, 
+                        api_key = self.vectara_api_key, 
+                        llm_name = summarize_llm_name, 
+                        doc_ids = list(unique_ids)
                     )
                 )
                 for doc_id, metadata in docs:

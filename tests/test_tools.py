@@ -12,11 +12,13 @@ from vectara_agentic.agent_config import AgentConfig
 
 from llama_index.core.tools import FunctionTool
 
+# Special test account credentials for Vectara
+vectara_corpus_key = "vectara-docs_1"
+vectara_api_key = 'zqt_UXrBcnI2UXINZkrv4g1tQPhzj02vfdtqYJIDiA'
 
 class TestToolsPackage(unittest.TestCase):
-    def test_vectara_tool_factory(self):
-        vectara_corpus_key = "corpus_key"
-        vectara_api_key = "api_key"
+    
+    def test_vectara_rag_tool(self):
         vec_factory = VectaraToolFactory(vectara_corpus_key, vectara_api_key)
 
         self.assertEqual(vectara_corpus_key, vec_factory.vectara_corpus_key)
@@ -33,22 +35,27 @@ class TestToolsPackage(unittest.TestCase):
         self.assertIsInstance(query_tool, FunctionTool)
         self.assertEqual(query_tool.metadata.tool_type, ToolType.QUERY)
 
+        res = query_tool(query="What is Vectara?")
+        self.assertIn("Vectara is an end-to-end platform", str(res))
+
+    def test_vectara_search_tool(self):
+        vec_factory = VectaraToolFactory(vectara_corpus_key, vectara_api_key)
+
         search_tool = vec_factory.create_search_tool(
             tool_name="search_tool",
-            tool_description="""
-            Returns a list of documents (str) that match the user query.
-            """,
+            tool_description="Returns a list of documents (str) that match the user query."
         )
         self.assertIsInstance(search_tool, VectaraTool)
         self.assertIsInstance(search_tool, FunctionTool)
         self.assertEqual(search_tool.metadata.tool_type, ToolType.QUERY)
         self.assertIn("summarize", search_tool.metadata.description)
 
+        res = search_tool(query="What is Vectara?")
+        self.assertIn("https-docs-vectara-com-docs", str(res))
+
         search_tool = vec_factory.create_search_tool(
             tool_name="search_tool",
-            tool_description="""
-            Returns a list of documents (str) that match the user query.
-            """,
+            tool_description="Returns a list of documents (str) that match the user query.",
             summarize_docs=False,
         )
         self.assertIsInstance(search_tool, VectaraTool)
@@ -56,9 +63,24 @@ class TestToolsPackage(unittest.TestCase):
         self.assertEqual(search_tool.metadata.tool_type, ToolType.QUERY)
         self.assertNotIn("summarize", search_tool.metadata.description)
 
+        res = search_tool(query="What is Vectara?")
+        self.assertIn("https-docs-vectara-com-docs", str(res))
+
+        search_tool = vec_factory.create_search_tool(
+            tool_name="search_tool",
+            tool_description="Returns a list of documents (str) that match the user query.",
+            summarize_docs=True,
+        )
+        self.assertIsInstance(search_tool, VectaraTool)
+        self.assertIsInstance(search_tool, FunctionTool)
+        self.assertEqual(search_tool.metadata.tool_type, ToolType.QUERY)
+        self.assertNotIn("summarize", search_tool.metadata.description)
+
+        res = search_tool(query="What is Vectara?")
+        self.assertIn("summary: 'Vectara is", str(res))
+
+
     def test_vectara_tool_validation(self):
-        vectara_corpus_key = "corpus_key"
-        vectara_api_key = "api_key"
         vec_factory = VectaraToolFactory(vectara_corpus_key, vectara_api_key)
 
         class QueryToolArgs(BaseModel):
@@ -71,9 +93,7 @@ class TestToolsPackage(unittest.TestCase):
 
         query_tool = vec_factory.create_rag_tool(
             tool_name="rag_tool",
-            tool_description="""
-            Returns a response (str) to the user query based on the data in this corpus.
-            """,
+            tool_description="Returns a response (str) to the user query based on the data in this corpus.",
             tool_args_schema=QueryToolArgs,
         )
 
@@ -85,9 +105,7 @@ class TestToolsPackage(unittest.TestCase):
 
         search_tool = vec_factory.create_search_tool(
             tool_name="search_tool",
-            tool_description="""
-            Returns a list of documents (str) that match the user query.
-            """,
+            tool_description="Returns a list of documents (str) that match the user query.",
             tool_args_schema=QueryToolArgs,
         )
         res = search_tool(
@@ -147,7 +165,7 @@ class TestToolsPackage(unittest.TestCase):
             tool_name="rag_tool",
             tool_description="""
             A dummy tool that takes 20 arguments and returns a response (str) to the user query based on the data in this corpus.
-            We are using this tool to test the tool factory works and doesn not crash with OpenAI.
+            We are using this tool to test the tool factory works and does not crash with OpenAI.
             """,
             tool_args_schema=QueryToolArgs,
         )
@@ -159,7 +177,6 @@ class TestToolsPackage(unittest.TestCase):
             custom_instructions="Call the tool with 20 arguments",
             agent_config=config,
         )
-        agent.report(detailed=True)
         res = agent.chat("What is the stock price?")
         self.assertIn("maximum length of 1024 characters", str(res))
 
@@ -180,10 +197,8 @@ class TestToolsPackage(unittest.TestCase):
             custom_instructions="Call the tool with 20 arguments",
             agent_config=config,
         )
-        agent.report(detailed=True)
         res = agent.chat("What is the stock price?")
         self.assertIn("stock price", str(res))
-
 
     def test_public_repo(self):
         vectara_corpus_key = "vectara-docs_1"
