@@ -49,29 +49,28 @@ class TestLLMPackage(unittest.TestCase):
         res = query_tool(query="What is Vectara?")
         self.assertIn("Vectara is an end-to-end platform", str(res))
 
-    # def test_vectara_mockingbird(self):
-    #     vec_factory = VectaraToolFactory(vectara_corpus_key, vectara_api_key)
+    def test_vectara_mockingbird(self):
+        vec_factory = VectaraToolFactory(vectara_corpus_key, vectara_api_key)
 
-    #     query_tool = vec_factory.create_rag_tool(
-    #         tool_name="rag_tool",
-    #         tool_description="""
-    #         Returns a response (str) to the user query based on the data in this corpus.
-    #         """,
-    #         vectara_summarizer="mockingbird-1.0-2024-07-16",
-    #     )
-    #     res = query_tool(query="What is Vectara?")
-    #     self.assertIn("Vectara is an end-to-end platform", str(res))
+        query_tool = vec_factory.create_rag_tool(
+            tool_name="rag_tool",
+            tool_description="""
+            Returns a response (str) to the user query based on the data in this corpus.
+            """,
+            vectara_summarizer="mockingbird-1.0-2024-07-16",
+        )
+        res = query_tool(query="What is Vectara?")
+        self.assertIn("Vectara is an end-to-end platform", str(res))
 
-    #     query_tool = vec_factory.create_rag_tool(
-    #         tool_name="rag_tool",
-    #         tool_description="""
-    #         Returns a response (str) to the user query based on the data in this corpus.
-    #         """,
-    #         vectara_summarizer="mockingbird-2024-06-18-experimental",
-    #         verbose=True,
-    #     )
-    #     res = query_tool(query="What is Vectara?")
-    #     self.assertIn("Vectara is an end-to-end platform", str(res))
+        query_tool = vec_factory.create_rag_tool(
+            tool_name="rag_tool",
+            tool_description="""
+            Returns a response (str) to the user query based on the data in this corpus.
+            """,
+            vectara_summarizer="mockingbird-2.0",
+        )
+        res = query_tool(query="What is Vectara?")
+        self.assertIn("Vectara is an end-to-end platform", str(res))
 
 
 if __name__ == "__main__":
