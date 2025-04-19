@@ -67,12 +67,13 @@ logger.setLevel(logging.CRITICAL)
 
 load_dotenv(override=True)
 
-def _get_prompt(prompt_template: str, topic: str, custom_instructions: str):
+def _get_prompt(prompt_template: str, general_instructions: str, topic: str, custom_instructions: str):
     """
     Generate a prompt by replacing placeholders with topic and date.
 
     Args:
         prompt_template (str): The template for the prompt.
+        general_instructions (str): General instructions to be included in the prompt.
         topic (str): The topic to be included in the prompt.
         custom_instructions(str): The custom instructions to be included in the prompt.
 
@@ -83,10 +84,14 @@ def _get_prompt(prompt_template: str, topic: str, custom_instructions: str):
         prompt_template.replace("{chat_topic}", topic)
         .replace("{today}", date.today().strftime("%A, %B %d, %Y"))
         .replace("{custom_instructions}", custom_instructions)
+        .replace("{INSTRUCTIONS}", general_instructions)
     )
 
 
-def _get_llm_compiler_prompt(prompt: str, topic: str, custom_instructions: str) -> str:
+def _get_llm_compiler_prompt(
+    prompt: str, general_instructions: str,
+    topic: str, custom_instructions: str
+) -> str:
     """
     Add custom instructions to the prompt.
 
@@ -98,7 +103,7 @@ def _get_llm_compiler_prompt(prompt: str, topic: str, custom_instructions: str) 
     """
     prompt += "\nAdditional Instructions:\n"
     prompt += f"You have experise in {topic}.\n"
-    prompt += GENERAL_INSTRUCTIONS
+    prompt += general_instructions
     prompt += custom_instructions
     prompt += f"Today is {date.today().strftime('%A, %B %d, %Y')}"
     return prompt
@@ -282,7 +287,7 @@ class Agent:
                 raise ValueError(
                     "Vectara-agentic: Function calling agent type is not supported with the OpenAI LLM."
                 )
-            prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, self._topic, self._custom_instructions)
+            prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, GENERAL_INSTRUCTIONS, self._topic, self._custom_instructions)
             agent = FunctionCallingAgent.from_tools(
                 tools=self.tools,
                 llm=llm,
@@ -294,7 +299,7 @@ class Agent:
                 allow_parallel_tool_calls=True,
             )
         elif agent_type == AgentType.REACT:
-            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, self._topic, self._custom_instructions)
+            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, GENERAL_INSTRUCTIONS, self._topic, self._custom_instructions)
             agent = ReActAgent.from_tools(
                 tools=self.tools,
                 llm=llm,
@@ -309,7 +314,7 @@ class Agent:
                 raise ValueError(
                     "Vectara-agentic: OPENAI agent type requires the OpenAI LLM."
                 )
-            prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, self._topic, self._custom_instructions)
+            prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, GENERAL_INSTRUCTIONS, self._topic, self._custom_instructions)
             agent = OpenAIAgent.from_tools(
                 tools=self.tools,
                 llm=llm,
@@ -327,12 +332,26 @@ class Agent:
                 callback_manager=llm_callback_manager,
             )
             agent_worker.system_prompt = _get_prompt(
-                _get_llm_compiler_prompt(agent_worker.system_prompt, self._topic, self._custom_instructions),
-                self._topic, self._custom_instructions
+                prompt_template=_get_llm_compiler_prompt(
+                    prompt=agent_worker.system_prompt,
+                    general_instructions=GENERAL_INSTRUCTIONS,
+                    topic=self._topic,
+                    custom_instructions=self._custom_instructions
+                ),
+                general_instructions=GENERAL_INSTRUCTIONS,
+                topic=self._topic,
+                custom_instructions=self._custom_instructions
             )
             agent_worker.system_prompt_replan = _get_prompt(
-                _get_llm_compiler_prompt(agent_worker.system_prompt_replan, self._topic, self._custom_instructions),
-                self._topic, self._custom_instructions
+                prompt_template=_get_llm_compiler_prompt(
+                    prompt=agent_worker.system_prompt_replan,
+                    general_instructions=GENERAL_INSTRUCTIONS,
+                    topic=self._topic,
+                    custom_instructions=self._custom_instructions
+                ),
+                general_instructions=GENERAL_INSTRUCTIONS,
+                topic=self._topic,
+                custom_instructions=self._custom_instructions
             )
             agent = agent_worker.as_agent()
         elif agent_type == AgentType.LATS:
@@ -344,7 +363,7 @@ class Agent:
                 verbose=self.verbose,
                 callback_manager=llm_callback_manager,
             )
-            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, self._topic, self._custom_instructions)
+            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, GENERAL_INSTRUCTIONS, self._topic, self._custom_instructions)
             agent_worker.chat_formatter = ReActChatFormatter(system_header=prompt)
             agent = agent_worker.as_agent()
         else:
