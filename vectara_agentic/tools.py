@@ -241,8 +241,10 @@ def _create_tool_from_dynamic_function(
     base_params = []
 
     if tool_args_schema is None:
+
         class EmptyBaseModel(BaseModel):
             """empty base model"""
+
         tool_args_schema = EmptyBaseModel
 
     # Create inspect.Parameter objects for base_params_model fields.
@@ -618,7 +620,11 @@ class VectaraToolFactory:
 
             query = kwargs.pop("query")
             top_k = kwargs.pop("top_k", 10)
-            summarize = kwargs.pop("summarize", True) if summarize_docs is None else summarize_docs
+            summarize = (
+                kwargs.pop("summarize", True)
+                if summarize_docs is None
+                else summarize_docs
+            )
             try:
                 filter_string = _build_filter_string(
                     kwargs, tool_args_type, fixed_filter
@@ -677,10 +683,10 @@ class VectaraToolFactory:
             if summarize:
                 summaries_dict = asyncio.run(
                     summarize_documents(
-                        corpus_key = self.vectara_corpus_key, 
-                        api_key = self.vectara_api_key, 
-                        llm_name = summarize_llm_name, 
-                        doc_ids = list(unique_ids)
+                        corpus_key=self.vectara_corpus_key,
+                        api_key=self.vectara_api_key,
+                        llm_name=summarize_llm_name,
+                        doc_ids=list(unique_ids),
                     )
                 )
                 for doc_id, metadata in docs:
@@ -702,6 +708,7 @@ class VectaraToolFactory:
 
         class SearchToolBaseParams(BaseModel):
             """Model for the base parameters of the search tool."""
+
             query: str = Field(
                 ...,
                 description="The search query to perform, in the form of a question.",
@@ -716,6 +723,7 @@ class VectaraToolFactory:
 
         class SearchToolBaseParamsWithoutSummarize(BaseModel):
             """Model for the base parameters of the search tool."""
+
             query: str = Field(
                 ...,
                 description="The search query to perform, in the form of a question.",
@@ -725,7 +733,8 @@ class VectaraToolFactory:
             )
 
         search_tool_extra_desc = (
-            tool_description + "\n"
+            tool_description
+            + "\n"
             + "Use this tool to search for relevant documents, not to ask questions."
         )
 
@@ -733,7 +742,11 @@ class VectaraToolFactory:
             search_function,
             tool_name,
             search_tool_extra_desc,
-            SearchToolBaseParams if summarize_docs is None else SearchToolBaseParamsWithoutSummarize,
+            (
+                SearchToolBaseParams
+                if summarize_docs is None
+                else SearchToolBaseParamsWithoutSummarize
+            ),
             tool_args_schema,
             compact_docstring=self.compact_docstring,
         )
