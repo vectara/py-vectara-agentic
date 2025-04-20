@@ -123,6 +123,20 @@ class TestAgentPackage(unittest.TestCase):
         res = agent.chat("multiply the results of the last two questions. Output only the answer.")
         self.assertEqual(res.response, "1050")
 
+    def test_custom_general_instruction(self):
+        general_instructions = "Always respond with 'I DIDNT DO IT'"
+        agent = Agent.from_corpus(
+            tool_name="RAG Tool",
+            vectara_corpus_key="corpus_key",
+            vectara_api_key="api_key",
+            data_description="information",
+            assistant_specialty="question answering",
+            general_instructions=general_instructions,
+        )
+
+        res = agent.chat("What is the meaning of the universe?")
+        self.assertEqual(res.response, "I DIDNT DO IT")
+
 
 if __name__ == "__main__":
     unittest.main()

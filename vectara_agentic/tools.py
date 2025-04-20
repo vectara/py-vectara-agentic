@@ -22,7 +22,7 @@ from llama_index.core.workflow.context import Context
 from .types import ToolType
 from .tools_catalog import ToolsCatalog, get_bad_topics
 from .db_tools import DatabaseTools
-from .utils import summarize_documents
+from .utils import summarize_documents, is_float
 from .agent_config import AgentConfig
 
 LI_packages = {
@@ -451,7 +451,7 @@ def _build_filter_string(
             )
 
         # 1) native numeric
-        if isinstance(raw, (int, float)):
+        if isinstance(raw, (int, float)) or is_float(str(raw)):
             val = str(raw)
             if is_list:
                 filter_parts.append(f"({val} IN {prefix}.{key})")

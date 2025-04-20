@@ -509,6 +509,7 @@ class Agent:
         tool_name: str,
         data_description: str,
         assistant_specialty: str,
+        general_instructions: str = GENERAL_INSTRUCTIONS,
         vectara_corpus_key: str = str(os.environ.get("VECTARA_CORPUS_KEY", "")),
         vectara_api_key: str = str(os.environ.get("VECTARA_API_KEY", "")),
         agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
@@ -556,6 +557,9 @@ class Agent:
             chat_history (Tuple[str, str], optional): A list of user/agent chat pairs to initialize the agent memory.
             data_description (str): The description of the data.
             assistant_specialty (str): The specialty of the assistant.
+            general_instructions (str, optional): General instructions for the agent.
+                The Agent has a default set of instructions that are crafted to help it operate effectively.
+                This allows you to customize the agent's behavior and personality, but use with caution.
             verbose (bool, optional): Whether to print verbose output.
             vectara_filter_fields (List[dict], optional): The filterable attributes
                 (each dict maps field name to Tuple[type, description]).
@@ -652,6 +656,7 @@ class Agent:
             tools=[vectara_tool],
             topic=assistant_specialty,
             custom_instructions=assistant_instructions,
+            general_instructions=general_instructions,
             verbose=verbose,
             agent_progress_callback=agent_progress_callback,
             query_logging_callback=query_logging_callback,
