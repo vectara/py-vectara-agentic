@@ -4,8 +4,7 @@
 
 **What is Agentic RAG?**
 
-Agentic RAG is a method that combines the strengths of
-retrieval-augmented-generation with autonomous agents.
+Agentic RAG combines retrieval-augmented-generation (RAG) with autonomous agents. While standard RAG retrieves relevant facts and generates responses, Agentic RAG uses an LLM to "manage" the process through reasoning, planning, and tool usage.
 
 With vanilla RAG, Vectara receives a user query, retrieves the most
 relevant facts from your data, and uses an LLM to generate the most
@@ -71,16 +70,11 @@ on that issue from the first query.
 
 **What is vectara-agentic?**
 
-Vectara-agentic is a Python package that allows you to quickly and
-easily build Agentic RAG applications, powered by Vectara. It is based
-on [LlamaIndex](https://github.com/run-llama/llama_index) and provides a
-simple API to define tools, including a quick way to generate Vectara
-RAG tools.
-
-It also includes some pre-built tools that you can use out-of-the-box
-for various purposes (such as legal or finance), and provides access to
-a wide range of LLMs through integrations with OpenAI, Anthropic,
-Gemini, Together.AI, Cohere, GROQ, and Fireworks AI.
+Vectara-agentic is a Python package for building Agentic RAG applications powered by Vectara. It:
+- Provides a simple API to define tools, including Vectara RAG tools
+- Includes pre-built tools for various domains (legal, finance, etc.)
+- Integrates with multiple LLM providers (OpenAI, Anthropic, Gemini, Together.AI, Cohere, GROQ, Fireworks AI)
+- Supports advanced workflows for complex queries
 
 ## Agent Architecture
 
@@ -99,12 +93,9 @@ of the following components:
 
 ## Basic Example
 
-The most basic application you can make with vectara-agentic is an agent
-with a single RAG tool that can pull information from a Vectara corpus.
+Here's a simple example creating an agent with a single RAG tool:
 
-Let\'s see how this is implemented in code:
-
-``` python
+```python
 from vectara_agentic.agent import Agent
 from vectara_agentic.tools import VectaraToolFactory
 from pydantic import Field, BaseModel
@@ -117,7 +108,6 @@ load_dotenv(override=True)
 api_key = str(os.environ['VECTARA_API_KEY'])
 corpus_key = str(os.environ['VECTARA_CORPUS_KEY'])
 
-
 vec_factory = VectaraToolFactory(
   vectara_api_key = api_key, 
   vectara_corpus_key = corpus_key
@@ -126,7 +116,7 @@ vec_factory = VectaraToolFactory(
 class QueryPetPolicyArgs(BaseModel):
     query: str = Field(..., description="The user query.")
 
-ask_pet_policy_tool = vec_factory.create_rag_tool (
+ask_pet_policy_tool = vec_factory.create_rag_tool(
     tool_name = "ask_pet_policy",
     tool_description = "Responds to questions about Vectara's pet policy.",
     tool_args_schema = QueryPetPolicyArgs,
@@ -177,14 +167,12 @@ agent = Agent.from_corpus(
 
 ## Try it Yourself
 
-If you don\'t already have a Vectara account, simply [create
-one](https://console.vectara.com/signup/?utm_source=github&utm_medium=code&utm_term=DevRel&utm_content=vectara-agentic&utm_campaign=github-code-DevRel-vectara-agentic)
-to get started.
-
-Then add the following environment variables to your console or a .env
-file:
+1. [Create a Vectara account](https://console.vectara.com/signup/?utm_source=github&utm_medium=code&utm_term=DevRel&utm_content=vectara-agentic&utm_campaign=github-code-DevRel-vectara-agentic)
+2. Set up environment variables:
 
 **Vectara Corpus:**
+- `VECTARA_CORPUS_KEY`: Your corpus key
+- `VECTARA_API_KEY`: Your API key
 
 `VECTARA_CORPUS_KEY`: The corpus key for the corpus that contains the
 Vectara pet policy. You can download the [Pet Policy PDF

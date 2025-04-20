@@ -96,6 +96,7 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             is_function_calling_model=True,
             strict=True,
             max_tokens=max_tokens,
+            pydantic_program_mode="openai",
         )
     elif model_provider == ModelProvider.ANTHROPIC:
         llm = Anthropic(

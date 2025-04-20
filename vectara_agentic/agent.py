@@ -147,6 +147,7 @@ class Agent:
         tools: list[FunctionTool],
         topic: str = "general",
         custom_instructions: str = "",
+        general_instructions: str = GENERAL_INSTRUCTIONS,
         verbose: bool = True,
         use_structured_planning: bool = False,
         update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
@@ -167,6 +168,9 @@ class Agent:
             tools (list[FunctionTool]): A list of tools to be used by the agent.
             topic (str, optional): The topic for the agent. Defaults to 'general'.
             custom_instructions (str, optional): Custom instructions for the agent. Defaults to ''.
+            general_instructions (str, optional): General instructions for the agent.
+                The Agent has a default set of instructions that are crafted to help it operate effectively.
+                This allows you to customize the agent's behavior and personality, but use with caution.
             verbose (bool, optional): Whether the agent should print its steps. Defaults to True.
             use_structured_planning (bool, optional)
                 Whether or not we want to wrap the agent with LlamaIndex StructuredPlannerAgent.
@@ -192,6 +196,7 @@ class Agent:
         self.use_structured_planning = use_structured_planning
         self.llm = get_llm(LLMRole.MAIN, config=self.agent_config)
         self._custom_instructions = custom_instructions
+        self._general_instructions = general_instructions
         self._topic = topic
         self.agent_progress_callback = agent_progress_callback if agent_progress_callback else update_func
         self.query_logging_callback = query_logging_callback
@@ -287,7 +292,7 @@ class Agent:
                 raise ValueError(
                     "Vectara-agentic: Function calling agent type is not supported with the OpenAI LLM."
                 )
-            prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, GENERAL_INSTRUCTIONS, self._topic, self._custom_instructions)
+            prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, self._general_instructions, self._topic, self._custom_instructions)
             agent = FunctionCallingAgent.from_tools(
                 tools=self.tools,
                 llm=llm,
@@ -299,7 +304,7 @@ class Agent:
                 allow_parallel_tool_calls=True,
             )
         elif agent_type == AgentType.REACT:
-            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, GENERAL_INSTRUCTIONS, self._topic, self._custom_instructions)
+            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, self._general_instructions, self._topic, self._custom_instructions)
             agent = ReActAgent.from_tools(
                 tools=self.tools,
                 llm=llm,
@@ -314,7 +319,7 @@ class Agent:
                 raise ValueError(
                     "Vectara-agentic: OPENAI agent type requires the OpenAI LLM."
                 )
-            prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, GENERAL_INSTRUCTIONS, self._topic, self._custom_instructions)
+            prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, self._general_instructions, self._topic, self._custom_instructions)
             agent = OpenAIAgent.from_tools(
                 tools=self.tools,
                 llm=llm,
@@ -334,11 +339,11 @@ class Agent:
             agent_worker.system_prompt = _get_prompt(
                 prompt_template=_get_llm_compiler_prompt(
                     prompt=agent_worker.system_prompt,
-                    general_instructions=GENERAL_INSTRUCTIONS,
+                    general_instructions=self._general_instructions,
                     topic=self._topic,
                     custom_instructions=self._custom_instructions
                 ),
-                general_instructions=GENERAL_INSTRUCTIONS,
+                general_instructions=self._general_instructions,
                 topic=self._topic,
                 custom_instructions=self._custom_instructions
             )
@@ -363,7 +368,7 @@ class Agent:
                 verbose=self.verbose,
                 callback_manager=llm_callback_manager,
             )
-            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, GENERAL_INSTRUCTIONS, self._topic, self._custom_instructions)
+            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, self._general_instructions, self._topic, self._custom_instructions)
             agent_worker.chat_formatter = ReActChatFormatter(system_header=prompt)
             agent = agent_worker.as_agent()
         else:
@@ -372,9 +377,11 @@ class Agent:
         # Set up structured planner if needed
         if (self.use_structured_planning
             or self.agent_type in [AgentType.LLMCOMPILER, AgentType.LATS]):
+            planner_llm = get_llm(LLMRole.TOOL, config=config)
             agent = StructuredPlannerAgent(
                 agent_worker=agent.agent_worker,
                 tools=self.tools,
+                llm=planner_llm,
                 memory=self.memory,
                 verbose=self.verbose,
                 initial_plan_prompt=STRUCTURED_PLANNER_INITIAL_PLAN_PROMPT,

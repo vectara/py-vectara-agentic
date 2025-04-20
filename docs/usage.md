@@ -9,7 +9,7 @@ Devices, Intel, and Netflix between the years 2020 and 2024.
 First, we must import some libraries and define some constants for our
 demo.
 
-``` python
+```python
 import os
 from dotenv import load_dotenv
 import streamlit as st
@@ -45,7 +45,7 @@ used to perform RAG queries on analyst call transcripts. You can see
 this tool in use with our [Finance Assistant
 demo](https://huggingface.co/spaces/vectara/finance-assistant).
 
-``` python
+```python
 from pydantic import BaseModel
 
 # define the arguments schema for the tool
@@ -64,7 +64,7 @@ Note that:
 You can also define an argument to support optional conditional
 arguments, for example:
 
-``` python
+```python
 from pydantic import BaseModel
 
 # define the arguments schema for the tool
@@ -88,25 +88,25 @@ condition for Vectara.
 Now to create the actual tool, we use the `create_rag_tool()` method
 from the `VectaraToolFactory` class as follows:
 
-``` python
+```python
 from vectara_agentic.tools import VectaraToolFactory
 
 vec_factory = VectaraToolFactory(vectara_api_key=vectara_api_key,
-                                 vectara_corpus_key=vectar_corpus_key)
+                                 vectara_corpus_key=vectara_corpus_key)
 
 ask_transcripts = vec_factory.create_rag_tool(
     tool_name = "ask_transcripts",
     tool_description = """
     Given a company name and year,
     returns a response (str) to a user question about a company, based on analyst call transcripts about the company's financial reports for that year.
-    You can ask this tool any question about the compaany including risks, opportunities, financial performance, competitors and more.
+    You can ask this tool any question about the company including risks, opportunities, financial performance, competitors and more.
     Make sure to provide the a valid company ticker and year.
     """,
     tool_args_schema = QueryTranscriptsArgs,
     tool_args_type = {
       "year": "doc",
       "ticker": "doc"
-    }
+    },
     reranker = "chain", rerank_k = 100,
     rerank_chain = [
       {
@@ -251,7 +251,7 @@ Currently, we have a few tool groups you may want to consider using:
 For example, to get access to all the legal tools, you can use the
 following:
 
-``` python
+```python
 from vectara_agentic.tools import ToolsFactory
 
 legal_tools = ToolsFactory().legal_tools()
@@ -264,7 +264,9 @@ role="doc"}.
 You can also create your own tool directly by defining a Python
 function:
 
-``` python
+```python
+import numpy as np
+
 def earnings_per_share(
   net_income: float = Field(description="the net income for the company"),
   number_of_shares: float = Field(description="the number of oustanding shares"),
@@ -290,7 +292,7 @@ A few important things to note:
 Here are some functions we will define for our finance assistant
 example:
 
-``` python
+```python
 tickers = {
   "AAPL": "Apple Computer", 
   "GOOG": "Google", 
@@ -399,8 +401,7 @@ arguments:
     If unspecified, no fallback agent is assumed.
 6.  `agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None`:
     This is an optional callback function that will be called on every
-    agent step. It can be used to update the user interface or the steps
-    of the agent.
+    agent step (see below)
 7.  `query_logging_callback: Optional[Callable[[str, str], None]] = None`:
     This is an optional callback function that will be called at the end
     of response generation, with the query and response strings.
@@ -423,7 +424,7 @@ guidelines to follow when creating your instructions:
 
 Here are the instructions we are using for our financial AI assistant:
 
-``` python
+```python
 financial_assistant_instructions = """
   - You are a helpful financial assistant, with expertise in financial reporting, in conversation with a user.
   - Never discuss politics, and always respond politely.
@@ -454,7 +455,7 @@ can see the steps the agent is taking as it answers their questions.
 Since our assistant is using streamlit to display the results, we will
 append the log messages to the session state.
 
-``` python
+```python
 from vectara_agentic.agent import AgentStatusType
 
 def agent_progress_callback(status_type: AgentStatusType, msg: str):
@@ -480,7 +481,7 @@ For example, here is how we can define an `AgentConfig` object to create
 a `ReAct` agent using `OPENAI` as the LLM for the agent and `Cohere` as the
 LLM for the agent's tools:
 
-``` python
+```python
 from vectara_agentic.agent_config import AgentConfig
 
 config = AgentConfig(
@@ -493,7 +494,7 @@ config = AgentConfig(
 **Creating the agent**
 Here is how we will instantiate our finance assistant:
 
-``` python
+```python
 from vectara_agentic import Agent
 
 agent = Agent(
@@ -524,7 +525,7 @@ Once you have created your agent, using it is quite simple. All you have
 to do is call its `chat()` method, which prompts your agent to answer
 the user's query using its available set of tools. It's that easy.
 
-``` python
+```python
 query = "Which 3 companies had the highest revenue in 2022, and how did they do in 2021?"
 print(str(agent.chat(query)))
 ```

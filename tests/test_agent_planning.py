@@ -11,18 +11,12 @@ from pydantic import Field, BaseModel
 vectara_corpus_key = "vectara-docs_1"
 vectara_api_key = 'zqt_UXrBcnI2UXINZkrv4g1tQPhzj02vfdtqYJIDiA'
 
-
-class QueryArgs(BaseModel):
-    query: str = Field(..., description="The user query, always in the form of a question.")
-
-
 vec_factory = VectaraToolFactory(vectara_api_key=vectara_api_key,
                                  vectara_corpus_key=vectara_corpus_key)
 summarizer = 'vectara-summary-table-md-query-ext-jan-2025-gpt-4o'
 ask_vectara = vec_factory.create_rag_tool(
     tool_name = "ask_vectara",
     tool_description = "This tool can respond to questions about Vectara.",
-    tool_args_schema = QueryArgs,
     reranker = "multilingual_reranker_v1", rerank_k = 100, rerank_cutoff = 0.1,
     n_sentences_before = 2, n_sentences_after = 2, lambda_val = 0.005,
     summary_num_results = 10,

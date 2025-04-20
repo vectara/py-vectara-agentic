@@ -137,7 +137,7 @@ Below is the current conversation consisting of interleaving human and assistant
 #
 STRUCTURED_PLANNER_INITIAL_PLAN_PROMPT = """\
 Think step-by-step. Given a task and a set of tools, create a comprehensive, end-to-end plan to accomplish the task, using the tools.
-Only use the tools that are relevant to the task.
+Only use the tools that are relevant to completing the task.
 Keep in mind not every task needs to be decomposed into multiple sub-tasks if it is simple enough.
 The plan should end with a sub-task that can achieve the overall task.
 
@@ -149,6 +149,7 @@ Overall Task: {task}
 
 STRUCTURED_PLANNER_PLAN_REFINE_PROMPT = """\
 Think step-by-step. Given an overall task, a set of tools, and completed sub-tasks, update (if needed) the remaining sub-tasks so that the overall task can still be completed.
+Only use the tools that are relevant to completing the task.
 Do not add new sub-tasks that are not needed to achieve the overall task.
 The final sub-task in the plan should be the one that can satisfy the overall task.
 If you do update the plan, only create new sub-tasks that will replace the remaining sub-tasks, do NOT repeat tasks that are already completed.
