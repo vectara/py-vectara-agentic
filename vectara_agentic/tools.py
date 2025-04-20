@@ -353,7 +353,11 @@ def _create_tool_from_dynamic_function(
         function, "__return_description__", "A dictionary containing the result data."
     )
     doc_lines.append(f"    dict[str, Any]: {return_desc}")
-    function.__doc__ = "\n".join(doc_lines)
+
+    initial_docstring = "\n".join(doc_lines)
+    collapsed_spaces = re.sub(r' {2,}', ' ', initial_docstring)
+    final_docstring = re.sub(r'\n{2,}', '\n', collapsed_spaces).strip()
+    function.__doc__ = final_docstring
 
     tool = VectaraTool.from_defaults(
         fn=function,
