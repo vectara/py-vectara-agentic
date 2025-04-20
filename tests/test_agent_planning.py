@@ -4,8 +4,6 @@ from vectara_agentic.agent_config import AgentConfig
 from vectara_agentic.agent import Agent
 from vectara_agentic.tools import VectaraToolFactory
 
-from pydantic import Field, BaseModel
-
 # SETUP speical test account credentials for vectara
 # It's okay to expose these credentials in the test code
 vectara_corpus_key = "vectara-docs_1"
