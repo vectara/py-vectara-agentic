@@ -76,7 +76,7 @@ database_tools = ToolsFactory().database_tools(
 )
 ```
 
-This creates four tools:
+This creates five tools:
 
 1.  `ev_list_tables`: A tool that lists the tables in the database.
 2.  `ev_describe_tables`: A tool that describes the schema of a table.
@@ -84,16 +84,13 @@ This creates four tools:
 4.  `ev_load_sample_data` tool which provides a sample of the data from a table.
 5.  `ev_load_unique_values` tool which provides unique values for a set of columns in a table.
 
-Together, these 5 tools provide a comprehensive set of capabilities for
-an agent to interact with a database. 
+Together, these 5 tools provide a comprehensive set of capabilities for an agent to interact with a database. 
 
-For example, an agent can use the
-`ev_list_tables` tool to get a list of tables in the database, and then use the `ev_describe_tables` tool to get the schema of a specific table. It will use the `ev_load_sample_data` to get a sample of the data in the table, or the `ev_load_unique_values` to explore the type of values valid for a column. Finally, the agent can use the `ev_load_data` tool to load the data into the agent\'s memory.
+For example, an agent can use the `ev_list_tables` tool to get a list of tables in the database, and then use the `ev_describe_tables` tool to get the schema of a specific table. It will use the `ev_load_sample_data` to get a sample of the data in the table, or the `ev_load_unique_values` to explore the type of values valid for a column. Finally, the agent can use the `ev_load_data` tool to load the data into the agent\'s memory.
 
 **Multiple databases**
 
-In the case of EV-assistant, we use only a single database with 3
-tables, and `tool_name_prefix="ev"`
+In the case of EV-assistant, we use only a single database with 4 tables, and `tool_name_prefix="ev"`
 
 If your use-case includes multiple databases, you can define multiple
 database tools: each with a different database connection and a
