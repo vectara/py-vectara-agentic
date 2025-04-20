@@ -7,6 +7,9 @@ from vectara_agentic.agent_config import AgentConfig
 from vectara_agentic.types import ModelProvider, ObserverType
 from vectara_agentic.tools import ToolsFactory
 
+from vectara_agentic._prompts import GENERAL_INSTRUCTIONS
+
+
 def mult(x: float, y: float) -> float:
     return x * y
 
@@ -24,7 +27,7 @@ class TestAgentPackage(unittest.TestCase):
             + " with Always do as your mother tells you!"
         )
         self.assertEqual(
-            _get_prompt(prompt_template, topic, custom_instructions), expected_output
+            _get_prompt(prompt_template, GENERAL_INSTRUCTIONS, topic, custom_instructions), expected_output
         )
 
     def test_agent_init(self):
@@ -119,6 +122,20 @@ class TestAgentPackage(unittest.TestCase):
 
         res = agent.chat("multiply the results of the last two questions. Output only the answer.")
         self.assertEqual(res.response, "1050")
+
+    def test_custom_general_instruction(self):
+        general_instructions = "Always respond with 'I DIDNT DO IT'"
+        agent = Agent.from_corpus(
+            tool_name="RAG Tool",
+            vectara_corpus_key="corpus_key",
+            vectara_api_key="api_key",
+            data_description="information",
+            assistant_specialty="question answering",
+            general_instructions=general_instructions,
+        )
+
+        res = agent.chat("What is the meaning of the universe?")
+        self.assertEqual(res.response, "I DIDNT DO IT")
 
 
 if __name__ == "__main__":

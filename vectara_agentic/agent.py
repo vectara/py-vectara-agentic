@@ -1,6 +1,7 @@
 """
 This module contains the Agent class for handling different types of agents and their interactions.
 """
+
 from typing import List, Callable, Optional, Dict, Any, Union, Tuple
 import os
 import re
@@ -21,7 +22,11 @@ from pydantic import Field, create_model, ValidationError
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.llms import ChatMessage, MessageRole
 from llama_index.core.tools import FunctionTool
-from llama_index.core.agent import ReActAgent, StructuredPlannerAgent, FunctionCallingAgent
+from llama_index.core.agent import (
+    ReActAgent,
+    StructuredPlannerAgent,
+    FunctionCallingAgent,
+)
 from llama_index.core.agent.react.formatter import ReActChatFormatter
 from llama_index.agent.llm_compiler import LLMCompilerAgentWorker
 from llama_index.agent.lats import LATSAgentWorker
@@ -33,13 +38,22 @@ from llama_index.core.agent.types import BaseAgent
 from llama_index.core.workflow import Workflow
 
 from .types import (
-    AgentType, AgentStatusType, LLMRole, ToolType, ModelProvider,
-    AgentResponse, AgentStreamingResponse, AgentConfigType
+    AgentType,
+    AgentStatusType,
+    LLMRole,
+    ToolType,
+    ModelProvider,
+    AgentResponse,
+    AgentStreamingResponse,
+    AgentConfigType,
 )
 from .utils import get_llm, get_tokenizer_for_model
 from ._prompts import (
-    REACT_PROMPT_TEMPLATE, GENERAL_PROMPT_TEMPLATE, GENERAL_INSTRUCTIONS,
-    STRUCTURED_PLANNER_PLAN_REFINE_PROMPT, STRUCTURED_PLANNER_INITIAL_PLAN_PROMPT
+    REACT_PROMPT_TEMPLATE,
+    GENERAL_PROMPT_TEMPLATE,
+    GENERAL_INSTRUCTIONS,
+    STRUCTURED_PLANNER_PLAN_REFINE_PROMPT,
+    STRUCTURED_PLANNER_INITIAL_PLAN_PROMPT,
 )
 from ._callback import AgentCallbackHandler
 from ._observability import setup_observer, eval_fcs
@@ -47,10 +61,12 @@ from .tools import VectaraToolFactory, VectaraTool, ToolsFactory
 from .tools_catalog import get_current_date
 from .agent_config import AgentConfig
 
+
 class IgnoreUnpickleableAttributeFilter(logging.Filter):
-    '''
+    """
     Filter to ignore log messages that contain certain strings
-    '''
+    """
+
     def filter(self, record):
         msgs_to_ignore = [
             "Removing unpickleable private attribute _chunking_tokenizer_fn",
@@ -67,12 +83,19 @@ logger.setLevel(logging.CRITICAL)
 
 load_dotenv(override=True)
 
-def _get_prompt(prompt_template: str, topic: str, custom_instructions: str):
+
+def _get_prompt(
+    prompt_template: str,
+    general_instructions: str,
+    topic: str,
+    custom_instructions: str,
+):
     """
     Generate a prompt by replacing placeholders with topic and date.
 
     Args:
         prompt_template (str): The template for the prompt.
+        general_instructions (str): General instructions to be included in the prompt.
         topic (str): The topic to be included in the prompt.
         custom_instructions(str): The custom instructions to be included in the prompt.
 
@@ -83,10 +106,13 @@ def _get_prompt(prompt_template: str, topic: str, custom_instructions: str):
         prompt_template.replace("{chat_topic}", topic)
         .replace("{today}", date.today().strftime("%A, %B %d, %Y"))
         .replace("{custom_instructions}", custom_instructions)
+        .replace("{INSTRUCTIONS}", general_instructions)
     )
 
 
-def _get_llm_compiler_prompt(prompt: str, topic: str, custom_instructions: str) -> str:
+def _get_llm_compiler_prompt(
+    prompt: str, general_instructions: str, topic: str, custom_instructions: str
+) -> str:
     """
     Add custom instructions to the prompt.
 
@@ -98,7 +124,7 @@ def _get_llm_compiler_prompt(prompt: str, topic: str, custom_instructions: str) 
     """
     prompt += "\nAdditional Instructions:\n"
     prompt += f"You have experise in {topic}.\n"
-    prompt += GENERAL_INSTRUCTIONS
+    prompt += general_instructions
     prompt += custom_instructions
     prompt += f"Today is {date.today().strftime('%A, %B %d, %Y')}"
     return prompt
@@ -132,6 +158,7 @@ def get_field_type(field_schema: dict) -> Any:
     else:
         return Any
 
+
 class Agent:
     """
     Agent class for handling different types of agents and their interactions.
@@ -142,10 +169,13 @@ class Agent:
         tools: list[FunctionTool],
         topic: str = "general",
         custom_instructions: str = "",
+        general_instructions: str = GENERAL_INSTRUCTIONS,
         verbose: bool = True,
         use_structured_planning: bool = False,
         update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
-        agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
+        agent_progress_callback: Optional[
+            Callable[[AgentStatusType, str], None]
+        ] = None,
         query_logging_callback: Optional[Callable[[str, str], None]] = None,
         agent_config: Optional[AgentConfig] = None,
         fallback_agent_config: Optional[AgentConfig] = None,
@@ -162,6 +192,9 @@ class Agent:
             tools (list[FunctionTool]): A list of tools to be used by the agent.
             topic (str, optional): The topic for the agent. Defaults to 'general'.
             custom_instructions (str, optional): Custom instructions for the agent. Defaults to ''.
+            general_instructions (str, optional): General instructions for the agent.
+                The Agent has a default set of instructions that are crafted to help it operate effectively.
+                This allows you to customize the agent's behavior and personality, but use with caution.
             verbose (bool, optional): Whether the agent should print its steps. Defaults to True.
             use_structured_planning (bool, optional)
                 Whether or not we want to wrap the agent with LlamaIndex StructuredPlannerAgent.
@@ -181,14 +214,17 @@ class Agent:
         self.agent_config = agent_config or AgentConfig()
         self.agent_config_type = AgentConfigType.DEFAULT
         self.tools = tools
-        if not any(tool.metadata.name == 'get_current_date' for tool in self.tools):
+        if not any(tool.metadata.name == "get_current_date" for tool in self.tools):
             self.tools += [ToolsFactory().create_tool(get_current_date)]
         self.agent_type = self.agent_config.agent_type
         self.use_structured_planning = use_structured_planning
         self.llm = get_llm(LLMRole.MAIN, config=self.agent_config)
         self._custom_instructions = custom_instructions
+        self._general_instructions = general_instructions
         self._topic = topic
-        self.agent_progress_callback = agent_progress_callback if agent_progress_callback else update_func
+        self.agent_progress_callback = (
+            agent_progress_callback if agent_progress_callback else update_func
+        )
         self.query_logging_callback = query_logging_callback
 
         self.workflow_cls = workflow_cls
@@ -204,7 +240,7 @@ class Agent:
             raise ValueError(f"Duplicate tools detected: {', '.join(duplicates)}")
 
         if validate_tools:
-            prompt = f'''
+            prompt = f"""
             Given the following instructions, and a list of tool names,
             Please identify tools mentioned in the instructions that do not exist in the list.
             Instructions:
@@ -212,20 +248,28 @@ class Agent:
             Tool names: {', '.join(tool_names)}
             Your response should include a comma separated list of tool names that do not exist in the list.
             Your response should be an empty string if all tools mentioned in the instructions are in the list.
-            '''
+            """
             llm = get_llm(LLMRole.MAIN, config=self.agent_config)
             bad_tools = llm.complete(prompt).text.split(", ")
             if bad_tools:
-                raise ValueError(f"The Agent custom instructions mention these invalid tools: {', '.join(bad_tools)}")
+                raise ValueError(
+                    f"The Agent custom instructions mention these invalid tools: {', '.join(bad_tools)}"
+                )
 
         # Create token counters for the main and tool LLMs
         main_tok = get_tokenizer_for_model(role=LLMRole.MAIN)
-        self.main_token_counter = TokenCountingHandler(tokenizer=main_tok) if main_tok else None
+        self.main_token_counter = (
+            TokenCountingHandler(tokenizer=main_tok) if main_tok else None
+        )
         tool_tok = get_tokenizer_for_model(role=LLMRole.TOOL)
-        self.tool_token_counter = TokenCountingHandler(tokenizer=tool_tok) if tool_tok else None
+        self.tool_token_counter = (
+            TokenCountingHandler(tokenizer=tool_tok) if tool_tok else None
+        )
 
         # Setup callback manager
-        callbacks: list[BaseCallbackHandler] = [AgentCallbackHandler(self.agent_progress_callback)]
+        callbacks: list[BaseCallbackHandler] = [
+            AgentCallbackHandler(self.agent_progress_callback)
+        ]
         if self.main_token_counter:
             callbacks.append(self.main_token_counter)
         if self.tool_token_counter:
@@ -236,9 +280,17 @@ class Agent:
         if chat_history:
             msg_history = []
             for text_pairs in chat_history:
-                msg_history.append(ChatMessage.from_str(content=text_pairs[0], role=MessageRole.USER))
-                msg_history.append(ChatMessage.from_str(content=text_pairs[1], role=MessageRole.ASSISTANT))
-            self.memory = ChatMemoryBuffer.from_defaults(token_limit=128000, chat_history=msg_history)
+                msg_history.append(
+                    ChatMessage.from_str(content=text_pairs[0], role=MessageRole.USER)
+                )
+                msg_history.append(
+                    ChatMessage.from_str(
+                        content=text_pairs[1], role=MessageRole.ASSISTANT
+                    )
+                )
+            self.memory = ChatMemoryBuffer.from_defaults(
+                token_limit=128000, chat_history=msg_history
+            )
         else:
             self.memory = ChatMemoryBuffer.from_defaults(token_limit=128000)
 
@@ -246,7 +298,9 @@ class Agent:
         self.agent = self._create_agent(self.agent_config, callback_manager)
         self.fallback_agent_config = fallback_agent_config
         if self.fallback_agent_config:
-            self.fallback_agent = self._create_agent(self.fallback_agent_config, callback_manager)
+            self.fallback_agent = self._create_agent(
+                self.fallback_agent_config, callback_manager
+            )
         else:
             self.fallback_agent_config = None
 
@@ -258,9 +312,7 @@ class Agent:
             self.observability_enabled = False
 
     def _create_agent(
-        self,
-        config: AgentConfig,
-        llm_callback_manager: CallbackManager
+        self, config: AgentConfig, llm_callback_manager: CallbackManager
     ) -> Union[BaseAgent, AgentRunner]:
         """
         Creates the agent based on the configuration object.
@@ -282,7 +334,12 @@ class Agent:
                 raise ValueError(
                     "Vectara-agentic: Function calling agent type is not supported with the OpenAI LLM."
                 )
-            prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, self._topic, self._custom_instructions)
+            prompt = _get_prompt(
+                GENERAL_PROMPT_TEMPLATE,
+                self._general_instructions,
+                self._topic,
+                self._custom_instructions,
+            )
             agent = FunctionCallingAgent.from_tools(
                 tools=self.tools,
                 llm=llm,
@@ -294,7 +351,12 @@ class Agent:
                 allow_parallel_tool_calls=True,
             )
         elif agent_type == AgentType.REACT:
-            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, self._topic, self._custom_instructions)
+            prompt = _get_prompt(
+                REACT_PROMPT_TEMPLATE,
+                self._general_instructions,
+                self._topic,
+                self._custom_instructions,
+            )
             agent = ReActAgent.from_tools(
                 tools=self.tools,
                 llm=llm,
@@ -309,7 +371,12 @@ class Agent:
                 raise ValueError(
                     "Vectara-agentic: OPENAI agent type requires the OpenAI LLM."
                 )
-            prompt = _get_prompt(GENERAL_PROMPT_TEMPLATE, self._topic, self._custom_instructions)
+            prompt = _get_prompt(
+                GENERAL_PROMPT_TEMPLATE,
+                self._general_instructions,
+                self._topic,
+                self._custom_instructions,
+            )
             agent = OpenAIAgent.from_tools(
                 tools=self.tools,
                 llm=llm,
@@ -327,12 +394,26 @@ class Agent:
                 callback_manager=llm_callback_manager,
             )
             agent_worker.system_prompt = _get_prompt(
-                _get_llm_compiler_prompt(agent_worker.system_prompt, self._topic, self._custom_instructions),
-                self._topic, self._custom_instructions
+                prompt_template=_get_llm_compiler_prompt(
+                    prompt=agent_worker.system_prompt,
+                    general_instructions=self._general_instructions,
+                    topic=self._topic,
+                    custom_instructions=self._custom_instructions,
+                ),
+                general_instructions=self._general_instructions,
+                topic=self._topic,
+                custom_instructions=self._custom_instructions,
             )
             agent_worker.system_prompt_replan = _get_prompt(
-                _get_llm_compiler_prompt(agent_worker.system_prompt_replan, self._topic, self._custom_instructions),
-                self._topic, self._custom_instructions
+                prompt_template=_get_llm_compiler_prompt(
+                    prompt=agent_worker.system_prompt_replan,
+                    general_instructions=GENERAL_INSTRUCTIONS,
+                    topic=self._topic,
+                    custom_instructions=self._custom_instructions,
+                ),
+                general_instructions=GENERAL_INSTRUCTIONS,
+                topic=self._topic,
+                custom_instructions=self._custom_instructions,
             )
             agent = agent_worker.as_agent()
         elif agent_type == AgentType.LATS:
@@ -344,18 +425,27 @@ class Agent:
                 verbose=self.verbose,
                 callback_manager=llm_callback_manager,
             )
-            prompt = _get_prompt(REACT_PROMPT_TEMPLATE, self._topic, self._custom_instructions)
+            prompt = _get_prompt(
+                REACT_PROMPT_TEMPLATE,
+                self._general_instructions,
+                self._topic,
+                self._custom_instructions,
+            )
             agent_worker.chat_formatter = ReActChatFormatter(system_header=prompt)
             agent = agent_worker.as_agent()
         else:
             raise ValueError(f"Unknown agent type: {agent_type}")
 
         # Set up structured planner if needed
-        if (self.use_structured_planning
-            or self.agent_type in [AgentType.LLMCOMPILER, AgentType.LATS]):
+        if self.use_structured_planning or self.agent_type in [
+            AgentType.LLMCOMPILER,
+            AgentType.LATS,
+        ]:
+            planner_llm = get_llm(LLMRole.TOOL, config=config)
             agent = StructuredPlannerAgent(
                 agent_worker=agent.agent_worker,
                 tools=self.tools,
+                llm=planner_llm,
                 memory=self.memory,
                 verbose=self.verbose,
                 initial_plan_prompt=STRUCTURED_PLANNER_INITIAL_PLAN_PROMPT,
@@ -370,14 +460,19 @@ class Agent:
         """
         if self.agent_config_type == AgentConfigType.DEFAULT:
             self.agent.memory.reset()
-        elif self.agent_config_type == AgentConfigType.FALLBACK and self.fallback_agent_config:
+        elif (
+            self.agent_config_type == AgentConfigType.FALLBACK
+            and self.fallback_agent_config
+        ):
             self.fallback_agent.memory.reset()
         else:
             raise ValueError(f"Invalid agent config type {self.agent_config_type}")
 
     def __eq__(self, other):
         if not isinstance(other, Agent):
-            print(f"Comparison failed: other is not an instance of Agent. (self: {type(self)}, other: {type(other)})")
+            print(
+                f"Comparison failed: other is not an instance of Agent. (self: {type(self)}, other: {type(other)})"
+            )
             return False
 
         # Compare agent_type
@@ -393,12 +488,15 @@ class Agent:
             print(
                 "Comparison failed: tools differ."
                 f"(self.tools: {[t.metadata.name for t in self.tools]}, "
-                f"other.tools: {[t.metadata.name for t in other.tools]})")
+                f"other.tools: {[t.metadata.name for t in other.tools]})"
+            )
             return False
 
         # Compare topic
         if self._topic != other._topic:
-            print(f"Comparison failed: topic differs. (self.topic: {self._topic}, other.topic: {other._topic})")
+            print(
+                f"Comparison failed: topic differs. (self.topic: {self._topic}, other.topic: {other._topic})"
+            )
             return False
 
         # Compare custom_instructions
@@ -411,7 +509,9 @@ class Agent:
 
         # Compare verbose
         if self.verbose != other.verbose:
-            print(f"Comparison failed: verbose differs. (self.verbose: {self.verbose}, other.verbose: {other.verbose})")
+            print(
+                f"Comparison failed: verbose differs. (self.verbose: {self.verbose}, other.verbose: {other.verbose})"
+            )
             return False
 
         # Compare agent memory
@@ -434,7 +534,9 @@ class Agent:
         custom_instructions: str = "",
         verbose: bool = True,
         update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
-        agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
+        agent_progress_callback: Optional[
+            Callable[[AgentStatusType, str], None]
+        ] = None,
         query_logging_callback: Optional[Callable[[str, str], None]] = None,
         agent_config: AgentConfig = AgentConfig(),
         validate_tools: bool = False,
@@ -467,14 +569,19 @@ class Agent:
             Agent: An instance of the Agent class.
         """
         return cls(
-            tools=tools, topic=topic, custom_instructions=custom_instructions,
-            verbose=verbose, agent_progress_callback=agent_progress_callback,
+            tools=tools,
+            topic=topic,
+            custom_instructions=custom_instructions,
+            verbose=verbose,
+            agent_progress_callback=agent_progress_callback,
             query_logging_callback=query_logging_callback,
-            update_func=update_func, agent_config=agent_config,
+            update_func=update_func,
+            agent_config=agent_config,
             chat_history=chat_history,
             validate_tools=validate_tools,
             fallback_agent_config=fallback_agent_config,
-            workflow_cls = workflow_cls, workflow_timeout = workflow_timeout,
+            workflow_cls=workflow_cls,
+            workflow_timeout=workflow_timeout,
         )
 
     @classmethod
@@ -483,9 +590,12 @@ class Agent:
         tool_name: str,
         data_description: str,
         assistant_specialty: str,
+        general_instructions: str = GENERAL_INSTRUCTIONS,
         vectara_corpus_key: str = str(os.environ.get("VECTARA_CORPUS_KEY", "")),
         vectara_api_key: str = str(os.environ.get("VECTARA_API_KEY", "")),
-        agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
+        agent_progress_callback: Optional[
+            Callable[[AgentStatusType, str], None]
+        ] = None,
         query_logging_callback: Optional[Callable[[str, str], None]] = None,
         agent_config: AgentConfig = AgentConfig(),
         fallback_agent_config: Optional[AgentConfig] = None,
@@ -530,6 +640,9 @@ class Agent:
             chat_history (Tuple[str, str], optional): A list of user/agent chat pairs to initialize the agent memory.
             data_description (str): The description of the data.
             assistant_specialty (str): The specialty of the assistant.
+            general_instructions (str, optional): General instructions for the agent.
+                The Agent has a default set of instructions that are crafted to help it operate effectively.
+                This allows you to customize the agent's behavior and personality, but use with caution.
             verbose (bool, optional): Whether to print verbose output.
             vectara_filter_fields (List[dict], optional): The filterable attributes
                 (each dict maps field name to Tuple[type, description]).
@@ -626,6 +739,7 @@ class Agent:
             tools=[vectara_tool],
             topic=assistant_specialty,
             custom_instructions=assistant_instructions,
+            general_instructions=general_instructions,
             verbose=verbose,
             agent_progress_callback=agent_progress_callback,
             query_logging_callback=query_logging_callback,
@@ -635,7 +749,7 @@ class Agent:
         )
 
     def _switch_agent_config(self) -> None:
-        """"
+        """ "
         Switch the configuration type of the agent.
         This function is called automatically to switch the agent configuration if the current configuration fails.
         """
@@ -659,15 +773,19 @@ class Agent:
         print(f"Topic = {self._topic}")
         print("Tools:")
         for tool in self.tools:
-            if hasattr(tool, 'metadata'):
+            if hasattr(tool, "metadata"):
                 if detailed:
                     print(f"- {tool.metadata.description}")
                 else:
                     print(f"- {tool.metadata.name}")
             else:
                 print("- tool without metadata")
-        print(f"Agent LLM = {get_llm(LLMRole.MAIN, config=self.agent_config).metadata.model_name}")
-        print(f"Tool LLM = {get_llm(LLMRole.TOOL, config=self.agent_config).metadata.model_name}")
+        print(
+            f"Agent LLM = {get_llm(LLMRole.MAIN, config=self.agent_config).metadata.model_name}"
+        )
+        print(
+            f"Tool LLM = {get_llm(LLMRole.TOOL, config=self.agent_config).metadata.model_name}"
+        )
 
     def token_counts(self) -> dict:
         """
@@ -677,16 +795,29 @@ class Agent:
             dict: The token counts for the agent and tools.
         """
         return {
-            "main token count": self.main_token_counter.total_llm_token_count if self.main_token_counter else -1,
-            "tool token count": self.tool_token_counter.total_llm_token_count if self.tool_token_counter else -1,
+            "main token count": (
+                self.main_token_counter.total_llm_token_count
+                if self.main_token_counter
+                else -1
+            ),
+            "tool token count": (
+                self.tool_token_counter.total_llm_token_count
+                if self.tool_token_counter
+                else -1
+            ),
         }
 
     def _get_current_agent(self):
-        return self.agent if self.agent_config_type == AgentConfigType.DEFAULT else self.fallback_agent
+        return (
+            self.agent
+            if self.agent_config_type == AgentConfigType.DEFAULT
+            else self.fallback_agent
+        )
 
     def _get_current_agent_type(self):
         return (
-            self.agent_config.agent_type if self.agent_config_type == AgentConfigType.DEFAULT
+            self.agent_config.agent_type
+            if self.agent_config_type == AgentConfigType.DEFAULT
             else self.fallback_agent_config.agent_type
         )
 
@@ -703,7 +834,7 @@ class Agent:
         agent = self._get_current_agent()
         agent_response.response = str(agent.llm.acomplete(llm_prompt))
 
-    def chat(self, prompt: str) -> AgentResponse:           # type: ignore
+    def chat(self, prompt: str) -> AgentResponse:  # type: ignore
         """
         Interact with the agent using a chat prompt.
 
@@ -715,7 +846,7 @@ class Agent:
         """
         return asyncio.run(self.achat(prompt))
 
-    async def achat(self, prompt: str) -> AgentResponse:       # type: ignore
+    async def achat(self, prompt: str) -> AgentResponse:  # type: ignore
         """
         Interact with the agent using a chat prompt.
 
@@ -744,7 +875,9 @@ class Agent:
                 last_error = e
                 if attempt >= 2:
                     if self.verbose:
-                        print(f"LLM call failed on attempt {attempt}. Switching agent configuration.")
+                        print(
+                            f"LLM call failed on attempt {attempt}. Switching agent configuration."
+                        )
                     self._switch_agent_config()
                 time.sleep(1)
                 attempt += 1
@@ -756,7 +889,7 @@ class Agent:
             )
         )
 
-    def stream_chat(self, prompt: str) -> AgentStreamingResponse:    # type: ignore
+    def stream_chat(self, prompt: str) -> AgentStreamingResponse:  # type: ignore
         """
         Interact with the agent using a chat prompt with streaming.
         Args:
@@ -766,7 +899,7 @@ class Agent:
         """
         return asyncio.run(self.astream_chat(prompt))
 
-    async def astream_chat(self, prompt: str) -> AgentStreamingResponse:    # type: ignore
+    async def astream_chat(self, prompt: str) -> AgentStreamingResponse:  # type: ignore
         """
         Interact with the agent using a chat prompt asynchronously with streaming.
         Args:
@@ -794,14 +927,18 @@ class Agent:
                     if self.observability_enabled:
                         eval_fcs()
 
-                agent_response.async_response_gen = _stream_response_wrapper  # Override the generator
+                agent_response.async_response_gen = (
+                    _stream_response_wrapper  # Override the generator
+                )
                 return agent_response
 
             except Exception as e:
                 last_error = e
                 if attempt >= 2:
                     if self.verbose:
-                        print(f"LLM call failed on attempt {attempt}. Switching agent configuration.")
+                        print(
+                            f"LLM call failed on attempt {attempt}. Switching agent configuration."
+                        )
                     self._switch_agent_config()
                 time.sleep(1)
                 attempt += 1
@@ -818,11 +955,7 @@ class Agent:
     # workflow will always get these arguments in the StartEvent: agent, tools, llm, verbose
     # the inputs argument comes from the call to run()
     #
-    async def run(
-        self,
-        inputs: Any,
-        verbose: bool = False
-    ) -> Any:
+    async def run(self, inputs: Any, verbose: bool = False) -> Any:
         """
         Run a workflow using the agent.
         workflow class must be provided in the agent constructor.
@@ -886,7 +1019,7 @@ class Agent:
                     "metadata": {
                         "module": fn_schema_cls.__module__,
                         "class": fn_schema_cls.__name__,
-                    }
+                    },
                 }
             else:
                 fn_schema_serialized = None
@@ -895,9 +1028,16 @@ class Agent:
                 "tool_type": tool.metadata.tool_type.value,
                 "name": tool.metadata.name,
                 "description": tool.metadata.description,
-                "fn": pickle.dumps(getattr(tool, 'fn', None)).decode("latin-1") if getattr(tool, 'fn', None) else None,
-                "async_fn": pickle.dumps(getattr(tool, 'async_fn', None)).decode("latin-1")
-                if getattr(tool, 'async_fn', None) else None,
+                "fn": (
+                    pickle.dumps(getattr(tool, "fn", None)).decode("latin-1")
+                    if getattr(tool, "fn", None)
+                    else None
+                ),
+                "async_fn": (
+                    pickle.dumps(getattr(tool, "async_fn", None)).decode("latin-1")
+                    if getattr(tool, "async_fn", None)
+                    else None
+                ),
                 "fn_schema": fn_schema_serialized,
             }
             tool_info.append(tool_dict)
@@ -910,7 +1050,11 @@ class Agent:
             "custom_instructions": self._custom_instructions,
             "verbose": self.verbose,
             "agent_config": self.agent_config.to_dict(),
-            "fallback_agent": self.fallback_agent_config.to_dict() if self.fallback_agent_config else None,
+            "fallback_agent": (
+                self.fallback_agent_config.to_dict()
+                if self.fallback_agent_config
+                else None
+            ),
             "workflow_cls": self.workflow_cls if self.workflow_cls else None,
         }
 
@@ -938,12 +1082,17 @@ class Agent:
                 except Exception:
                     # Fallback: rebuild using the JSON schema
                     field_definitions = {}
-                    for field, values in schema_info.get("schema", {}).get("properties", {}).items():
+                    for field, values in (
+                        schema_info.get("schema", {}).get("properties", {}).items()
+                    ):
                         field_type = get_field_type(values)
                         if "default" in values:
                             field_definitions[field] = (
                                 field_type,
-                                Field(description=values.get("description", ""), default=values["default"]),
+                                Field(
+                                    description=values.get("description", ""),
+                                    default=values["default"],
+                                ),
                             )
                         else:
                             field_definitions[field] = (
@@ -952,13 +1101,21 @@ class Agent:
                             )
                     query_args_model = create_model(
                         schema_info.get("schema", {}).get("title", "QueryArgs"),
-                        **field_definitions
+                        **field_definitions,
                     )
             else:
                 query_args_model = create_model("QueryArgs")
 
-            fn = pickle.loads(tool_data["fn"].encode("latin-1")) if tool_data["fn"] else None
-            async_fn = pickle.loads(tool_data["async_fn"].encode("latin-1")) if tool_data["async_fn"] else None
+            fn = (
+                pickle.loads(tool_data["fn"].encode("latin-1"))
+                if tool_data["fn"]
+                else None
+            )
+            async_fn = (
+                pickle.loads(tool_data["async_fn"].encode("latin-1"))
+                if tool_data["async_fn"]
+                else None
+            )
 
             tool = VectaraTool.from_defaults(
                 name=tool_data["name"],
@@ -979,7 +1136,11 @@ class Agent:
             fallback_agent_config=fallback_agent_config,
             workflow_cls=data["workflow_cls"],
         )
-        memory = pickle.loads(data["memory"].encode("latin-1")) if data.get("memory") else None
+        memory = (
+            pickle.loads(data["memory"].encode("latin-1"))
+            if data.get("memory")
+            else None
+        )
         if memory:
             agent.agent.memory = memory
         return agent

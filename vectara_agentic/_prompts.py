@@ -42,7 +42,7 @@ GENERAL_INSTRUCTIONS = """
   Before using the x_load_data with a SQL query, always follow these discovery steps:
   - call the x_list_tables tool to list of available tables in the x database.
   - Call the x_describe_tables tool to understand the schema of each table you want to query data from.
-  - Use the x_load_unique_values tool to understand the unique values in each column.
+  - Use the x_load_unique_values tool to retrieve the unique values in each column, before crafting any SQL query.
     Sometimes the user may ask for a specific column value, but the actual value in the table may be different, and you will need to use the correct value.
   - Use the x_load_sample_data tool to understand the column names, and typical values in each column.
   - For x_load_data, if the tool response indicates the output data is too large, try to refine or refactor your query to return fewer rows.
@@ -52,7 +52,7 @@ GENERAL_INSTRUCTIONS = """
 """
 
 #
-# For OpenAI and other agents that just require systems
+# For OpenAI and other agents that just require a systems prompt
 #
 GENERAL_PROMPT_TEMPLATE = """
 You are a helpful chatbot in conversation with a user, with expertise in {chat_topic}.
@@ -65,9 +65,7 @@ IMPORTANT - FOLLOW THESE INSTRUCTIONS CAREFULLY:
 {INSTRUCTIONS}
 {custom_instructions}
 
-""".replace(
-    "{INSTRUCTIONS}", GENERAL_INSTRUCTIONS
-)
+"""
 
 #
 # Custom REACT prompt
@@ -132,15 +130,14 @@ Answer: [your answer here (In the same language as the user's question)]
 ## Current Conversation
 
 Below is the current conversation consisting of interleaving human and assistant messages.
-""".replace(
-    "{INSTRUCTIONS}", GENERAL_INSTRUCTIONS
-)
+"""
 
 #
 # Prompts for structured planning agent
 #
 STRUCTURED_PLANNER_INITIAL_PLAN_PROMPT = """\
 Think step-by-step. Given a task and a set of tools, create a comprehensive, end-to-end plan to accomplish the task, using the tools.
+Only use the tools that are relevant to completing the task.
 Keep in mind not every task needs to be decomposed into multiple sub-tasks if it is simple enough.
 The plan should end with a sub-task that can achieve the overall task.
 
@@ -152,6 +149,7 @@ Overall Task: {task}
 
 STRUCTURED_PLANNER_PLAN_REFINE_PROMPT = """\
 Think step-by-step. Given an overall task, a set of tools, and completed sub-tasks, update (if needed) the remaining sub-tasks so that the overall task can still be completed.
+Only use the tools that are relevant to completing the task.
 Do not add new sub-tasks that are not needed to achieve the overall task.
 The final sub-task in the plan should be the one that can satisfy the overall task.
 If you do update the plan, only create new sub-tasks that will replace the remaining sub-tasks, do NOT repeat tasks that are already completed.

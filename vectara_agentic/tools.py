@@ -8,7 +8,7 @@ import importlib
 import os
 import asyncio
 
-from typing import Callable, List, Dict, Any, Optional, Union, Type
+from typing import Callable, List, Dict, Any, Optional, Union, Type, Tuple
 from pydantic import BaseModel, Field, create_model
 from pydantic_core import PydanticUndefined
 
@@ -22,7 +22,7 @@ from llama_index.core.workflow.context import Context
 from .types import ToolType
 from .tools_catalog import ToolsCatalog, get_bad_topics
 from .db_tools import DatabaseTools
-from .utils import is_float, summarize_documents
+from .utils import summarize_documents, is_float
 from .agent_config import AgentConfig
 
 LI_packages = {
@@ -30,9 +30,11 @@ LI_packages = {
     "arxiv": ToolType.QUERY,
     "tavily_research": ToolType.QUERY,
     "exa": ToolType.QUERY,
-    "brave": ToolType.QUERY,
+    "brave_search": ToolType.QUERY,
+    "bing_search": ToolType.QUERY,
     "neo4j": ToolType.QUERY,
     "kuzu": ToolType.QUERY,
+    "wikipedia": ToolType.QUERY,
     "google": {
         "GmailToolSpec": {
             "load_data": ToolType.QUERY,
@@ -233,9 +235,17 @@ def _create_tool_from_dynamic_function(
     tool_description: str,
     base_params_model: Type[BaseModel],  # Now a Pydantic BaseModel
     tool_args_schema: Type[BaseModel],
+    compact_docstring: bool = False,
 ) -> VectaraTool:
     fields = {}
     base_params = []
+
+    if tool_args_schema is None:
+
+        class EmptyBaseModel(BaseModel):
+            """empty base model"""
+
+        tool_args_schema = EmptyBaseModel
 
     # Create inspect.Parameter objects for base_params_model fields.
     for param_name, model_field in base_params_model.model_fields.items():
@@ -297,15 +307,22 @@ def _create_tool_from_dynamic_function(
     function.__name__ = re.sub(r"[^A-Za-z0-9_]", "_", tool_name)
 
     # Build a docstring using parameter descriptions from the BaseModels.
-    params_str = ",\n    ".join(
+    params_str = ", ".join(
         f"{p.name}: {p.annotation.__name__ if hasattr(p.annotation, '__name__') else p.annotation}"
         for p in all_params
     )
-    signature_line = f"{tool_name}(\n    {params_str}\n) -> dict[str, Any]"
-    doc_lines = [
-        signature_line,
-        "",
-        tool_description.strip(),
+    signature_line = f"{tool_name}({params_str}) -> dict[str, Any]"
+    if compact_docstring:
+        doc_lines = [
+            tool_description.strip(),
+        ]
+    else:
+        doc_lines = [
+            signature_line,
+            "",
+            tool_description.strip(),
+        ]
+    doc_lines += [
         "",
         "Args:",
     ]
@@ -316,25 +333,31 @@ def _create_tool_from_dynamic_function(
         elif param.name in tool_args_schema.model_fields:
             description = tool_args_schema.model_fields[param.name].description
         if not description:
-            description = "No description provided."
+            description = ""
         type_name = (
             param.annotation.__name__
             if hasattr(param.annotation, "__name__")
             else str(param.annotation)
         )
-        default_text = (
-            f", default={param.default!r}"
-            if param.default is not inspect.Parameter.empty
-            else ""
-        )
-        doc_lines.append(f"    {param.name} ({type_name}){default_text}: {description}")
+        if (
+            param.default is not inspect.Parameter.empty
+            and param.default is not PydanticUndefined
+        ):
+            default_text = f", default={param.default!r}"
+        else:
+            default_text = ""
+        doc_lines.append(f"  - {param.name} ({type_name}){default_text}: {description}")
     doc_lines.append("")
     doc_lines.append("Returns:")
     return_desc = getattr(
         function, "__return_description__", "A dictionary containing the result data."
     )
     doc_lines.append(f"    dict[str, Any]: {return_desc}")
-    function.__doc__ = "\n".join(doc_lines)
+
+    initial_docstring = "\n".join(doc_lines)
+    collapsed_spaces = re.sub(r' {2,}', ' ', initial_docstring)
+    final_docstring = re.sub(r'\n{2,}', '\n', collapsed_spaces).strip()
+    function.__doc__ = final_docstring
 
     tool = VectaraTool.from_defaults(
         fn=function,
@@ -346,6 +369,65 @@ def _create_tool_from_dynamic_function(
     return tool
 
 
+Range = Tuple[float, float, bool, bool]  # (min, max, min_inclusive, max_inclusive)
+
+
+def _parse_range(val_str: str) -> Range:
+    """
+    Parses '[1,10)' or '(0.5, 5]' etc.
+    Returns (start, end, start_incl, end_incl) or raises ValueError.
+    """
+    m = re.match(
+        r"""
+        ^([\[\(])\s*            # opening bracket
+        ([+-]?\d+(\.\d*)?)\s*,  # first number
+        \s*([+-]?\d+(\.\d*)?)   # second number
+        \s*([\]\)])$            # closing bracket
+    """,
+        val_str,
+        re.VERBOSE,
+    )
+    if not m:
+        raise ValueError(f"Invalid range syntax: {val_str!r}")
+    start_inc = m.group(1) == "["
+    end_inc = m.group(7) == "]"
+    start = float(m.group(2))
+    end = float(m.group(4))
+    if start > end:
+        raise ValueError(f"Range lower bound greater than upper bound: {val_str!r}")
+    return start, end, start_inc, end_inc
+
+
+def _parse_comparison(val_str: str) -> Tuple[str, Union[float, str, bool]]:
+    """
+    Parses '>10', '<=3.14', '!=foo', \"='bar'\" etc.
+    Returns (operator, rhs) or raises ValueError.
+    """
+    # pick off the operator
+    comparison_operators = [">=", "<=", "!=", ">", "<", "="]
+    numeric_only_operators = {">", "<", ">=", "<="}
+    for op in comparison_operators:
+        if val_str.startswith(op):
+            rhs = val_str[len(op) :].strip()
+            if op in numeric_only_operators:
+                try:
+                    rhs_val = float(rhs)
+                except ValueError as e:
+                    raise ValueError(
+                        f"Numeric comparison {op!r} must have a number, got {rhs!r}"
+                    ) from e
+                return op, rhs_val
+            # = and != can be bool, numeric, or string
+            low = rhs.lower()
+            if low in ("true", "false"):
+                return op, (low == "true")
+            try:
+                return op, float(rhs)
+            except ValueError:
+                return op, rhs
+    raise ValueError(f"No valid comparison operator at start of {val_str!r}")
+
+
 def _build_filter_string(
     kwargs: Dict[str, Any], tool_args_type: Dict[str, dict], fixed_filter: str
 ) -> str:
@@ -353,130 +435,84 @@ def _build_filter_string(
     Build filter string for Vectara from kwargs
     """
     filter_parts = []
-    comparison_operators = [">=", "<=", "!=", ">", "<", "="]
-    numeric_only_ops = {">", "<", ">=", "<="}
-
-    for key, value in kwargs.items():
-        if value is None or value == "":
+    for key, raw in kwargs.items():
+        if raw is None or raw == "":
             continue
 
-        # Determine the prefix for the key. Valid values are "doc" or "part"
-        # default to 'doc' if not specified
-        tool_args_dict = tool_args_type.get(key, {"type": "doc", "is_list": False})
-        prefix = tool_args_dict.get(key, "doc")
-        is_list = tool_args_dict.get("is_list", False)
-
-        if prefix not in ["doc", "part"]:
+        if raw is PydanticUndefined:
             raise ValueError(
-                f'Unrecognized prefix {prefix}. Please make sure to use either "doc" or "part" for the prefix.'
-            )
-
-        if value is PydanticUndefined:
-            raise ValueError(
-                f"Value of argument {key} is undefined, and this is invalid."
+                f"Value of argument {key!r} is undefined, and this is invalid. "
                 "Please form proper arguments and try again."
             )
 
-        # value of the argument
-        val_str = str(value).strip()
+        tool_args_dict = tool_args_type.get(key, {"type": "doc", "is_list": False})
+        prefix = tool_args_dict.get("type", "doc")
+        is_list = tool_args_dict.get("is_list", False)
 
-        # Special handling for range operator
-        if val_str.startswith(("[", "(")) and val_str.endswith(("]", ")")):
-            # Extract the boundary types
-            start_inclusive = val_str.startswith("[")
-            end_inclusive = val_str.endswith("]")
+        if prefix not in ("doc", "part"):
+            raise ValueError(
+                f'Unrecognized prefix {prefix!r}. Please make sure to use either "doc" or "part" for the prefix.'
+            )
 
-            # Remove the boundaries and strip whitespace
-            val_str = val_str[1:-1].strip()
-
-            if "," in val_str:
-                val_str = val_str.split(",")
-                if len(val_str) != 2:
-                    raise ValueError(
-                        f"Range operator requires two values for {key}: {value}"
-                    )
-
-                # Validate both bounds as numeric or empty (for unbounded ranges)
-                start_val, end_val = val_str[0].strip(), val_str[1].strip()
-                if start_val and not (start_val.isdigit() or is_float(start_val)):
-                    raise ValueError(
-                        f"Range operator requires numeric operands for {key}: {value}"
-                    )
-                if end_val and not (end_val.isdigit() or is_float(end_val)):
-                    raise ValueError(
-                        f"Range operator requires numeric operands for {key}: {value}"
-                    )
-
-                # Build the SQL condition
-                range_conditions = []
-                if start_val:
-                    operator = ">=" if start_inclusive else ">"
-                    range_conditions.append(f"{prefix}.{key} {operator} {start_val}")
-                if end_val:
-                    operator = "<=" if end_inclusive else "<"
-                    range_conditions.append(f"{prefix}.{key} {operator} {end_val}")
-
-                # Join the range conditions with AND
-                filter_parts.append("( " + " AND ".join(range_conditions) + " )")
-                continue
-
-            raise ValueError(f"Range operator requires two values for {key}: {value}")
-
-        # Check if value contains a known comparison operator at the start
-        matched_operator = None
-        for op in comparison_operators:
-            if val_str.startswith(op):
-                matched_operator = op
-                break
-
-        # Break down operator from value
-        # e.g. val_str = ">2022" --> operator = ">", rhs = "2022"
-        if matched_operator:
-            rhs = val_str[len(matched_operator) :].strip()
-
-            if matched_operator in numeric_only_ops:
-                # Must be numeric
-                if not (rhs.isdigit() or is_float(rhs)):
-                    raise ValueError(
-                        f"Operator {matched_operator} requires a numeric operand for {key}: {val_str}"
-                    )
-                filter_parts.append(f"{prefix}.{key}{matched_operator}{rhs}")
+        # 1) native numeric
+        if isinstance(raw, (int, float)) or is_float(str(raw)):
+            val = str(raw)
+            if is_list:
+                filter_parts.append(f"({val} IN {prefix}.{key})")
             else:
-                # = and != operators can be numeric or string
-                if rhs.isdigit() or is_float(rhs):
-                    filter_parts.append(f"{prefix}.{key}{matched_operator}{rhs}")
-                elif rhs.lower() in ["true", "false"]:
-                    filter_parts.append(
-                        f"{prefix}.{key}{matched_operator}{rhs.lower()}"
-                    )
-                else:
-                    # For string operands, wrap them in quotes
-                    filter_parts.append(f"{prefix}.{key}{matched_operator}'{rhs}'")
+                filter_parts.append(f"{prefix}.{key}={val}")
+            continue
+
+        # 2) native boolean
+        if isinstance(raw, bool):
+            val = "true" if raw else "false"
+            if is_list:
+                filter_parts.append(f"({val} IN {prefix}.{key})")
+            else:
+                filter_parts.append(f"{prefix}.{key}={val}")
+            continue
+
+        if not isinstance(raw, str):
+            raise ValueError(f"Unsupported type for {key!r}: {type(raw).__name__}")
+
+        val_str = raw.strip()
+
+        # 3) Range operator
+        if (val_str.startswith("[") or val_str.startswith("(")) and (
+            val_str.endswith("]") or val_str.endswith(")")
+        ):
+            start, end, start_incl, end_incl = _parse_range(val_str)
+            conds = []
+            op1 = ">=" if start_incl else ">"
+            op2 = "<=" if end_incl else "<"
+            conds.append(f"{prefix}.{key} {op1} {start}")
+            conds.append(f"{prefix}.{key} {op2} {end}")
+            filter_parts.append("(" + " AND ".join(conds) + ")")
+            continue
+
+        # 4) comparison operator
+        try:
+            op, rhs = _parse_comparison(val_str)
+        except ValueError:
+            # no operator → treat as membership or equality-on-string
+            if is_list:
+                filter_parts.append(f"('{val_str}' IN {prefix}.{key})")
+            else:
+                filter_parts.append(f"{prefix}.{key}='{val_str}'")
         else:
-            if val_str.isdigit() or is_float(val_str):
-                if is_list:
-                    filter_parts.append(f"({val_str} IN {prefix}.{key})")
-                else:
-                    filter_parts.append(f"{prefix}.{key}={val_str}")
-            elif val_str.lower() in ["true", "false"]:
-                # This is to handle boolean values.
-                # This is not complete solution - the best solution would be to test if the field is boolean
-                # That can be done after we move to APIv2
-                if is_list:
-                    filter_parts.append(f"({val_str.lower()} IN {prefix}.{key})")
-                else:
-                    filter_parts.append(f"{prefix}.{key}={val_str.lower()}")
+            # normal comparison always binds to the field
+            if isinstance(rhs, bool):
+                rhs_sql = "true" if rhs else "false"
+            elif isinstance(rhs, (int, float)):
+                rhs_sql = str(rhs)
             else:
-                if is_list:
-                    filter_parts.append(f"('{val_str}' IN {prefix}.{key})")
-                else:
-                    filter_parts.append(f"{prefix}.{key}='{val_str}'")
+                rhs_sql = f"'{rhs}'"
+            filter_parts.append(f"{prefix}.{key}{op}{rhs_sql}")
 
-    filter_str = " AND ".join(filter_parts)
-    if fixed_filter and filter_str:
-        return f"({fixed_filter}) AND ({filter_str})"
-    else:
-        return fixed_filter or filter_str
+    joined = " AND ".join(filter_parts)
+    if fixed_filter and joined:
+        return f"({fixed_filter}) AND ({joined})"
+    return fixed_filter or joined
 
 
 class VectaraToolFactory:
@@ -488,25 +524,29 @@ class VectaraToolFactory:
         self,
         vectara_corpus_key: str = str(os.environ.get("VECTARA_CORPUS_KEY", "")),
         vectara_api_key: str = str(os.environ.get("VECTARA_API_KEY", "")),
+        compact_docstring: bool = False,
     ) -> None:
         """
         Initialize the VectaraToolFactory
         Args:
             vectara_corpus_key (str): The Vectara corpus key (or comma separated list of keys).
             vectara_api_key (str): The Vectara API key.
+            compact_docstring (bool): Whether to use a compact docstring format for tools
+              This is useful if OpenAI complains on the 1024 token limit.
         """
         self.vectara_corpus_key = vectara_corpus_key
         self.vectara_api_key = vectara_api_key
         self.num_corpora = len(vectara_corpus_key.split(","))
-        self.cache_expiry = 60 * 60  # 1 hour
-        self.max_cache_size = 128
+        self.compact_docstring = compact_docstring
 
     def create_search_tool(
         self,
         tool_name: str,
         tool_description: str,
-        tool_args_schema: type[BaseModel],
+        tool_args_schema: type[BaseModel] = None,
         tool_args_type: Dict[str, str] = {},
+        summarize_docs: Optional[bool] = None,
+        summarize_llm_name: Optional[str] = None,
         fixed_filter: str = "",
         lambda_val: Union[List[float], float] = 0.005,
         semantics: Union[List[str] | str] = "default",
@@ -532,7 +572,7 @@ class VectaraToolFactory:
         Args:
             tool_name (str): The name of the tool.
             tool_description (str): The description of the tool.
-            tool_args_schema (BaseModel): The schema for the tool arguments.
+            tool_args_schema (BaseModel, optional): The schema for the tool arguments.
             tool_args_type (Dict[str, str], optional): The type of each argument (doc or part).
             fixed_filter (str, optional): A fixed Vectara filter condition to apply to all queries.
             lambda_val (Union[List[float] | float], optional): Lambda value (or list of values for each corpora)
@@ -584,7 +624,11 @@ class VectaraToolFactory:
 
             query = kwargs.pop("query")
             top_k = kwargs.pop("top_k", 10)
-            summarize = kwargs.pop("summarize", True)
+            summarize = (
+                kwargs.pop("summarize", True)
+                if summarize_docs is None
+                else summarize_docs
+            )
             try:
                 filter_string = _build_filter_string(
                     kwargs, tool_args_type, fixed_filter
@@ -643,7 +687,10 @@ class VectaraToolFactory:
             if summarize:
                 summaries_dict = asyncio.run(
                     summarize_documents(
-                        self.vectara_corpus_key, self.vectara_api_key, list(unique_ids)
+                        corpus_key=self.vectara_corpus_key,
+                        api_key=self.vectara_api_key,
+                        llm_name=summarize_llm_name,
+                        doc_ids=list(unique_ids),
                     )
                 )
                 for doc_id, metadata in docs:
@@ -665,30 +712,47 @@ class VectaraToolFactory:
 
         class SearchToolBaseParams(BaseModel):
             """Model for the base parameters of the search tool."""
+
             query: str = Field(
                 ...,
-                description="The search query to perform, always in the form of a question.",
+                description="The search query to perform, in the form of a question.",
             )
             top_k: int = Field(
                 10, description="The number of top documents to retrieve."
             )
             summarize: bool = Field(
                 True,
-                description="Flag that indicates whether to summarize the retrieved documents.",
+                description="Whether to summarize the retrieved documents.",
+            )
+
+        class SearchToolBaseParamsWithoutSummarize(BaseModel):
+            """Model for the base parameters of the search tool."""
+
+            query: str = Field(
+                ...,
+                description="The search query to perform, in the form of a question.",
+            )
+            top_k: int = Field(
+                10, description="The number of top documents to retrieve."
             )
 
         search_tool_extra_desc = (
             tool_description
             + "\n"
-            + "This tool is meant to perform a search for relevant documents, it is not meant for asking questions."
+            + "Use this tool to search for relevant documents, not to ask questions."
         )
 
         tool = _create_tool_from_dynamic_function(
             search_function,
             tool_name,
             search_tool_extra_desc,
-            SearchToolBaseParams,
+            (
+                SearchToolBaseParams
+                if summarize_docs is None
+                else SearchToolBaseParamsWithoutSummarize
+            ),
             tool_args_schema,
+            compact_docstring=self.compact_docstring,
         )
         return tool
 
@@ -696,7 +760,7 @@ class VectaraToolFactory:
         self,
         tool_name: str,
         tool_description: str,
-        tool_args_schema: type[BaseModel],
+        tool_args_schema: type[BaseModel] = None,
         tool_args_type: Dict[str, dict] = {},
         fixed_filter: str = "",
         vectara_summarizer: str = "vectara-summary-ext-24-05-med-omni",
@@ -718,6 +782,7 @@ class VectaraToolFactory:
         rerank_chain: List[Dict] = None,
         max_response_chars: Optional[int] = None,
         max_tokens: Optional[int] = None,
+        llm_name: Optional[str] = None,
         temperature: Optional[float] = None,
         frequency_penalty: Optional[float] = None,
         presence_penalty: Optional[float] = None,
@@ -734,7 +799,7 @@ class VectaraToolFactory:
         Args:
             tool_name (str): The name of the tool.
             tool_description (str): The description of the tool.
-            tool_args_schema (BaseModel): The schema for the tool arguments.
+            tool_args_schema (BaseModel, optional): The schema for any tool arguments for filtering.
             tool_args_type (Dict[str, dict], optional): attributes for each argument where they key is the field name
                 and the value is a dictionary with the following keys:
                 - 'type': the type of each filter attribute in Vectara (doc or part).
@@ -765,6 +830,7 @@ class VectaraToolFactory:
                 If using slingshot/multilingual_reranker_v1, it must be first in the list.
             max_response_chars (int, optional): The desired maximum number of characters for the generated summary.
             max_tokens (int, optional): The maximum number of tokens to be returned by the LLM.
+            llm_name (str, optional): The name of the LLM to use for generation.
             temperature (float, optional): The sampling temperature; higher values lead to more randomness.
             frequency_penalty (float, optional): How much to penalize repeating tokens in the response,
                 higher values reducing likelihood of repeating the same line.
@@ -842,6 +908,7 @@ class VectaraToolFactory:
                 filter=filter_string,
                 max_response_chars=max_response_chars,
                 max_tokens=max_tokens,
+                llm_name=llm_name,
                 temperature=temperature,
                 frequency_penalty=frequency_penalty,
                 presence_penalty=presence_penalty,
@@ -920,9 +987,10 @@ class VectaraToolFactory:
 
         class RagToolBaseParams(BaseModel):
             """Model for the base parameters of the RAG tool."""
+
             query: str = Field(
                 ...,
-                description="The search query to perform, always in the form of a question",
+                description="The search query to perform, in the form of a question",
             )
 
         tool = _create_tool_from_dynamic_function(
@@ -931,6 +999,7 @@ class VectaraToolFactory:
             tool_description,
             RagToolBaseParams,
             tool_args_schema,
+            compact_docstring=self.compact_docstring,
         )
         return tool
 

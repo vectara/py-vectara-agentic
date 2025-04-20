@@ -19,21 +19,21 @@ from .agent_config import AgentConfig
 
 provider_to_default_model_name = {
     ModelProvider.OPENAI: "gpt-4o",
-    ModelProvider.ANTHROPIC: "claude-3-7-sonnet-20250219",
-    ModelProvider.TOGETHER: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
-    ModelProvider.GROQ: "llama-3.3-70b-versatile",
+    ModelProvider.ANTHROPIC: "claude-3-7-sonnet-latest",
+    ModelProvider.TOGETHER: "Qwen/Qwen2.5-72B-Instruct-Turbo",
+    ModelProvider.GROQ: "meta-llama/llama-4-scout-17b-16e-instruct",
     ModelProvider.FIREWORKS: "accounts/fireworks/models/firefunction-v2",
-    ModelProvider.BEDROCK: "anthropic.claude-3-5-sonnet-20241022-v2:0",
-    ModelProvider.COHERE: "command-r-plus",
+    ModelProvider.BEDROCK: "anthropic.claude-3-7-sonnet-20250219-v1:0",
+    ModelProvider.COHERE: "command-a-03-2025",
     ModelProvider.GEMINI: "models/gemini-2.0-flash",
 }
 
 DEFAULT_MODEL_PROVIDER = ModelProvider.OPENAI
 
+
 @lru_cache(maxsize=None)
 def _get_llm_params_for_role(
-    role: LLMRole,
-    config: Optional[AgentConfig] = None
+    role: LLMRole, config: Optional[AgentConfig] = None
 ) -> Tuple[ModelProvider, str]:
     """
     Get the model provider and model name for the specified role.
@@ -46,15 +46,13 @@ def _get_llm_params_for_role(
         model_provider = ModelProvider(config.tool_llm_provider)
         # If the user hasn’t explicitly set a tool_llm_model_name,
         # fallback to provider default from provider_to_default_model_name
-        model_name = (
-            config.tool_llm_model_name
-            or provider_to_default_model_name.get(model_provider)
+        model_name = config.tool_llm_model_name or provider_to_default_model_name.get(
+            model_provider
         )
     else:
         model_provider = ModelProvider(config.main_llm_provider)
-        model_name = (
-            config.main_llm_model_name
-            or provider_to_default_model_name.get(model_provider)
+        model_name = config.main_llm_model_name or provider_to_default_model_name.get(
+            model_provider
         )
 
     # If the agent type is OpenAI, check that the main LLM provider is also OpenAI.
@@ -66,10 +64,10 @@ def _get_llm_params_for_role(
 
     return model_provider, model_name
 
+
 @lru_cache(maxsize=None)
 def get_tokenizer_for_model(
-    role: LLMRole,
-    config: Optional[AgentConfig] = None
+    role: LLMRole, config: Optional[AgentConfig] = None
 ) -> Optional[Callable]:
     """
     Get the tokenizer for the specified model, as determined by the role & config.
@@ -84,10 +82,7 @@ def get_tokenizer_for_model(
 
 
 @lru_cache(maxsize=None)
-def get_llm(
-    role: LLMRole,
-    config: Optional[AgentConfig] = None
-) -> LLM:
+def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
     """
     Get the LLM for the specified role, using the provided config
     or a default if none is provided.
@@ -95,55 +90,76 @@ def get_llm(
     max_tokens = 8192
     model_provider, model_name = _get_llm_params_for_role(role, config)
     if model_provider == ModelProvider.OPENAI:
-        llm = OpenAI(model=model_name, temperature=0,
-                     is_function_calling_model=True,
-                     strict=True,
-                     max_tokens=max_tokens
-            )
+        llm = OpenAI(
+            model=model_name,
+            temperature=0,
+            is_function_calling_model=True,
+            strict=True,
+            max_tokens=max_tokens,
+            pydantic_program_mode="openai",
+        )
     elif model_provider == ModelProvider.ANTHROPIC:
         llm = Anthropic(
-            model=model_name, temperature=0,
+            model=model_name,
+            temperature=0,
             max_tokens=max_tokens,
         )
     elif model_provider == ModelProvider.GEMINI:
         from llama_index.llms.gemini import Gemini
+
         llm = Gemini(
-            model=model_name, temperature=0,
+            model=model_name,
+            temperature=0,
             is_function_calling_model=True,
             allow_parallel_tool_calls=True,
             max_tokens=max_tokens,
         )
     elif model_provider == ModelProvider.TOGETHER:
         from llama_index.llms.together import TogetherLLM
+
         llm = TogetherLLM(
-            model=model_name, temperature=0,
+            model=model_name,
+            temperature=0,
             is_function_calling_model=True,
-            max_tokens=max_tokens
+            max_tokens=max_tokens,
         )
     elif model_provider == ModelProvider.GROQ:
         from llama_index.llms.groq import Groq
+
         llm = Groq(
-            model=model_name, temperature=0,
+            model=model_name,
+            temperature=0,
             is_function_calling_model=True,
-            max_tokens=max_tokens
+            max_tokens=max_tokens,
         )
     elif model_provider == ModelProvider.FIREWORKS:
         from llama_index.llms.fireworks import Fireworks
+
         llm = Fireworks(model=model_name, temperature=0, max_tokens=max_tokens)
     elif model_provider == ModelProvider.BEDROCK:
         from llama_index.llms.bedrock import Bedrock
+
         llm = Bedrock(model=model_name, temperature=0, max_tokens=max_tokens)
     elif model_provider == ModelProvider.COHERE:
         from llama_index.llms.cohere import Cohere
+
         llm = Cohere(model=model_name, temperature=0, max_tokens=max_tokens)
     elif model_provider == ModelProvider.PRIVATE:
         from llama_index.llms.openai_like import OpenAILike
-        llm = OpenAILike(model=model_name, temperature=0, is_function_calling_model=True,is_chat_model=True,
-                         api_base=config.private_llm_api_base, api_key=config.private_llm_api_key,
-                         max_tokens=max_tokens)
+
+        llm = OpenAILike(
+            model=model_name,
+            temperature=0,
+            is_function_calling_model=True,
+            is_chat_model=True,
+            api_base=config.private_llm_api_base,
+            api_key=config.private_llm_api_key,
+            max_tokens=max_tokens,
+        )
     else:
         raise ValueError(f"Unknown LLM provider: {model_provider}")
     return llm
+
 
 def is_float(value: str) -> bool:
     """Check if a string can be converted to a float."""
@@ -152,6 +168,7 @@ def is_float(value: str) -> bool:
         return True
     except ValueError:
         return False
+
 
 def remove_self_from_signature(func):
     """Decorator to remove 'self' from a method's signature for introspection."""
@@ -164,21 +181,26 @@ def remove_self_from_signature(func):
     func.__signature__ = new_sig
     return func
 
-async def summarize_vectara_document(corpus_key: str, vectara_api_key: str, doc_id: str) -> str:
+
+async def summarize_vectara_document(
+    llm_name: str, corpus_key: str, api_key: str, doc_id: str
+) -> str:
     """
     Summarize a document in a Vectara corpus using the Vectara API.
     """
     url = f"https://api.vectara.io/v2/corpora/{corpus_key}/documents/{doc_id}/summarize"
 
-    payload = json.dumps({
-        "llm_name": "gpt-4o",
-        "model_parameters": {},
-        "stream_response": False
-    })
+    payload = json.dumps(
+        {
+            "llm_name": llm_name,
+            "model_parameters": {"temperature": 0.0},
+            "stream_response": False,
+        }
+    )
     headers = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'x-api-key': vectara_api_key
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "x-api-key": api_key,
     }
     timeout = aiohttp.ClientTimeout(total=60)
     async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -193,18 +215,24 @@ async def summarize_vectara_document(corpus_key: str, vectara_api_key: str, doc_
             return data["summary"]
     return json.loads(response.text)["summary"]
 
+
 async def summarize_documents(
-    vectara_corpus_key: str,
-    vectara_api_key: str,
-    doc_ids: list[str]
+    corpus_key: str,
+    api_key: str,
+    doc_ids: list[str],
+    llm_name: str = "gpt-4o",
 ) -> dict[str, str]:
     """
     Summarize multiple documents in a Vectara corpus using the Vectara API.
     """
     if not doc_ids:
         return {}
+    if llm_name is None:
+        llm_name = "gpt-4o"
     tasks = [
-        summarize_vectara_document(vectara_corpus_key, vectara_api_key, doc_id)
+        summarize_vectara_document(
+            corpus_key=corpus_key, api_key=api_key, llm_name=llm_name, doc_id=doc_id
+        )
         for doc_id in doc_ids
     ]
     summaries = await asyncio.gather(*tasks, return_exceptions=True)
