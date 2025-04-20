@@ -71,10 +71,10 @@ on that issue from the first query.
 **What is vectara-agentic?**
 
 Vectara-agentic is a Python package for building Agentic RAG applications powered by Vectara. It:
-- Provides a simple API to define tools, including Vectara RAG tools
-- Includes pre-built tools for various domains (legal, finance, etc.)
-- Integrates with multiple LLM providers (OpenAI, Anthropic, Gemini, Together.AI, Cohere, GROQ, Fireworks AI)
-- Supports advanced workflows for complex queries
+- Provides a simple API to define tools, including Vectara RAG tool and Vectara search tooo.
+- Includes pre-built tools for various domains (legal, finance, etc).
+- Integrates with multiple LLM providers (OpenAI, Anthropic, Gemini, Together.AI, Cohere, GROQ, Fireworks AI).
+- Supports advanced workflows for complex queries.
 
 ## Agent Architecture
 
@@ -113,13 +113,9 @@ vec_factory = VectaraToolFactory(
   vectara_corpus_key = corpus_key
 )
 
-class QueryPetPolicyArgs(BaseModel):
-    query: str = Field(..., description="The user query.")
-
 ask_pet_policy_tool = vec_factory.create_rag_tool(
     tool_name = "ask_pet_policy",
     tool_description = "Responds to questions about Vectara's pet policy.",
-    tool_args_schema = QueryPetPolicyArgs,
     summary_num_results = 10,
     n_sentences_before = 3,
     n_sentences_after = 3,
