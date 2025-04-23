@@ -9,6 +9,7 @@ from vectara_agentic.tools import (
 )
 from vectara_agentic.agent import Agent
 from vectara_agentic.agent_config import AgentConfig
+from vectara_agentic.types import AgentType, ModelProvider
 
 from llama_index.core.tools import FunctionTool
 
@@ -179,22 +180,59 @@ class TestToolsPackage(unittest.TestCase):
         query_tool_1 = vec_factory.create_rag_tool(
             tool_name="rag_tool",
             tool_description="""
-            A dummy tool that takes 20 arguments and returns a response (str) to the user query based on the data in this corpus.
+            A dummy tool that takes 15 arguments and returns a response (str) to the user query based on the data in this corpus.
             We are using this tool to test the tool factory works and does not crash with OpenAI.
             """,
             tool_args_schema=QueryToolArgs,
         )
 
-        config = AgentConfig()
+        # Test with 15 arguments which go over the 1024 limit.
+        config = AgentConfig(
+            agent_type=AgentType.OPENAI 
+        )
         agent = Agent(
             tools=[query_tool_1],
             topic="Sample topic",
-            custom_instructions="Call the tool with 20 arguments",
+            custom_instructions="Call the tool with 15 arguments for OPENAI",
             agent_config=config,
         )
         res = agent.chat("What is the stock price?")
         self.assertIn("maximum length of 1024 characters", str(res))
 
+        # Same test but with GROQ
+        config = AgentConfig(
+            agent_type=AgentType.FUNCTION_CALLING,
+            main_llm_provider=ModelProvider.GROQ,
+            tool_llm_provider=ModelProvider.GROQ,
+        )
+        agent = Agent(
+            tools=[query_tool_1],
+            topic="Sample topic",
+            custom_instructions="Call the tool with 15 arguments for GROQ",
+            agent_config=config,
+        )
+        res = agent.chat("What is the stock price?")
+        # GROQ with llama4 has the same limit as OPENAI
+        self.assertIn("maximum length of 1024 characters", str(res))
+
+        # Same test but with ANTHROPIC
+        config = AgentConfig(
+            agent_type=AgentType.FUNCTION_CALLING,
+            main_llm_provider=ModelProvider.ANTHROPIC,
+            tool_llm_provider=ModelProvider.ANTHROPIC,
+        )
+        agent = Agent(
+            tools=[query_tool_1],
+            topic="Sample topic",
+            custom_instructions="Call the tool with 15 arguments for ANTHROPIC",
+            agent_config=config,
+        )
+        res = agent.chat("What is the stock price?")
+        # ANTHROPIC does not have that 1024 limit
+        self.assertIn("stock price", str(res))
+
+
+        # But using Compact_docstring=True, we can pass 15 arguments successfully.
         vec_factory = VectaraToolFactory(
             vectara_corpus_key, vectara_api_key, compact_docstring=True
         )
@@ -211,7 +249,7 @@ class TestToolsPackage(unittest.TestCase):
         agent = Agent(
             tools=[query_tool_2],
             topic="Sample topic",
-            custom_instructions="Call the tool with 20 arguments",
+            custom_instructions="Call the tool with 15 arguments",
             agent_config=config,
         )
         res = agent.chat("What is the stock price?")
@@ -227,7 +265,7 @@ class TestToolsPackage(unittest.TestCase):
             tool_name="ask_vectara",
             data_description="data from Vectara website",
             assistant_specialty="RAG as a service",
-            vectara_summarizer="mockingbird-1.0-2024-07-16",
+            vectara_summarizer="mockingbird-2.0",
         )
 
         self.assertIn(
