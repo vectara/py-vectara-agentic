@@ -421,6 +421,11 @@ When the `run()` method in vectara-agentic is invoked, it calls the workflow wit
 * `inputs`: this is the actual inputs to the workflow provided by the call to `run()` and must be of type `InputsModel`
 
 If you need to store these variables for use in subsequent events, you can store them in `Context`.
+For example, to store your `agent` instance you can use
+
+```python
+await ctx.set('agent', ev.agent)
+```
 
 ### Using the Workflow with Your Agent
 
