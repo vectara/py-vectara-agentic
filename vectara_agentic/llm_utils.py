@@ -120,6 +120,7 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             is_function_calling_model=True,
             max_tokens=max_tokens,
         )
+        # pylint: disable=protected-access
         llm._prepare_chat_with_tools = MethodType(
             _updated_openai_prepare_chat_with_tools,
             llm,
@@ -133,6 +134,7 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             is_function_calling_model=True,
             max_tokens=max_tokens,
         )
+        # pylint: disable=protected-access
         llm._prepare_chat_with_tools = MethodType(
             _updated_openai_prepare_chat_with_tools,
             llm,
@@ -161,6 +163,7 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             api_key=config.private_llm_api_key,
             max_tokens=max_tokens,
         )
+        # pylint: disable=protected-access
         llm._prepare_chat_with_tools = MethodType(
             _updated_openai_prepare_chat_with_tools,
             llm,
