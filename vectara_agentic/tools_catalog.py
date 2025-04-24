@@ -10,7 +10,8 @@ from pydantic import Field
 
 from .types import LLMRole
 from .agent_config import AgentConfig
-from .utils import get_llm, remove_self_from_signature
+from .llm_utils import get_llm
+from .utils import remove_self_from_signature
 
 req_session = requests.Session()
 

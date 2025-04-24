@@ -12,12 +12,15 @@ import logging
 import asyncio
 import importlib
 from collections import Counter
+import inspect
+from inspect import Signature, Parameter, ismethod
 
 import cloudpickle as pickle
 
 from dotenv import load_dotenv
 
 from pydantic import Field, create_model, ValidationError
+
 
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.llms import ChatMessage, MessageRole
@@ -47,7 +50,7 @@ from .types import (
     AgentStreamingResponse,
     AgentConfigType,
 )
-from .utils import get_llm, get_tokenizer_for_model
+from .llm_utils import get_llm, get_tokenizer_for_model
 from ._prompts import (
     REACT_PROMPT_TEMPLATE,
     GENERAL_PROMPT_TEMPLATE,
@@ -230,6 +233,10 @@ class Agent:
         self.workflow_cls = workflow_cls
         self.workflow_timeout = workflow_timeout
 
+        # Sanitize tools for Gemini if needed
+        if self.agent_config.main_llm_provider == ModelProvider.GEMINI:
+            self.tools = self._sanitize_tools_for_gemini(self.tools)
+
         # Validate tools
         # Check for:
         # 1. multiple copies of the same tool
@@ -310,6 +317,63 @@ class Agent:
         except Exception as e:
             print(f"Failed to set up observer ({e}), ignoring")
             self.observability_enabled = False
+
+    def _sanitize_tools_for_gemini(
+        self, tools: list[FunctionTool]
+    ) -> list[FunctionTool]:
+        """
+        Strip all default values from:
+        - tool.fn
+        - tool.async_fn
+        - tool.metadata.fn_schema
+        so Gemini sees *only* required parameters, no defaults.
+        """
+        for tool in tools:
+            # 1) strip defaults off the actual callables
+            for func in (tool.fn, tool.async_fn):
+                if not func:
+                    continue
+                orig_sig = inspect.signature(func)
+                new_params = [
+                    p.replace(default=Parameter.empty)
+                    for p in orig_sig.parameters.values()
+                ]
+                new_sig = Signature(
+                    new_params, return_annotation=orig_sig.return_annotation
+                )
+                if ismethod(func):
+                    func.__func__.__signature__ = new_sig
+                else:
+                    func.__signature__ = new_sig
+
+            # 2) rebuild the Pydantic schema so that *every* field is required
+            schema_cls = getattr(tool.metadata, "fn_schema", None)
+            if schema_cls and hasattr(schema_cls, "model_fields"):
+                # collect (name → (type, Field(...))) for all fields
+                new_fields: dict[str, tuple[type, Any]] = {}
+                for name, mf in schema_cls.model_fields.items():
+                    typ = mf.annotation
+                    desc = getattr(mf, "description", "")
+                    # force required (no default) with Field(...)
+                    new_fields[name] = (typ, Field(..., description=desc))
+
+                # make a brand-new schema class where every field is required
+                no_default_schema = create_model(
+                    f"{schema_cls.__name__}",  # new class name
+                    **new_fields,  # type: ignore
+                )
+
+                # give it a clean __signature__ so inspect.signature sees no defaults
+                params = [
+                    Parameter(n, Parameter.POSITIONAL_OR_KEYWORD, annotation=typ)
+                    for n, (typ, _) in new_fields.items()
+                ]
+                no_default_schema.__signature__ = Signature(params)
+
+                # swap it back onto the tool
+                tool.metadata.fn_schema = no_default_schema
+
+        return tools
 
     def _create_agent(
         self, config: AgentConfig, llm_callback_manager: CallbackManager
