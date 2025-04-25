@@ -19,7 +19,7 @@ from llama_index.core.tools.types import ToolOutput
 from .types import ToolType
 from .tools_catalog import ToolsCatalog, get_bad_topics
 from .db_tools import DatabaseTools
-from .utils import summarize_documents
+from .utils import summarize_documents, is_float
 from .agent_config import AgentConfig
 from .tool_utils import (
     _create_tool_from_dynamic_function,
@@ -503,22 +503,27 @@ class VectaraToolFactory:
                     )
                     + ".\n"
                 )
-            fcs = response.metadata["fcs"] if "fcs" in response.metadata else 0.0
-            if fcs and fcs < fcs_threshold:
-                msg = f"Could not answer the query due to suspected hallucination (fcs={fcs})."
-                return ToolOutput(
-                    tool_name=rag_function.__name__,
-                    content=msg,
-                    raw_input={"args": args, "kwargs": kwargs},
-                    raw_output={"response": msg},
-                )
+            fcs = 0.0
+            fcs_str = response.metadata["fcs"] if "fcs" in response.metadata else "0.0"
+            if fcs_str and is_float(fcs_str):
+                fcs = float(fcs_str)
+                if fcs < fcs_threshold:
+                    msg = f"Could not answer the query due to suspected hallucination (fcs={fcs})."
+                    return ToolOutput(
+                        tool_name=rag_function.__name__,
+                        content=msg,
+                        raw_input={"args": args, "kwargs": kwargs},
+                        raw_output={"response": msg},
+                    )
             res = {
                 "response": response.response,
                 "references_metadata": citation_metadata,
+                "fcs_score": fcs,
             }
             if len(citation_metadata) > 0:
                 tool_output = f"""
                     Response: '''{res['response']}'''
+                    fcs_score: {res['fcs_score']:.4f}
                     References:
                     {res['references_metadata']}
                 """
