@@ -222,13 +222,12 @@ For example, in the quickstart example the schema is:
 
 ```python
 class QueryFinancialReportsArgs(BaseModel):
-    query: str = Field(..., description="The user query.")
     year: int | str = Field(..., description=f"The year this query relates to. An integer between {min(years)} and {max(years)} or a string specifying a condition on the year (example: '>2020').")
     ticker: str = Field(..., description=f"The company ticker. Must be a valid ticket symbol from the list {tickers.keys()}.")
 ```
 
-The `query` is required and is always the query string.
-The other arguments are optional and will be interpreted as Vectara metadata filters.
+Remember, the `query` argument is part of the rag_tool that is generated, but `vectara-agentic` creates it and you do 
+not need to specify it explicitly. 
 
 For example, in the example above, the agent may call the `query_financial_reports_tool` tool with 
 query='what is the revenue?', year=2022 and ticker='AAPL'. Subsequently the RAG tool will issue
