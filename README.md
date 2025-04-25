@@ -413,12 +413,27 @@ class MyWorkflow(Workflow):
         return StopEvent(result="Hello, world!")
 ```
 
-When the `run()` method in vectara-agentic is invoked, it calls the workflow with the following variables in the StartEvent:
+When the `run()` method in vectara-agentic is invoked, it calls the workflow with the following variables in the `StartEvent`:
 * `agent`: the agent object used to call `run()` (self)
 * `tools`: the tools provided to the agent. Those can be used as needed in the flow.
 * `llm`: a pointer to a LlamaIndex llm, so it can be used in the workflow. For example, one of the steps may call `llm.acomplete(prompt)`
 * `verbose`: controls whether extra debug information is displayed
 * `inputs`: this is the actual inputs to the workflow provided by the call to `run()` and must be of type `InputsModel`
+
+If you want to use `agent`, `tools`, `llm` or `verbose` in other events (that are not `StartEvent`), you can store them in
+the `Context` of the Workflow as follows:
+
+```python
+await ctx.set("agent", ev.agent)
+```
+
+and then in any other event you can pull that agent object with
+
+```python
+agent = await ctx.get("agent")
+```
+
+Similarly you can reuse the `llm`, `tools` or `verbose` arguments within other nodes in the workflow.
 
 ### Using the Workflow with Your Agent
 
@@ -451,7 +466,7 @@ print(workflow_result.answer)
 
 ### Built-in Workflows
 
-`vectara-agentic` includes two powerful workflow implementations that you can use right away:
+`vectara-agentic` includes two workflow implementations that you can use right away:
 
 #### 1. `SubQuestionQueryWorkflow`
 
