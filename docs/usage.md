@@ -602,7 +602,7 @@ class MyWorkflow(Workflow):
         return StopEvent(result="Hello, world!")
 ```
 
-When the `run()` method in vectara-agentic is invoked, it calls the workflow with the following variables in the StartEvent:
+When the `run()` method in vectara-agentic is invoked, it calls the workflow with the following variables in the `StartEvent`:
 
 - `agent`: the agent object used to call `run()` (self)
 - `tools`: the tools provided to the agent. Those can be used as needed in the flow.
