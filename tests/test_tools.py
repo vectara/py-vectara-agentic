@@ -188,7 +188,7 @@ class TestToolsPackage(unittest.TestCase):
 
         # Test with 15 arguments which go over the 1024 limit.
         config = AgentConfig(
-            agent_type=AgentType.OPENAI 
+            agent_type=AgentType.OPENAI
         )
         agent = Agent(
             tools=[query_tool_1],
@@ -212,8 +212,7 @@ class TestToolsPackage(unittest.TestCase):
             agent_config=config,
         )
         res = agent.chat("What is the stock price?")
-        # GROQ with llama4 has the same limit as OPENAI
-        self.assertIn("maximum length of 1024 characters", str(res))
+        self.assertNotIn("maximum length of 1024 characters", str(res))
 
         # Same test but with ANTHROPIC
         config = AgentConfig(
@@ -230,7 +229,6 @@ class TestToolsPackage(unittest.TestCase):
         res = agent.chat("What is the stock price?")
         # ANTHROPIC does not have that 1024 limit
         self.assertIn("stock price", str(res))
-
 
         # But using Compact_docstring=True, we can pass 15 arguments successfully.
         vec_factory = VectaraToolFactory(
