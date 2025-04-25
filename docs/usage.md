@@ -610,13 +610,20 @@ When the `run()` method in vectara-agentic is invoked, it calls the workflow wit
 - `verbose`: controls whether extra debug information is displayed
 - `inputs`: this is the actual inputs to the workflow provided by the call to `run()` and must be of type `InputsModel`
 
-If you need to store these variables for use in subsequent events, you can store them in `Context`.
-For example, to store your `agent` instance you can use
+If you want to use `agent`, `tools`, `llm` or `verbose` in other events (that are not `StartEvent`), you can store them in
+the `Context` of the Workflow as follows:
 
 ```python
-await ctx.set('agent', ev.agent)
+await ctx.set("agent", ev.agent)
 ```
 
+and then in any other event you can pull that agent object with
+
+```python
+agent = await ctx.get("agent")
+```
+
+Similarly you can reuse the `llm`, `tools` or `verbose` arguments within other nodes in the workflow.
 
 ### Integrating the Workflow with Your Agent
 

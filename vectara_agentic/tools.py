@@ -8,22 +8,24 @@ import importlib
 import os
 import asyncio
 
-from typing import Callable, List, Dict, Any, Optional, Union, Type, Tuple
-from pydantic import BaseModel, Field, create_model
-from pydantic_core import PydanticUndefined
+from typing import Callable, List, Dict, Any, Optional, Union
+from pydantic import BaseModel, Field
 
 from llama_index.core.tools import FunctionTool
-from llama_index.core.tools.function_tool import AsyncCallable
 from llama_index.indices.managed.vectara import VectaraIndex
 from llama_index.core.utilities.sql_wrapper import SQLDatabase
-from llama_index.core.tools.types import ToolMetadata, ToolOutput
-from llama_index.core.workflow.context import Context
+from llama_index.core.tools.types import ToolOutput
 
 from .types import ToolType
 from .tools_catalog import ToolsCatalog, get_bad_topics
 from .db_tools import DatabaseTools
 from .utils import summarize_documents, is_float
 from .agent_config import AgentConfig
+from .tool_utils import (
+    _create_tool_from_dynamic_function,
+    _build_filter_string,
+    VectaraTool
+)
 
 LI_packages = {
     "yahoo_finance": ToolType.QUERY,
@@ -59,461 +61,6 @@ LI_packages = {
         }
     },
 }
-
-
-class VectaraToolMetadata(ToolMetadata):
-    """
-    A subclass of ToolMetadata adding the tool_type attribute.
-    """
-
-    tool_type: ToolType
-
-    def __init__(self, tool_type: ToolType, **kwargs):
-        super().__init__(**kwargs)
-        self.tool_type = tool_type
-
-    def __repr__(self) -> str:
-        """
-        Returns a string representation of the VectaraToolMetadata object, including the tool_type attribute.
-        """
-        base_repr = super().__repr__()
-        return f"{base_repr}, tool_type={self.tool_type}"
-
-
-class VectaraTool(FunctionTool):
-    """
-    A subclass of FunctionTool adding the tool_type attribute.
-    """
-
-    def __init__(
-        self,
-        tool_type: ToolType,
-        metadata: ToolMetadata,
-        fn: Optional[Callable[..., Any]] = None,
-        async_fn: Optional[AsyncCallable] = None,
-    ) -> None:
-        metadata_dict = (
-            metadata.dict() if hasattr(metadata, "dict") else metadata.__dict__
-        )
-        vm = VectaraToolMetadata(tool_type=tool_type, **metadata_dict)
-        super().__init__(fn, vm, async_fn)
-
-    @classmethod
-    def from_defaults(
-        cls,
-        fn: Optional[Callable[..., Any]] = None,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-        return_direct: bool = False,
-        fn_schema: Optional[Type[BaseModel]] = None,
-        async_fn: Optional[AsyncCallable] = None,
-        tool_metadata: Optional[ToolMetadata] = None,
-        callback: Optional[Callable[[Any], Any]] = None,
-        async_callback: Optional[AsyncCallable] = None,
-        tool_type: ToolType = ToolType.QUERY,
-    ) -> "VectaraTool":
-        tool = FunctionTool.from_defaults(
-            fn,
-            name,
-            description,
-            return_direct,
-            fn_schema,
-            async_fn,
-            tool_metadata,
-            callback,
-            async_callback,
-        )
-        vectara_tool = cls(
-            tool_type=tool_type,
-            fn=tool.fn,
-            metadata=tool.metadata,
-            async_fn=tool.async_fn,
-        )
-        return vectara_tool
-
-    def __str__(self) -> str:
-        return f"Tool(name={self.metadata.name}, " f"Tool metadata={self.metadata})"
-
-    def __repr__(self) -> str:
-        return str(self)
-
-    def __eq__(self, other):
-        if not isinstance(other, VectaraTool):
-            return False
-
-        if self.metadata.tool_type != other.metadata.tool_type:
-            return False
-
-        if self.metadata.name != other.metadata.name:
-            return False
-
-        # If schema is a dict-like object, compare the dict representation
-        try:
-            # Try to get schema as dict if possible
-            if hasattr(self.metadata.fn_schema, "schema"):
-                self_schema = self.metadata.fn_schema.schema
-                other_schema = other.metadata.fn_schema.schema
-
-                # Compare only properties and required fields
-                self_props = self_schema.get("properties", {})
-                other_props = other_schema.get("properties", {})
-
-                self_required = self_schema.get("required", [])
-                other_required = other_schema.get("required", [])
-
-                return self_props.keys() == other_props.keys() and set(
-                    self_required
-                ) == set(other_required)
-        except Exception:
-            # If any exception occurs during schema comparison, fall back to name comparison
-            pass
-
-        return True
-
-    def call(
-        self, *args: Any, ctx: Optional[Context] = None, **kwargs: Any
-    ) -> ToolOutput:
-        try:
-            return super().call(*args, ctx=ctx, **kwargs)
-        except TypeError as e:
-            sig = inspect.signature(self.metadata.fn_schema)
-            valid_parameters = list(sig.parameters.keys())
-            params_str = ", ".join(valid_parameters)
-
-            err_output = ToolOutput(
-                tool_name=self.metadata.name,
-                content=(
-                    f"Wrong argument used when calling {self.metadata.name}: {str(e)}. "
-                    f"Valid arguments: {params_str}. please call the tool again with the correct arguments."
-                ),
-                raw_input={"args": args, "kwargs": kwargs},
-                raw_output={"response": str(e)},
-            )
-            return err_output
-        except Exception as e:
-            err_output = ToolOutput(
-                tool_name=self.metadata.name,
-                content=f"Tool {self.metadata.name} Malfunction: {str(e)}",
-                raw_input={"args": args, "kwargs": kwargs},
-                raw_output={"response": str(e)},
-            )
-            return err_output
-
-    async def acall(
-        self, *args: Any, ctx: Optional[Context] = None, **kwargs: Any
-    ) -> ToolOutput:
-        try:
-            return await super().acall(*args, ctx=ctx, **kwargs)
-        except TypeError as e:
-            sig = inspect.signature(self.metadata.fn_schema)
-            valid_parameters = list(sig.parameters.keys())
-            params_str = ", ".join(valid_parameters)
-
-            err_output = ToolOutput(
-                tool_name=self.metadata.name,
-                content=(
-                    f"Wrong argument used when calling {self.metadata.name}: {str(e)}. "
-                    f"Valid arguments: {params_str}. please call the tool again with the correct arguments."
-                ),
-                raw_input={"args": args, "kwargs": kwargs},
-                raw_output={"response": str(e)},
-            )
-            return err_output
-        except Exception as e:
-            err_output = ToolOutput(
-                tool_name=self.metadata.name,
-                content=f"Tool {self.metadata.name} Malfunction: {str(e)}",
-                raw_input={"args": args, "kwargs": kwargs},
-                raw_output={"response": str(e)},
-            )
-            return err_output
-
-
-def _create_tool_from_dynamic_function(
-    function: Callable[..., ToolOutput],
-    tool_name: str,
-    tool_description: str,
-    base_params_model: Type[BaseModel],  # Now a Pydantic BaseModel
-    tool_args_schema: Type[BaseModel],
-    compact_docstring: bool = False,
-) -> VectaraTool:
-    fields = {}
-    base_params = []
-
-    if tool_args_schema is None:
-
-        class EmptyBaseModel(BaseModel):
-            """empty base model"""
-
-        tool_args_schema = EmptyBaseModel
-
-    # Create inspect.Parameter objects for base_params_model fields.
-    for param_name, model_field in base_params_model.model_fields.items():
-        field_type = base_params_model.__annotations__.get(
-            param_name, str
-        )  # default to str if not found
-        default_value = (
-            model_field.default
-            if model_field.default is not None
-            else inspect.Parameter.empty
-        )
-        base_params.append(
-            inspect.Parameter(
-                param_name,
-                inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                default=default_value,
-                annotation=field_type,
-            )
-        )
-        fields[param_name] = (
-            field_type,
-            model_field.default if model_field.default is not None else ...,
-        )
-
-    # Add tool_args_schema fields to the fields dict if not already included.
-    # Also add them to the function signature by creating new inspect.Parameter objects.
-    for field_name, field_info in tool_args_schema.model_fields.items():
-        if field_name not in fields:
-            default_value = (
-                field_info.default if field_info.default is not None else ...
-            )
-            field_type = tool_args_schema.__annotations__.get(field_name, None)
-            fields[field_name] = (field_type, default_value)
-            # Append these fields to the signature.
-            base_params.append(
-                inspect.Parameter(
-                    field_name,
-                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                    default=(
-                        default_value
-                        if default_value is not ...
-                        else inspect.Parameter.empty
-                    ),
-                    annotation=field_type,
-                )
-            )
-
-    # Create the dynamic schema with both base_params_model and tool_args_schema fields.
-    fn_schema = create_model(f"{tool_name}_schema", **fields)
-
-    # Combine parameters into a function signature.
-    all_params = base_params[:]  # Now all_params contains parameters from both models.
-    required_params = [p for p in all_params if p.default is inspect.Parameter.empty]
-    optional_params = [
-        p for p in all_params if p.default is not inspect.Parameter.empty
-    ]
-    function.__signature__ = inspect.Signature(required_params + optional_params)
-    function.__annotations__["return"] = dict[str, Any]
-    function.__name__ = re.sub(r"[^A-Za-z0-9_]", "_", tool_name)
-
-    # Build a docstring using parameter descriptions from the BaseModels.
-    params_str = ", ".join(
-        f"{p.name}: {p.annotation.__name__ if hasattr(p.annotation, '__name__') else p.annotation}"
-        for p in all_params
-    )
-    signature_line = f"{tool_name}({params_str}) -> dict[str, Any]"
-    if compact_docstring:
-        doc_lines = [
-            tool_description.strip(),
-        ]
-    else:
-        doc_lines = [
-            signature_line,
-            "",
-            tool_description.strip(),
-        ]
-    doc_lines += [
-        "",
-        "Args:",
-    ]
-    for param in all_params:
-        description = ""
-        if param.name in base_params_model.model_fields:
-            description = base_params_model.model_fields[param.name].description
-        elif param.name in tool_args_schema.model_fields:
-            description = tool_args_schema.model_fields[param.name].description
-        if not description:
-            description = ""
-        type_name = (
-            param.annotation.__name__
-            if hasattr(param.annotation, "__name__")
-            else str(param.annotation)
-        )
-        if (
-            param.default is not inspect.Parameter.empty
-            and param.default is not PydanticUndefined
-        ):
-            default_text = f", default={param.default!r}"
-        else:
-            default_text = ""
-        doc_lines.append(f"  - {param.name} ({type_name}){default_text}: {description}")
-    doc_lines.append("")
-    doc_lines.append("Returns:")
-    return_desc = getattr(
-        function, "__return_description__", "A dictionary containing the result data."
-    )
-    doc_lines.append(f"    dict[str, Any]: {return_desc}")
-
-    initial_docstring = "\n".join(doc_lines)
-    collapsed_spaces = re.sub(r' {2,}', ' ', initial_docstring)
-    final_docstring = re.sub(r'\n{2,}', '\n', collapsed_spaces).strip()
-    function.__doc__ = final_docstring
-
-    tool = VectaraTool.from_defaults(
-        fn=function,
-        name=tool_name,
-        description=function.__doc__,
-        fn_schema=fn_schema,
-        tool_type=ToolType.QUERY,
-    )
-    return tool
-
-
-Range = Tuple[float, float, bool, bool]  # (min, max, min_inclusive, max_inclusive)
-
-
-def _parse_range(val_str: str) -> Range:
-    """
-    Parses '[1,10)' or '(0.5, 5]' etc.
-    Returns (start, end, start_incl, end_incl) or raises ValueError.
-    """
-    m = re.match(
-        r"""
-        ^([\[\(])\s*            # opening bracket
-        ([+-]?\d+(\.\d*)?)\s*,  # first number
-        \s*([+-]?\d+(\.\d*)?)   # second number
-        \s*([\]\)])$            # closing bracket
-    """,
-        val_str,
-        re.VERBOSE,
-    )
-    if not m:
-        raise ValueError(f"Invalid range syntax: {val_str!r}")
-    start_inc = m.group(1) == "["
-    end_inc = m.group(7) == "]"
-    start = float(m.group(2))
-    end = float(m.group(4))
-    if start > end:
-        raise ValueError(f"Range lower bound greater than upper bound: {val_str!r}")
-    return start, end, start_inc, end_inc
-
-
-def _parse_comparison(val_str: str) -> Tuple[str, Union[float, str, bool]]:
-    """
-    Parses '>10', '<=3.14', '!=foo', \"='bar'\" etc.
-    Returns (operator, rhs) or raises ValueError.
-    """
-    # pick off the operator
-    comparison_operators = [">=", "<=", "!=", ">", "<", "="]
-    numeric_only_operators = {">", "<", ">=", "<="}
-    for op in comparison_operators:
-        if val_str.startswith(op):
-            rhs = val_str[len(op) :].strip()
-            if op in numeric_only_operators:
-                try:
-                    rhs_val = float(rhs)
-                except ValueError as e:
-                    raise ValueError(
-                        f"Numeric comparison {op!r} must have a number, got {rhs!r}"
-                    ) from e
-                return op, rhs_val
-            # = and != can be bool, numeric, or string
-            low = rhs.lower()
-            if low in ("true", "false"):
-                return op, (low == "true")
-            try:
-                return op, float(rhs)
-            except ValueError:
-                return op, rhs
-    raise ValueError(f"No valid comparison operator at start of {val_str!r}")
-
-
-def _build_filter_string(
-    kwargs: Dict[str, Any], tool_args_type: Dict[str, dict], fixed_filter: str
-) -> str:
-    """
-    Build filter string for Vectara from kwargs
-    """
-    filter_parts = []
-    for key, raw in kwargs.items():
-        if raw is None or raw == "":
-            continue
-
-        if raw is PydanticUndefined:
-            raise ValueError(
-                f"Value of argument {key!r} is undefined, and this is invalid. "
-                "Please form proper arguments and try again."
-            )
-
-        tool_args_dict = tool_args_type.get(key, {"type": "doc", "is_list": False})
-        prefix = tool_args_dict.get("type", "doc")
-        is_list = tool_args_dict.get("is_list", False)
-
-        if prefix not in ("doc", "part"):
-            raise ValueError(
-                f'Unrecognized prefix {prefix!r}. Please make sure to use either "doc" or "part" for the prefix.'
-            )
-
-        # 1) native numeric
-        if isinstance(raw, (int, float)) or is_float(str(raw)):
-            val = str(raw)
-            if is_list:
-                filter_parts.append(f"({val} IN {prefix}.{key})")
-            else:
-                filter_parts.append(f"{prefix}.{key}={val}")
-            continue
-
-        # 2) native boolean
-        if isinstance(raw, bool):
-            val = "true" if raw else "false"
-            if is_list:
-                filter_parts.append(f"({val} IN {prefix}.{key})")
-            else:
-                filter_parts.append(f"{prefix}.{key}={val}")
-            continue
-
-        if not isinstance(raw, str):
-            raise ValueError(f"Unsupported type for {key!r}: {type(raw).__name__}")
-
-        val_str = raw.strip()
-
-        # 3) Range operator
-        if (val_str.startswith("[") or val_str.startswith("(")) and (
-            val_str.endswith("]") or val_str.endswith(")")
-        ):
-            start, end, start_incl, end_incl = _parse_range(val_str)
-            conds = []
-            op1 = ">=" if start_incl else ">"
-            op2 = "<=" if end_incl else "<"
-            conds.append(f"{prefix}.{key} {op1} {start}")
-            conds.append(f"{prefix}.{key} {op2} {end}")
-            filter_parts.append("(" + " AND ".join(conds) + ")")
-            continue
-
-        # 4) comparison operator
-        try:
-            op, rhs = _parse_comparison(val_str)
-        except ValueError:
-            # no operator → treat as membership or equality-on-string
-            if is_list:
-                filter_parts.append(f"('{val_str}' IN {prefix}.{key})")
-            else:
-                filter_parts.append(f"{prefix}.{key}='{val_str}'")
-        else:
-            # normal comparison always binds to the field
-            if isinstance(rhs, bool):
-                rhs_sql = "true" if rhs else "false"
-            elif isinstance(rhs, (int, float)):
-                rhs_sql = str(rhs)
-            else:
-                rhs_sql = f"'{rhs}'"
-            filter_parts.append(f"{prefix}.{key}{op}{rhs_sql}")
-
-    joined = " AND ".join(filter_parts)
-    if fixed_filter and joined:
-        return f"({fixed_filter}) AND ({joined})"
-    return fixed_filter or joined
-
 
 class VectaraToolFactory:
     """
@@ -718,7 +265,7 @@ class VectaraToolFactory:
                 description="The search query to perform, in the form of a question.",
             )
             top_k: int = Field(
-                10, description="The number of top documents to retrieve."
+                default=10, description="The number of top documents to retrieve."
             )
             summarize: bool = Field(
                 True,
@@ -956,22 +503,27 @@ class VectaraToolFactory:
                     )
                     + ".\n"
                 )
-            fcs = response.metadata["fcs"] if "fcs" in response.metadata else 0.0
-            if fcs and fcs < fcs_threshold:
-                msg = f"Could not answer the query due to suspected hallucination (fcs={fcs})."
-                return ToolOutput(
-                    tool_name=rag_function.__name__,
-                    content=msg,
-                    raw_input={"args": args, "kwargs": kwargs},
-                    raw_output={"response": msg},
-                )
+            fcs = 0.0
+            fcs_str = response.metadata["fcs"] if "fcs" in response.metadata else "0.0"
+            if fcs_str and is_float(fcs_str):
+                fcs = float(fcs_str)
+                if fcs < fcs_threshold:
+                    msg = f"Could not answer the query due to suspected hallucination (fcs={fcs})."
+                    return ToolOutput(
+                        tool_name=rag_function.__name__,
+                        content=msg,
+                        raw_input={"args": args, "kwargs": kwargs},
+                        raw_output={"response": msg},
+                    )
             res = {
                 "response": response.response,
                 "references_metadata": citation_metadata,
+                "fcs_score": fcs,
             }
             if len(citation_metadata) > 0:
                 tool_output = f"""
                     Response: '''{res['response']}'''
+                    fcs_score: {res['fcs_score']:.4f}
                     References:
                     {res['references_metadata']}
                 """
