@@ -231,7 +231,79 @@ class VectaraTool(FunctionTool):
             return err_output
 
 
-def _create_tool_from_dynamic_function(
+class EmptyBaseModel(BaseModel):
+    """empty base model"""
+
+def _unwrap_default(default):
+    # PydanticUndefined means “no default — required”
+    return default if default is not PydanticUndefined else inspect.Parameter.empty
+
+def _schema_default(default):
+    # PydanticUndefined ⇒ Ellipsis (required)
+    return default if default is not PydanticUndefined else ...
+
+def _make_docstring(
+    function: Callable[..., ToolOutput],
+    tool_name: str,
+    tool_description: str,
+    fn_schema: Type[BaseModel],
+    all_params: List[inspect.Parameter],
+    compact_docstring: bool,
+) -> str:
+    params_str = ", ".join(
+        f"{p.name}: {p.annotation.__name__ if hasattr(p.annotation, '__name__') else p.annotation}"
+        for p in all_params
+    )
+    signature_line = f"{tool_name}({params_str}) -> dict[str, Any]"
+    if compact_docstring:
+        doc_lines = [tool_description.strip()]
+    else:
+        doc_lines = [signature_line, "", tool_description.strip()]
+    doc_lines += [
+        "",
+        "Args:",
+    ]
+    
+    full_schema = fn_schema.model_json_schema()
+    props = full_schema.get("properties", {})
+    for name, schema_prop in props.items():
+        desc = schema_prop.get("description", "")
+
+        # pick up any examples you declared on the Field or via schema_extra
+        exs = schema_prop.get("examples", [])
+        default = schema_prop.get("default", PydanticUndefined)
+
+        # format the type, default, description, examples
+        # find the matching inspect.Parameter so you get its annotation
+        param = next(filter(lambda p: p.name == name, all_params), None)
+        ty = (param.annotation.__name__ 
+              if param and hasattr(param.annotation, "__name__") 
+              else schema_prop.get("type", ""))
+
+        # inline default if present
+        default_txt = f", default={default!r}" if default is not PydanticUndefined else ""
+
+        # inline examples if any
+        if exs:
+            examples_txt = ", ".join(repr(e) for e in exs)
+            desc = f"{desc}  (e.g., {examples_txt})"
+
+        doc_lines.append(f"  - {name} ({ty}{default_txt}): {desc}")
+
+    doc_lines.append("")
+    doc_lines.append("Returns:")
+    return_desc = getattr(
+        function, "__return_description__", "A dictionary containing the result data."
+    )
+    doc_lines.append(f"    dict[str, Any]: {return_desc}")
+
+    initial_docstring = "\n".join(doc_lines)
+    collapsed_spaces = re.sub(r' {2,}', ' ', initial_docstring)
+    final_docstring = re.sub(r'\n{2,}', '\n', collapsed_spaces).strip()
+    return final_docstring
+
+
+def create_tool_from_dynamic_function(
     function: Callable[..., ToolOutput],
     tool_name: str,
     tool_description: str,
@@ -239,36 +311,26 @@ def _create_tool_from_dynamic_function(
     tool_args_schema: Type[BaseModel],
     compact_docstring: bool = False,
 ) -> VectaraTool:
-    base_params = []
 
     if tool_args_schema is None:
-
-        class EmptyBaseModel(BaseModel):
-            """empty base model"""
-
         tool_args_schema = EmptyBaseModel
 
+    if not isinstance(tool_args_schema, type) or not issubclass(tool_args_schema, BaseModel):
+        raise TypeError("tool_args_schema must be a Pydantic BaseModel subclass")
+
     fields = {}
-    for param_name, model_field in base_params_model.model_fields.items():
-        field_type = base_params_model.__annotations__.get(
-            param_name, str
-        )
-        default_value = (
-            model_field.default
-            if model_field.default is not None
-            else inspect.Parameter.empty
-        )
+    base_params = []
+    for field_name, field_info in base_params_model.model_fields.items():
+        field_type = field_info.annotation
+        default_value = _unwrap_default(field_info.default)
         param = inspect.Parameter(
-            param_name,
+            field_name,
             inspect.Parameter.POSITIONAL_OR_KEYWORD,
             default=default_value,
             annotation=field_type,
         )
         base_params.append(param)
-        fields[param_name] = (
-            field_type,
-            model_field.default if model_field.default is not None else ...,
-        )
+        fields[field_name] = (field_type, _schema_default(field_info.default))
 
     # Add tool_args_schema fields to the fields dict if not already included.
     # Also add them to the function signature by creating new inspect.Parameter objects.
@@ -276,20 +338,16 @@ def _create_tool_from_dynamic_function(
         if field_name in fields:
             continue
 
-        default_value = field_info.default if field_info.default is not None else ...
-        field_type = tool_args_schema.__annotations__.get(field_name, None)
-        fields[field_name] = (field_type, default_value)
+        field_type = field_info.annotation
+        default_value = _unwrap_default(field_info.default)
         param = inspect.Parameter(
             field_name,
             inspect.Parameter.POSITIONAL_OR_KEYWORD,
-            default=(
-                default_value
-                if default_value is not ...
-                else inspect.Parameter.empty
-            ),
+            default=default_value,
             annotation=field_type,
         )
         base_params.append(param)
+        fields[field_name] = (field_type, _schema_default(field_info.default))
 
     # Create the dynamic schema with both base_params_model and tool_args_schema fields.
     fn_schema = create_model(f"{tool_name}_schema", **fields)
@@ -304,59 +362,11 @@ def _create_tool_from_dynamic_function(
     function.__annotations__["return"] = dict[str, Any]
     function.__name__ = re.sub(r"[^A-Za-z0-9_]", "_", tool_name)
 
-    # Build a docstring using parameter descriptions from the BaseModels.
-    params_str = ", ".join(
-        f"{p.name}: {p.annotation.__name__ if hasattr(p.annotation, '__name__') else p.annotation}"
-        for p in all_params
+    function.__doc__ = _make_docstring(
+        function,
+        tool_name, tool_description, fn_schema,
+        all_params, compact_docstring
     )
-    signature_line = f"{tool_name}({params_str}) -> dict[str, Any]"
-    if compact_docstring:
-        doc_lines = [
-            tool_description.strip(),
-        ]
-    else:
-        doc_lines = [
-            signature_line,
-            "",
-            tool_description.strip(),
-        ]
-    doc_lines += [
-        "",
-        "Args:",
-    ]
-    for param in all_params:
-        description = ""
-        if param.name in base_params_model.model_fields:
-            description = base_params_model.model_fields[param.name].description
-        elif param.name in tool_args_schema.model_fields:
-            description = tool_args_schema.model_fields[param.name].description
-        if not description:
-            description = ""
-        type_name = (
-            param.annotation.__name__
-            if hasattr(param.annotation, "__name__")
-            else str(param.annotation)
-        )
-        if (
-            param.default is not inspect.Parameter.empty
-            and param.default is not PydanticUndefined
-        ):
-            default_text = f", default={param.default!r}"
-        else:
-            default_text = ""
-        doc_lines.append(f"  - {param.name} ({type_name}){default_text}: {description}")
-    doc_lines.append("")
-    doc_lines.append("Returns:")
-    return_desc = getattr(
-        function, "__return_description__", "A dictionary containing the result data."
-    )
-    doc_lines.append(f"    dict[str, Any]: {return_desc}")
-
-    initial_docstring = "\n".join(doc_lines)
-    collapsed_spaces = re.sub(r' {2,}', ' ', initial_docstring)
-    final_docstring = re.sub(r'\n{2,}', '\n', collapsed_spaces).strip()
-    function.__doc__ = final_docstring
-
     tool = VectaraTool.from_defaults(
         fn=function,
         name=tool_name,
@@ -367,24 +377,23 @@ def _create_tool_from_dynamic_function(
     return tool
 
 
-Range = Tuple[float, float, bool, bool]  # (min, max, min_inclusive, max_inclusive)
+_PARSE_RANGE_REGEX = re.compile(
+    r"""
+    ^([\[\(])\s*            # opening bracket
+    ([+-]?\d+(\.\d*)?)\s*,  # first number
+    \s*([+-]?\d+(\.\d*)?)   # second number
+    \s*([\]\)])$            # closing bracket
+    """,
+    re.VERBOSE,
+)
 
 
-def _parse_range(val_str: str) -> Range:
+def _parse_range(val_str: str) -> Tuple[float, float, bool, bool]:
     """
     Parses '[1,10)' or '(0.5, 5]' etc.
     Returns (start, end, start_incl, end_incl) or raises ValueError.
     """
-    m = re.match(
-        r"""
-        ^([\[\(])\s*            # opening bracket
-        ([+-]?\d+(\.\d*)?)\s*,  # first number
-        \s*([+-]?\d+(\.\d*)?)   # second number
-        \s*([\]\)])$            # closing bracket
-    """,
-        val_str,
-        re.VERBOSE,
-    )
+    m = _PARSE_RANGE_REGEX.match(val_str)
     if not m:
         raise ValueError(f"Invalid range syntax: {val_str!r}")
     start_inc = m.group(1) == "["
@@ -426,7 +435,7 @@ def _parse_comparison(val_str: str) -> Tuple[str, Union[float, str, bool]]:
     raise ValueError(f"No valid comparison operator at start of {val_str!r}")
 
 
-def _build_filter_string(
+def build_filter_string(
     kwargs: Dict[str, Any], tool_args_type: Dict[str, dict], fixed_filter: str
 ) -> str:
     """

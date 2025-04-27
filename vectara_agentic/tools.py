@@ -22,8 +22,8 @@ from .db_tools import DatabaseTools
 from .utils import summarize_documents, is_float
 from .agent_config import AgentConfig
 from .tool_utils import (
-    _create_tool_from_dynamic_function,
-    _build_filter_string,
+    create_tool_from_dynamic_function,
+    build_filter_string,
     VectaraTool
 )
 
@@ -177,7 +177,7 @@ class VectaraToolFactory:
                 else summarize_docs
             )
             try:
-                filter_string = _build_filter_string(
+                filter_string = build_filter_string(
                     kwargs, tool_args_type, fixed_filter
                 )
             except ValueError as e:
@@ -289,7 +289,7 @@ class VectaraToolFactory:
             + "Use this tool to search for relevant documents, not to ask questions."
         )
 
-        tool = _create_tool_from_dynamic_function(
+        tool = create_tool_from_dynamic_function(
             search_function,
             tool_name,
             search_tool_extra_desc,
@@ -417,7 +417,7 @@ class VectaraToolFactory:
 
             query = kwargs.pop("query")
             try:
-                filter_string = _build_filter_string(
+                filter_string = build_filter_string(
                     kwargs, tool_args_type, fixed_filter
                 )
             except ValueError as e:
@@ -468,7 +468,7 @@ class VectaraToolFactory:
             response = vectara_query_engine.query(query)
 
             if len(response.source_nodes) == 0:
-                msg = "Tool failed to generate a response since no matches were found."
+                msg = "Tool failed to generate a response since no matches were found. Please check the arguments and try again."
                 return ToolOutput(
                     tool_name=rag_function.__name__,
                     content=msg,
@@ -545,7 +545,7 @@ class VectaraToolFactory:
                 description="The search query to perform, in the form of a question",
             )
 
-        tool = _create_tool_from_dynamic_function(
+        tool = create_tool_from_dynamic_function(
             rag_function,
             tool_name,
             tool_description,

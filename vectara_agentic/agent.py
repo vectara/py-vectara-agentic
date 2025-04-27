@@ -248,19 +248,25 @@ class Agent:
 
         if validate_tools:
             prompt = f"""
-            Given the following instructions, and a list of tool names,
-            Please identify tools mentioned in the instructions that do not exist in the list.
-            Instructions:
+            You are provided these tools:
+            <tools>{','.join(tool_names)}</tools>
+            And these instructions:
+            <instructions>
             {self._custom_instructions}
-            Tool names: {', '.join(tool_names)}
-            Your response should include a comma separated list of tool names that do not exist in the list.
-            Your response should be an empty string if all tools mentioned in the instructions are in the list.
+            </instructions>
+            Your task is to identify invalid tools.
+            A tool is invalid if it is mentioned in the instructions but not in the tools list.
+            A tool's name must have at least two characters.
+            Your response should be a comma-separated list of the invalid tools.
+            If not invalid tools exist, respond with "<OKAY>".
             """
             llm = get_llm(LLMRole.MAIN, config=self.agent_config)
-            bad_tools = llm.complete(prompt).text.split(", ")
-            if bad_tools:
+            bad_tools_str = llm.complete(prompt).text
+            if bad_tools_str and bad_tools_str != "<OKAY>":
+                bad_tools = [tool.strip() for tool in bad_tools_str.split(",")]
+                numbered = ", ".join(f"({i}) {tool}" for i, tool in enumerate(bad_tools, 1))
                 raise ValueError(
-                    f"The Agent custom instructions mention these invalid tools: {', '.join(bad_tools)}"
+                    f"The Agent custom instructions mention these invalid tools: {numbered}"
                 )
 
         # Create token counters for the main and tool LLMs
