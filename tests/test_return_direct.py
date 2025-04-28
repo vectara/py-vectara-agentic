@@ -1,7 +1,6 @@
 import unittest
 
-from vectara_agentic.agent import Agent, AgentType
-from vectara_agentic.tools import ToolsFactory
+from vectara_agentic.agent import Agent
 from vectara_agentic.tools import VectaraToolFactory
 
 vectara_corpus_key = "vectara-docs_1"
@@ -30,7 +29,6 @@ class TestAgentPackage(unittest.TestCase):
         self.assertIn("Response:", str(res))
         self.assertIn("fcs_score", str(res))
         self.assertIn("References:", str(res))
-
 
     def test_from_corpus(self):
         agent = Agent.from_corpus(
