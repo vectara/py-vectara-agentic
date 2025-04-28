@@ -15,7 +15,10 @@ vectara_api_key = "zqt_UXrBcnI2UXINZkrv4g1tQPhzj02vfdtqYJIDiA"
 class TestLLMPackage(unittest.TestCase):
 
     def test_vectara_openai(self):
-        vec_factory = VectaraToolFactory(vectara_corpus_key, vectara_api_key)
+        vec_factory = VectaraToolFactory(
+            vectara_corpus_key=vectara_corpus_key, 
+            vectara_api_key=vectara_api_key
+        )
 
         self.assertEqual(vectara_corpus_key, vec_factory.vectara_corpus_key)
         self.assertEqual(vectara_api_key, vec_factory.vectara_api_key)
