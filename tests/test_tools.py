@@ -196,7 +196,7 @@ class TestToolsPackage(unittest.TestCase):
             custom_instructions="Call the tool with 15 arguments for OPENAI",
             agent_config=config,
         )
-        res = agent.chat("What is the stock price?")
+        res = agent.chat("What is the stock price for Yahoo on 12/31/22?")
         self.assertIn("maximum length of 1024 characters", str(res))
 
         # Same test but with GROQ

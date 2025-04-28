@@ -263,32 +263,33 @@ def _make_docstring(
         "",
         "Args:",
     ]
-    
+
     full_schema = fn_schema.model_json_schema()
     props = full_schema.get("properties", {})
-    for name, schema_prop in props.items():
+    for prop_name, schema_prop in props.items():
         desc = schema_prop.get("description", "")
 
         # pick up any examples you declared on the Field or via schema_extra
-        exs = schema_prop.get("examples", [])
+        examples = schema_prop.get("examples", [])
         default = schema_prop.get("default", PydanticUndefined)
 
         # format the type, default, description, examples
         # find the matching inspect.Parameter so you get its annotation
-        param = next(filter(lambda p: p.name == name, all_params), None)
-        ty = (param.annotation.__name__ 
-              if param and hasattr(param.annotation, "__name__") 
-              else schema_prop.get("type", ""))
+        param = next((p for p in all_params if p.name == prop_name), None)
+        if param and hasattr(param.annotation, "__name__"):
+            ty = param.annotation.__name__
+        else:
+            ty = schema_prop.get("type", "")
 
         # inline default if present
         default_txt = f", default={default!r}" if default is not PydanticUndefined else ""
 
         # inline examples if any
-        if exs:
-            examples_txt = ", ".join(repr(e) for e in exs)
+        if examples:
+            examples_txt = ", ".join(repr(e) for e in examples)
             desc = f"{desc}  (e.g., {examples_txt})"
 
-        doc_lines.append(f"  - {name} ({ty}{default_txt}): {desc}")
+        doc_lines.append(f"  - {prop_name} ({ty}{default_txt}): {desc}")
 
     doc_lines.append("")
     doc_lines.append("Returns:")
@@ -310,8 +311,20 @@ def create_tool_from_dynamic_function(
     base_params_model: Type[BaseModel],
     tool_args_schema: Type[BaseModel],
     compact_docstring: bool = False,
+    return_direct: bool = False,
 ) -> VectaraTool:
-
+    """
+    Create a VectaraTool from a dynamic function.
+    Args:
+        function (Callable[..., ToolOutput]): The function to wrap as a tool.
+        tool_name (str): The name of the tool.
+        tool_description (str): The description of the tool.
+        base_params_model (Type[BaseModel]): The Pydantic model for the base parameters.
+        tool_args_schema (Type[BaseModel]): The Pydantic model for the tool arguments.
+        compact_docstring (bool): Whether to use a compact docstring format.
+    Returns:
+        VectaraTool: The created VectaraTool.
+    """
     if tool_args_schema is None:
         tool_args_schema = EmptyBaseModel
 
@@ -373,6 +386,7 @@ def create_tool_from_dynamic_function(
         description=function.__doc__,
         fn_schema=fn_schema,
         tool_type=ToolType.QUERY,
+        return_direct=return_direct,
     )
     return tool
 

@@ -24,7 +24,7 @@ from .agent_config import AgentConfig
 from .tool_utils import (
     create_tool_from_dynamic_function,
     build_filter_string,
-    VectaraTool
+    VectaraTool,
 )
 
 LI_packages = {
@@ -61,6 +61,7 @@ LI_packages = {
         }
     },
 }
+
 
 class VectaraToolFactory:
     """
@@ -108,6 +109,7 @@ class VectaraToolFactory:
         mmr_diversity_bias: float = 0.2,
         udf_expression: str = None,
         rerank_chain: List[Dict] = None,
+        return_direct: bool = False,
         save_history: bool = True,
         verbose: bool = False,
         vectara_base_url: str = "https://api.vectara.io",
@@ -142,6 +144,7 @@ class VectaraToolFactory:
                 "diversity_bias" for mmr, and "user_function" for udf).
                 If using slingshot/multilingual_reranker_v1, it must be first in the list.
             save_history (bool, optional): Whether to save the query in history.
+            return_direct (bool, optional): Whether the agent should return the tool's response directly.
             verbose (bool, optional): Whether to print verbose output.
             vectara_base_url (str, optional): The base URL for the Vectara API.
             vectara_verify_ssl (bool, optional): Whether to verify SSL certificates for the Vectara API.
@@ -300,6 +303,7 @@ class VectaraToolFactory:
             ),
             tool_args_schema,
             compact_docstring=self.compact_docstring,
+            return_direct=return_direct,
         )
         return tool
 
@@ -336,6 +340,7 @@ class VectaraToolFactory:
         include_citations: bool = True,
         save_history: bool = False,
         fcs_threshold: float = 0.0,
+        return_direct: bool = False,
         verbose: bool = False,
         vectara_base_url: str = "https://api.vectara.io",
         vectara_verify_ssl: bool = True,
@@ -388,6 +393,7 @@ class VectaraToolFactory:
             save_history (bool, optional): Whether to save the query in history.
             fcs_threshold (float, optional): A threshold for factual consistency.
                 If set above 0, the tool notifies the calling agent that it "cannot respond" if FCS is too low.
+            return_direct (bool, optional): Whether the agent should return the tool's response directly.
             verbose (bool, optional): Whether to print verbose output.
             vectara_base_url (str, optional): The base URL for the Vectara API.
             vectara_verify_ssl (bool, optional): Whether to verify SSL certificates for the Vectara API.
@@ -468,7 +474,10 @@ class VectaraToolFactory:
             response = vectara_query_engine.query(query)
 
             if len(response.source_nodes) == 0:
-                msg = "Tool failed to generate a response since no matches were found. Please check the arguments and try again."
+                msg = (
+                    "Tool failed to generate a response since no matches were found. "
+                    "Please check the arguments and try again."
+                )
                 return ToolOutput(
                     tool_name=rag_function.__name__,
                     content=msg,
@@ -552,6 +561,7 @@ class VectaraToolFactory:
             RagToolBaseParams,
             tool_args_schema,
             compact_docstring=self.compact_docstring,
+            return_direct=return_direct,
         )
         return tool
 

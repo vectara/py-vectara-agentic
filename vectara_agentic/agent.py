@@ -695,6 +695,7 @@ class Agent:
         vectara_frequency_penalty: Optional[float] = None,
         vectara_presence_penalty: Optional[float] = None,
         vectara_save_history: bool = True,
+        return_direct: bool = False,
     ) -> "Agent":
         """
         Create an agent from a single Vectara corpus
@@ -744,6 +745,7 @@ class Agent:
             vectara_presence_penalty (float, optional): How much to penalize repeating tokens in the response,
                 higher values increasing the diversity of topics.
             vectara_save_history (bool, optional): Whether to save the query in history.
+            return_direct (bool, optional): Whether the agent should return the tool's response directly.
 
         Returns:
             Agent: An instance of the Agent class.
@@ -797,6 +799,7 @@ class Agent:
             save_history=vectara_save_history,
             include_citations=True,
             verbose=verbose,
+            return_direct=return_direct,
         )
 
         assistant_instructions = f"""
