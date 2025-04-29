@@ -16,13 +16,18 @@ def setup_observer(config: AgentConfig, verbose: bool) -> bool:
         if verbose:
             print("No Phoenix observer set.")
         return False
-    
+
     try:
         import phoenix as px
         from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
         from phoenix.otel import register
     except ImportError:
-        print("Phoenix libraries not found. Please install with 'pip install arize-phoenix openinference-instrumentation-llama-index'")
+        print(
+            (
+                "Phoenix libraries not found. Please install with"
+                "'pip install arize-phoenix openinference-instrumentation-llama-index'"
+            )
+        )
         return False
 
     phoenix_endpoint = os.getenv("PHOENIX_ENDPOINT", None)
