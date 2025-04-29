@@ -12,28 +12,45 @@ def setup_observer(config: AgentConfig, verbose: bool) -> bool:
     '''
     Setup the observer.
     '''
-    import phoenix as px
-    from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
-    from phoenix.otel import register
-    if config.observer == ObserverType.ARIZE_PHOENIX:
-        phoenix_endpoint = os.getenv("PHOENIX_ENDPOINT", None)
-        if not phoenix_endpoint:
-            px.launch_app()
-            tracer_provider = register(endpoint='http://localhost:6006/v1/traces', project_name="vectara-agentic")
-        elif 'app.phoenix.arize.com' in phoenix_endpoint:   # hosted on Arize
-            phoenix_api_key = os.getenv("PHOENIX_API_KEY", None)
-            if not phoenix_api_key:
-                raise ValueError("Arize Phoenix API key not set. Please set PHOENIX_API_KEY environment variable.")
-            os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={phoenix_api_key}"
-            os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
-            tracer_provider = register(endpoint=phoenix_endpoint, project_name="vectara-agentic")
-        else:       # Self hosted Phoenix
-            tracer_provider = register(endpoint=phoenix_endpoint, project_name="vectara-agentic")
-        LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
-        return True
+    if config.observer != ObserverType.ARIZE_PHOENIX:
+        if verbose:
+            print("No Phoenix observer set.")
+        return False
+    
+    try:
+        import phoenix as px
+        from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
+        from phoenix.otel import register
+    except ImportError:
+        print("Phoenix libraries not found. Please install with 'pip install arize-phoenix openinference-instrumentation-llama-index'")
+        return False
+
+    phoenix_endpoint = os.getenv("PHOENIX_ENDPOINT", None)
+    if not phoenix_endpoint:
+        print("Phoenix endpoint not set. Attempting to launch local Phoenix UI...")
+        px.launch_app()
+        print("Local Phoenix UI launched. You can view traces at the UI address (usually http://localhost:6006).")
+
+    if phoenix_endpoint and 'app.phoenix.arize.com' in phoenix_endpoint:
+        phoenix_api_key = os.getenv("PHOENIX_API_KEY")
+        if not phoenix_api_key:
+            raise ValueError(
+                "Arize Phoenix API key not set. Please set PHOENIX_API_KEY."
+            )
+        os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={phoenix_api_key}"
+        os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
+
+    reg_kwargs = {
+        "endpoint": phoenix_endpoint or 'http://localhost:6006/v1/traces',
+        "project_name": "vectara-agentic",
+        "batch": True,
+        "set_global_tracer_provider": False,
+    }
+    tracer_provider = register(**reg_kwargs)
+    LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
     if verbose:
-        print("No observer set.")
-    return False
+        print(f"Phoenix observer configured for project 'vectara-agentic' at endpoint: {reg_kwargs['endpoint']}")
+    return True
 
 
 def _extract_fcs_value(output: Union[str, dict]) -> Optional[float]:

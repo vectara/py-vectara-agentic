@@ -248,19 +248,25 @@ class Agent:
 
         if validate_tools:
             prompt = f"""
-            Given the following instructions, and a list of tool names,
-            Please identify tools mentioned in the instructions that do not exist in the list.
-            Instructions:
+            You are provided these tools:
+            <tools>{','.join(tool_names)}</tools>
+            And these instructions:
+            <instructions>
             {self._custom_instructions}
-            Tool names: {', '.join(tool_names)}
-            Your response should include a comma separated list of tool names that do not exist in the list.
-            Your response should be an empty string if all tools mentioned in the instructions are in the list.
+            </instructions>
+            Your task is to identify invalid tools.
+            A tool is invalid if it is mentioned in the instructions but not in the tools list.
+            A tool's name must have at least two characters.
+            Your response should be a comma-separated list of the invalid tools.
+            If not invalid tools exist, respond with "<OKAY>".
             """
             llm = get_llm(LLMRole.MAIN, config=self.agent_config)
-            bad_tools = llm.complete(prompt).text.split(", ")
-            if bad_tools:
+            bad_tools_str = llm.complete(prompt).text
+            if bad_tools_str and bad_tools_str != "<OKAY>":
+                bad_tools = [tool.strip() for tool in bad_tools_str.split(",")]
+                numbered = ", ".join(f"({i}) {tool}" for i, tool in enumerate(bad_tools, 1))
                 raise ValueError(
-                    f"The Agent custom instructions mention these invalid tools: {', '.join(bad_tools)}"
+                    f"The Agent custom instructions mention these invalid tools: {numbered}"
                 )
 
         # Create token counters for the main and tool LLMs
@@ -689,6 +695,7 @@ class Agent:
         vectara_frequency_penalty: Optional[float] = None,
         vectara_presence_penalty: Optional[float] = None,
         vectara_save_history: bool = True,
+        return_direct: bool = False,
     ) -> "Agent":
         """
         Create an agent from a single Vectara corpus
@@ -738,6 +745,7 @@ class Agent:
             vectara_presence_penalty (float, optional): How much to penalize repeating tokens in the response,
                 higher values increasing the diversity of topics.
             vectara_save_history (bool, optional): Whether to save the query in history.
+            return_direct (bool, optional): Whether the agent should return the tool's response directly.
 
         Returns:
             Agent: An instance of the Agent class.
@@ -791,6 +799,7 @@ class Agent:
             save_history=vectara_save_history,
             include_citations=True,
             verbose=verbose,
+            return_direct=return_direct,
         )
 
         assistant_instructions = f"""
