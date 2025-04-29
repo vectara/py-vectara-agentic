@@ -16,7 +16,7 @@ class TestLLMPackage(unittest.TestCase):
 
     def test_vectara_openai(self):
         vec_factory = VectaraToolFactory(
-            vectara_corpus_key=vectara_corpus_key, 
+            vectara_corpus_key=vectara_corpus_key,
             vectara_api_key=vectara_api_key
         )
 
