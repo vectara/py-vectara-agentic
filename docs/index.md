@@ -208,7 +208,7 @@ LLM provider.
 
 Defaults:
 
-1.  For `OPENAI`, the default is `gpt-4o`.
+1.  For `OPENAI`, the default is `gpt-4.1`.
 2.  For `ANTHROPIC`, the default is `claude-3-7-sonnet-latest`.
 3.  For `GEMINI`, the default is `gemini-2.0-flash`.
 4.  For `TOGETHER.AI`, the default is `Qwen/Qwen2.5-72B-Instruct-Turbo`.

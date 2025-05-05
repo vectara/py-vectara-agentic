@@ -77,7 +77,7 @@ def get_tokenizer_for_model(
         if model_provider == ModelProvider.ANTHROPIC:
             return Anthropic().tokenizer
     except Exception as e:
-        print(f"Error getting tokenizer for model {model_name}, ignoreing")
+        print(f"Error getting tokenizer for model {model_name}, ignoring")
         return None
     return None
 
