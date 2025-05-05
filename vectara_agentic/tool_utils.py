@@ -281,10 +281,6 @@ def _make_docstring(
         type_repr = _clean_type_repr(type_repr)
         params_str_parts.append(f"{p.name}: {type_repr}")
 
-    # params_str = ", ".join(
-    #     f"{p.name}: {p.annotation.__name__ if hasattr(p.annotation, '__name__') else p.annotation}"
-    #     for p in all_params
-    # )
     params_str = ", ".join(params_str_parts)
     signature_line = f"{tool_name}({params_str}) -> dict[str, Any]"
     
