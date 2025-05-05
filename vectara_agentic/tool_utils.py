@@ -242,6 +242,16 @@ def _schema_default(default):
     # PydanticUndefined ⇒ Ellipsis (required)
     return default if default is not PydanticUndefined else ...
 
+def _clean_type_repr(type_repr: str) -> str:
+    """Cleans the string representation of a type."""
+    # Replace <class 'somename'> with somename
+    match = re.match(r"<class '(\w+)'>", type_repr)
+    if match:
+        type_repr = match.group(1)
+    
+    type_repr = type_repr.replace("typing.", "")
+    return type_repr
+
 def _make_docstring(
     function: Callable[..., ToolOutput],
     tool_name: str,
@@ -250,46 +260,69 @@ def _make_docstring(
     all_params: List[inspect.Parameter],
     compact_docstring: bool,
 ) -> str:
-    params_str = ", ".join(
-        f"{p.name}: {p.annotation.__name__ if hasattr(p.annotation, '__name__') else p.annotation}"
-        for p in all_params
-    )
+    """
+    Generates a docstring for a function based on its signature, description,
+    and Pydantic schema, correctly handling complex type annotations.
+
+    Args:
+        function: The function for which to generate the docstring.
+        tool_name: The desired name for the tool/function in the docstring.
+        tool_description: The main description of the tool/function.
+        fn_schema: The Pydantic model representing the function's arguments schema.
+        all_params: A list of inspect.Parameter objects for the function signature.
+        compact_docstring: If True, omits the signature line in the main description.
+
+    Returns:
+        A formatted docstring string.
+    """
+    params_str_parts = []
+    for p in all_params:
+        type_repr = str(p.annotation)
+        type_repr = _clean_type_repr(type_repr)
+        params_str_parts.append(f"{p.name}: {type_repr}")
+
+    params_str = ", ".join(params_str_parts)
     signature_line = f"{tool_name}({params_str}) -> dict[str, Any]"
+    
     if compact_docstring:
         doc_lines = [tool_description.strip()]
     else:
         doc_lines = [signature_line, "", tool_description.strip()]
-    doc_lines += [
-        "",
-        "Args:",
-    ]
-
+    
     full_schema = fn_schema.model_json_schema()
     props = full_schema.get("properties", {})
-    for prop_name, schema_prop in props.items():
-        desc = schema_prop.get("description", "")
 
-        # pick up any examples you declared on the Field or via schema_extra
-        examples = schema_prop.get("examples", [])
-        default = schema_prop.get("default", PydanticUndefined)
+    if props:
+        doc_lines.extend(["", "Args:"])
+        for prop_name, schema_prop in props.items():
+            desc = schema_prop.get("description", "")
 
-        # format the type, default, description, examples
-        # find the matching inspect.Parameter so you get its annotation
-        param = next((p for p in all_params if p.name == prop_name), None)
-        if param and hasattr(param.annotation, "__name__"):
-            ty = param.annotation.__name__
-        else:
-            ty = schema_prop.get("type", "")
+            # pick up any examples you declared on the Field or via schema_extra
+            examples = schema_prop.get("examples", [])
+            default = schema_prop.get("default", PydanticUndefined)
 
-        # inline default if present
-        default_txt = f", default={default!r}" if default is not PydanticUndefined else ""
+            # format the type, default, description, examples
+            # find the matching inspect.Parameter so you get its annotation
+            param = next((p for p in all_params if p.name == prop_name), None)
+            ty_str = ""
+            if param:
+                ty_str = _clean_type_repr(str(param.annotation))
+            elif "type" in schema_prop:
+                 ty_info = schema_prop["type"]
+                 if isinstance(ty_info, str):
+                     ty_str = _clean_type_repr(ty_info)
+                 elif isinstance(ty_info, list): # Handle JSON schema array type e.g., ["integer", "string"]
+                     ty_str = " | ".join([_clean_type_repr(t) for t in ty_info])
 
-        # inline examples if any
-        if examples:
-            examples_txt = ", ".join(repr(e) for e in examples)
-            desc = f"{desc}  (e.g., {examples_txt})"
+            # inline default if present
+            default_txt = f", default={default!r}" if default is not PydanticUndefined else ""
 
-        doc_lines.append(f"  - {prop_name} ({ty}{default_txt}): {desc}")
+            # inline examples if any
+            if examples:
+                examples_txt = ", ".join(repr(e) for e in examples)
+                desc = f"{desc}  (e.g., {examples_txt})"
+
+            doc_lines.append(f"  - {prop_name} ({ty_str}{default_txt}): {desc}")
 
     doc_lines.append("")
     doc_lines.append("Returns:")

@@ -7,8 +7,9 @@ GENERAL_INSTRUCTIONS = """
 - Use tools as your main source of information, do not respond without using a tool. Do not respond based on pre-trained knowledge.
 - Use the 'get_bad_topics' (if it exists) tool to determine the topics you are not allowed to discuss or respond to.
 - Before responding to a user query that requires knowledge of the current date, call the 'get_current_date' tool to get the current date.
-  Never rely on previous knowledge of the current date.
+  Never rely on previous knowledge of the current date. 
   Example queries that require the current date: "What is the revenue of Apple last october?" or "What was the stock price 5 days ago?".
+  Never call 'get_current_date' more than once for the same user query.
 - When using a tool with arguments, simplify the query as much as possible if you use the tool with arguments.
   For example, if the original query is "revenue for apple in 2021", you can use the tool with a query "revenue" with arguments year=2021 and company=apple.
 - If a tool responds with "I do not have enough information", try one or more of the following strategies:

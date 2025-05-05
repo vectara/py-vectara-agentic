@@ -15,7 +15,7 @@ from .agent_config import AgentConfig
 from .tool_utils import _updated_openai_prepare_chat_with_tools
 
 provider_to_default_model_name = {
-    ModelProvider.OPENAI: "gpt-4o",
+    ModelProvider.OPENAI: "gpt-4.1",
     ModelProvider.ANTHROPIC: "claude-3-7-sonnet-latest",
     ModelProvider.TOGETHER: "Qwen/Qwen2.5-72B-Instruct-Turbo",
     ModelProvider.GROQ: "meta-llama/llama-4-scout-17b-16e-instruct",
@@ -69,12 +69,16 @@ def get_tokenizer_for_model(
     """
     Get the tokenizer for the specified model, as determined by the role & config.
     """
-    model_provider, model_name = _get_llm_params_for_role(role, config)
-    if model_provider == ModelProvider.OPENAI:
-        # This might raise an exception if the model_name is unknown to tiktoken
-        return tiktoken.encoding_for_model(model_name).encode
-    if model_provider == ModelProvider.ANTHROPIC:
-        return Anthropic().tokenizer
+    try:
+        model_provider, model_name = _get_llm_params_for_role(role, config)
+        if model_provider == ModelProvider.OPENAI:
+            # This might raise an exception if the model_name is unknown to tiktoken
+            return tiktoken.encoding_for_model(model_name).encode
+        if model_provider == ModelProvider.ANTHROPIC:
+            return Anthropic().tokenizer
+    except Exception as e:
+        print(f"Error getting tokenizer for model {model_name}, ignoring")
+        return None
     return None
 
 
