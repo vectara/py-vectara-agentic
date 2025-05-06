@@ -112,7 +112,7 @@ class DatabaseTools:
             List[str]: a list of Document objects from the database.
         """
         if sql_query is None:
-            raise ValueError("A query parameter is necessary to filter the data")
+            raise ValueError("A query parameter is necessary to filter the data.")
 
         count_query = f"SELECT COUNT(*) FROM ({sql_query})"
         try:
@@ -123,7 +123,7 @@ class DatabaseTools:
         if num_rows > self.max_rows:
             return [
                 f"The query is expected to return more than {self.max_rows} rows. "
-                "Please refactor your query to make it return less rows. "
+                "Please refactor your query to make it return less rows and try again. "
             ]
         try:
             res = self._load_data(sql_query)

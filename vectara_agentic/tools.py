@@ -219,7 +219,7 @@ class VectaraToolFactory:
             response = vectara_retriever.retrieve(query)
 
             if len(response) == 0:
-                msg = "Vectara Tool failed to retreive any results for the query."
+                msg = "Vectara Tool failed to retrieve any results for the query."
                 return ToolOutput(
                     tool_name=search_function.__name__,
                     content=msg,
