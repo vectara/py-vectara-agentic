@@ -289,6 +289,31 @@ class TestToolsPackage(unittest.TestCase):
             "50",
         )
 
+    def test_vectara_tool_docstring(self):
+        class DummyArgs(BaseModel):
+            foo: int = Field(..., description="how many foos", examples=[1, 2, 3])
+            bar: str = Field(
+                "baz",
+                description="what bar to use",
+                examples=["x", "y"],
+            )
+
+        vec_factory = VectaraToolFactory(vectara_corpus_key, vectara_api_key)
+        dummy_tool = vec_factory.create_rag_tool(
+            tool_name="dummy_tool",
+            tool_description="A dummy tool.",
+            tool_args_schema=DummyArgs,
+        )
+
+        doc = dummy_tool.metadata.description
+        self.assertTrue(doc.startswith("dummy_tool(query: str, foo: int, bar: str) -> dict[str, Any]"))
+        self.assertIn("Args:", doc)
+        self.assertIn("query (str): The search query to perform, in the form of a question", doc)
+        self.assertIn("foo (int): how many foos (e.g., 1, 2, 3)", doc)
+        self.assertIn("bar (str, default='baz'): what bar to use (e.g., 'x', 'y')", doc)
+        self.assertIn("Returns:", doc)
+        self.assertIn("dict[str, Any]: A dictionary containing the result data.", doc)
+
 
 if __name__ == "__main__":
     unittest.main()

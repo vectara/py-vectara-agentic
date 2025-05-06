@@ -124,7 +124,7 @@ class TestAgentPackage(unittest.TestCase):
         self.assertEqual(res.response, "1050")
 
     def test_custom_general_instruction(self):
-        general_instructions = "Always respond with 'I DIDNT DO IT'"
+        general_instructions = "Always respond with: I DIDN'T DO IT"
         agent = Agent.from_corpus(
             tool_name="RAG Tool",
             vectara_corpus_key="corpus_key",
@@ -135,7 +135,7 @@ class TestAgentPackage(unittest.TestCase):
         )
 
         res = agent.chat("What is the meaning of the universe?")
-        self.assertEqual(res.response, "I DIDNT DO IT")
+        self.assertEqual(res.response, "I DIDN'T DO IT")
 
 
 if __name__ == "__main__":
