@@ -234,21 +234,13 @@ class VectaraTool(FunctionTool):
 class EmptyBaseModel(BaseModel):
     """empty base model"""
 
-def _unwrap_default(default):
-    # PydanticUndefined means “no default — required”
-    return default if default is not PydanticUndefined else inspect.Parameter.empty
-
-def _schema_default(default):
-    # PydanticUndefined ⇒ Ellipsis (required)
-    return default if default is not PydanticUndefined else ...
-
 def _clean_type_repr(type_repr: str) -> str:
     """Cleans the string representation of a type."""
     # Replace <class 'somename'> with somename
     match = re.match(r"<class '(\w+)'>", type_repr)
     if match:
         type_repr = match.group(1)
-    
+
     type_repr = type_repr.replace("typing.", "")
     return type_repr
 
@@ -283,12 +275,12 @@ def _make_docstring(
 
     params_str = ", ".join(params_str_parts)
     signature_line = f"{tool_name}({params_str}) -> dict[str, Any]"
-    
+
     if compact_docstring:
         doc_lines = [tool_description.strip()]
     else:
         doc_lines = [signature_line, "", tool_description.strip()]
-    
+
     full_schema = fn_schema.model_json_schema()
     props = full_schema.get("properties", {})
 
@@ -308,11 +300,11 @@ def _make_docstring(
             if param:
                 ty_str = _clean_type_repr(str(param.annotation))
             elif "type" in schema_prop:
-                 ty_info = schema_prop["type"]
-                 if isinstance(ty_info, str):
-                     ty_str = _clean_type_repr(ty_info)
-                 elif isinstance(ty_info, list): # Handle JSON schema array type e.g., ["integer", "string"]
-                     ty_str = " | ".join([_clean_type_repr(t) for t in ty_info])
+                ty_info = schema_prop["type"]
+                if isinstance(ty_info, str):
+                    ty_str = _clean_type_repr(ty_info)
+                elif isinstance(ty_info, list):  # Handle JSON schema array type e.g., ["integer", "string"]
+                    ty_str = " | ".join([_clean_type_repr(t) for t in ty_info])
 
             # inline default if present
             default_txt = f", default={default!r}" if default is not PydanticUndefined else ""
@@ -364,36 +356,33 @@ def create_tool_from_dynamic_function(
     if not isinstance(tool_args_schema, type) or not issubclass(tool_args_schema, BaseModel):
         raise TypeError("tool_args_schema must be a Pydantic BaseModel subclass")
 
-    fields = {}
+    fields: Dict[str, Any] = {}
     base_params = []
     for field_name, field_info in base_params_model.model_fields.items():
-        field_type = field_info.annotation
-        default_value = _unwrap_default(field_info.default)
+        default = Ellipsis if field_info.default is PydanticUndefined else field_info.default
         param = inspect.Parameter(
             field_name,
             inspect.Parameter.POSITIONAL_OR_KEYWORD,
-            default=default_value,
-            annotation=field_type,
+            default=default if default is not Ellipsis else inspect.Parameter.empty,
+            annotation=field_info.annotation,
         )
         base_params.append(param)
-        fields[field_name] = (field_type, _schema_default(field_info.default))
+        fields[field_name] = (field_info.annotation, field_info)
 
     # Add tool_args_schema fields to the fields dict if not already included.
-    # Also add them to the function signature by creating new inspect.Parameter objects.
     for field_name, field_info in tool_args_schema.model_fields.items():
         if field_name in fields:
             continue
 
-        field_type = field_info.annotation
-        default_value = _unwrap_default(field_info.default)
+        default = Ellipsis if field_info.default is PydanticUndefined else field_info.default
         param = inspect.Parameter(
             field_name,
             inspect.Parameter.POSITIONAL_OR_KEYWORD,
-            default=default_value,
-            annotation=field_type,
+            default=default if default is not Ellipsis else inspect.Parameter.empty,
+            annotation=field_info.annotation,
         )
         base_params.append(param)
-        fields[field_name] = (field_type, _schema_default(field_info.default))
+        fields[field_name] = (field_info.annotation, field_info)
 
     # Create the dynamic schema with both base_params_model and tool_args_schema fields.
     fn_schema = create_model(f"{tool_name}_schema", **fields)

@@ -76,7 +76,7 @@ def get_tokenizer_for_model(
             return tiktoken.encoding_for_model(model_name).encode
         if model_provider == ModelProvider.ANTHROPIC:
             return Anthropic().tokenizer
-    except Exception as e:
+    except Exception:
         print(f"Error getting tokenizer for model {model_name}, ignoring")
         return None
     return None

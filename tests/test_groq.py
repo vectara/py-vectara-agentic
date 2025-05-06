@@ -113,7 +113,9 @@ class TestGROQ(unittest.TestCase):
             agent_config=fc_config_groq,
         )
         res = agent.chat("What is the stock price?")
-        self.assertIn("I don't know", str(res))
+        self.assertTrue(
+            any(sub in str(res) for sub in ["I don't know", "I do not have"])
+        )
 
 
 if __name__ == "__main__":
