@@ -147,12 +147,14 @@ class VectaraTool(FunctionTool):
         except Exception:
             return False
 
-        return (
+        is_equal = (
             isinstance(other, VectaraTool)
             and self.metadata.tool_type == other.metadata.tool_type
             and self.metadata.name == other.metadata.name
             and self_schema == other_schema
         )
+        return is_equal
+    
 
     def call(
         self, *args: Any, ctx: Optional[Context] = None, **kwargs: Any
