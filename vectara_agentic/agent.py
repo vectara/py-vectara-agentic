@@ -14,13 +14,10 @@ import importlib
 from collections import Counter
 import inspect
 from inspect import Signature, Parameter, ismethod
-
+from pydantic import Field, create_model, ValidationError, BaseModel
 import cloudpickle as pickle
 
 from dotenv import load_dotenv
-
-from pydantic import Field, create_model, ValidationError
-
 
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.llms import ChatMessage, MessageRole
@@ -147,47 +144,49 @@ def get_field_type(field_schema: dict) -> Any:
         "number": float,
         "null": type(None),
     }
-    if not field_schema: # Handles empty schema {}
+    if not field_schema:  # Handles empty schema {}
         return Any
-    
+
     if "anyOf" in field_schema:
         types = []
         for option_schema in field_schema["anyOf"]:
-            types.append(get_field_type(option_schema)) # Recursive call
+            types.append(get_field_type(option_schema))  # Recursive call
         if not types:
             return Any
         return Union[tuple(types)]
-    
+
     if "type" in field_schema and isinstance(field_schema["type"], list):
         types = []
         for type_name in field_schema["type"]:
             if type_name == "array":
-                item_schema = field_schema.get("items", {}) 
+                item_schema = field_schema.get("items", {})
                 types.append(List[get_field_type(item_schema)])
             elif type_name in json_type_to_python:
                 types.append(json_type_to_python[type_name])
             else:
-                types.append(Any) # Fallback for unknown types in the list
+                types.append(Any)  # Fallback for unknown types in the list
         if not types:
             return Any
-        return Union[tuple(types)] # type: ignore
+        return Union[tuple(types)]  # type: ignore
 
     if "type" in field_schema:
         schema_type_name = field_schema["type"]
         if schema_type_name == "array":
-            item_schema = field_schema.get("items", {}) # Default to Any if "items" is missing
+            item_schema = field_schema.get(
+                "items", {}
+            )  # Default to Any if "items" is missing
             return List[get_field_type(item_schema)]
-        
+
         return json_type_to_python.get(schema_type_name, Any)
 
     # If only "items" is present (implies array by some conventions, but less standard)
     # Or if it's a schema with other keywords like 'properties' (implying object)
     # For simplicity, if no "type" or "anyOf" at this point, default to Any or add more specific handling.
     # If 'properties' in field_schema or 'additionalProperties' in field_schema, it's likely an object.
-    if 'properties' in field_schema or 'additionalProperties' in field_schema:
+    if "properties" in field_schema or "additionalProperties" in field_schema:
         # This path might need to reconstruct a nested Pydantic model if you encounter such schemas.
         # For now, treating as 'dict' or 'Any' might be a simpler placeholder.
-        return dict # Or Any, or more sophisticated object reconstruction.
+        return dict  # Or Any, or more sophisticated object reconstruction.
 
     return Any
 
@@ -294,7 +293,9 @@ class Agent:
             bad_tools_str = llm.complete(prompt).text
             if bad_tools_str and bad_tools_str != "<OKAY>":
                 bad_tools = [tool.strip() for tool in bad_tools_str.split(",")]
-                numbered = ", ".join(f"({i}) {tool}" for i, tool in enumerate(bad_tools, 1))
+                numbered = ", ".join(
+                    f"({i}) {tool}" for i, tool in enumerate(bad_tools, 1)
+                )
                 raise ValueError(
                     f"The Agent custom instructions mention these invalid tools: {numbered}"
                 )
@@ -1176,13 +1177,14 @@ class Agent:
             query_args_model = None
             if tool_data.get("fn_schema"):
                 schema_info = tool_data["fn_schema"]
-                rebuilt_from_json = False
                 try:
                     module_name = schema_info["metadata"]["module"]
                     class_name = schema_info["metadata"]["class"]
                     mod = importlib.import_module(module_name)
                     candidate_cls = getattr(mod, class_name)
-                    if inspect.isclass(candidate_cls) and issubclass(candidate_cls, BaseModel):
+                    if inspect.isclass(candidate_cls) and issubclass(
+                        candidate_cls, BaseModel
+                    ):
                         query_args_model = candidate_cls
                     else:
                         # It's not the Pydantic model class we expected (e.g., it's the function itself)
@@ -1191,17 +1193,20 @@ class Agent:
                             f"Retrieved '{class_name}' from '{module_name}' is not a Pydantic BaseModel class. "
                             "Falling back to JSON schema reconstruction."
                         )
-                except Exception as e:
+                except Exception:
                     # Fallback: rebuild using the JSON schema
-                    rebuilt_from_json = True
                     field_definitions = {}
                     json_schema_to_rebuild = schema_info.get("schema")
-                    if json_schema_to_rebuild and isinstance(json_schema_to_rebuild, dict):
-                        for field, values in (
-                            json_schema_to_rebuild.get("properties", {}).items()
-                        ):
+                    if json_schema_to_rebuild and isinstance(
+                        json_schema_to_rebuild, dict
+                    ):
+                        for field, values in json_schema_to_rebuild.get(
+                            "properties", {}
+                        ).items():
                             field_type = get_field_type(values)
-                            field_description = values.get("description") # Defaults to None
+                            field_description = values.get(
+                                "description"
+                            )  # Defaults to None
                             if "default" in values:
                                 field_definitions[field] = (
                                     field_type,
@@ -1216,15 +1221,19 @@ class Agent:
                                     Field(description=field_description),
                                 )
                         query_args_model = create_model(
-                            json_schema_to_rebuild.get("title", f"{tool_data['name']}_QueryArgs"),
+                            json_schema_to_rebuild.get(
+                                "title", f"{tool_data['name']}_QueryArgs"
+                            ),
                             **field_definitions,
                         )
-                    else: # If schema part is missing or not a dict, create a default empty model
-                        query_args_model = create_model(f"{tool_data['name']}_QueryArgs")
-            
+                    else:  # If schema part is missing or not a dict, create a default empty model
+                        query_args_model = create_model(
+                            f"{tool_data['name']}_QueryArgs"
+                        )
+
             # If fn_schema was not in tool_data or reconstruction failed badly, default to empty pydantic model
             if query_args_model is None:
-                 query_args_model = create_model(f"{tool_data['name']}_QueryArgs")
+                query_args_model = create_model(f"{tool_data['name']}_QueryArgs")
 
             fn = (
                 pickle.loads(tool_data["fn"].encode("latin-1"))

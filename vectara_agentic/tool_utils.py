@@ -154,7 +154,6 @@ class VectaraTool(FunctionTool):
             and self_schema == other_schema
         )
         return is_equal
-    
 
     def call(
         self, *args: Any, ctx: Optional[Context] = None, **kwargs: Any
