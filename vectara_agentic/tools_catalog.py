@@ -26,6 +26,7 @@ get_headers = {
 def get_current_date() -> str:
     """
     Returns the current date as a string.
+    Call this tool to get the current date in the format "Day, Month Day, Year".
     """
     return date.today().strftime("%A, %B %d, %Y")
 
