@@ -437,7 +437,7 @@ def _parse_range(val_str: str) -> Tuple[str, str, bool, bool]:
     end_inc = m.group(6) == "]"
     start = m.group(2)
     end = m.group(4)
-    if start > end:
+    if float(start) > float(end):
         raise ValueError(f"Range lower bound greater than upper bound: {val_str!r}")
     return start, end, start_inc, end_inc
 
