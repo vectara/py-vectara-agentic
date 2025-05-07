@@ -48,7 +48,7 @@ def setup_observer(config: AgentConfig, verbose: bool) -> bool:
     reg_kwargs = {
         "endpoint": phoenix_endpoint or 'http://localhost:6006/v1/traces',
         "project_name": "vectara-agentic",
-        "batch": True,
+        "batch": False,
         "set_global_tracer_provider": False,
     }
     tracer_provider = register(**reg_kwargs)

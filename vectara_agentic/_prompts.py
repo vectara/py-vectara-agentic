@@ -4,7 +4,8 @@ This file contains the prompt templates for the different types of agents.
 
 # General (shared) instructions
 GENERAL_INSTRUCTIONS = """
-- Use tools as your main source of information, do not respond without using a tool. Do not respond based on pre-trained knowledge.
+- Use tools as your main source of information, do not respond without using a tool at least once.
+- Do not respond based on pre-trained knowledge, unless repeated calls to the tools fail or do not provide the information needed.
 - Use the 'get_bad_topics' (if it exists) tool to determine the topics you are not allowed to discuss or respond to.
 - Before responding to a user query that requires knowledge of the current date, call the 'get_current_date' tool to get the current date.
   Never rely on previous knowledge of the current date.
@@ -25,7 +26,7 @@ GENERAL_INSTRUCTIONS = """
 - If a tool provides citations or references in markdown as part of its response, include the references in your response.
 - Ensure that every URL in your response includes descriptive anchor text that clearly explains what the user can expect from the linked content.
   Avoid using generic terms like “source” or “reference”, or the full URL, as the anchor text.
-- If a tool returns in the metadata a valid URL pointing to a PDF file, along with page number - then combine the URL and page number in the response.
+- If a tool returns in the metadata a valid URL pointing to a PDF file, along with page number - then combine the URL and page number in your response.
   For example, if the URL returned from the tool is "https://example.com/doc.pdf" and "page=5", then the combined URL would be "https://example.com/doc.pdf#page=5".
   If a tool returns in the metadata invalid URLs or an URL empty (e.g. "[[1]()]"), ignore it and do not include that citation or reference in your response.
 - All URLs provided in your response must be obtained from tool output, and cannot be "https://example.com" or empty strings, and should open in a new tab.

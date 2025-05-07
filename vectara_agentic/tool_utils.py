@@ -7,7 +7,7 @@ import re
 
 from typing import (
     Callable, List, Dict, Any, Optional, Union, Type, Tuple,
-    Sequence
+    Sequence, get_origin, get_args
 )
 from pydantic import BaseModel, create_model
 from pydantic_core import PydanticUndefined
@@ -140,37 +140,21 @@ class VectaraTool(FunctionTool):
         return str(self)
 
     def __eq__(self, other):
-        if not isinstance(other, VectaraTool):
-            return False
-
-        if self.metadata.tool_type != other.metadata.tool_type:
-            return False
-
-        if self.metadata.name != other.metadata.name:
-            return False
-
-        # If schema is a dict-like object, compare the dict representation
         try:
             # Try to get schema as dict if possible
-            if hasattr(self.metadata.fn_schema, "schema"):
-                self_schema = self.metadata.fn_schema.schema
-                other_schema = other.metadata.fn_schema.schema
-
-                # Compare only properties and required fields
-                self_props = self_schema.get("properties", {})
-                other_props = other_schema.get("properties", {})
-
-                self_required = self_schema.get("required", [])
-                other_required = other_schema.get("required", [])
-
-                return self_props.keys() == other_props.keys() and set(
-                    self_required
-                ) == set(other_required)
+            self_schema = self.metadata.fn_schema.model_json_schema()
+            other_schema = other.metadata.fn_schema.model_json_schema()
         except Exception:
-            # If any exception occurs during schema comparison, fall back to name comparison
-            pass
+            return False
 
-        return True
+        is_equal = (
+            isinstance(other, VectaraTool)
+            and self.metadata.tool_type == other.metadata.tool_type
+            and self.metadata.name == other.metadata.name
+            and self_schema == other_schema
+        )
+        return is_equal
+    
 
     def call(
         self, *args: Any, ctx: Optional[Context] = None, **kwargs: Any
@@ -185,7 +169,7 @@ class VectaraTool(FunctionTool):
             err_output = ToolOutput(
                 tool_name=self.metadata.name,
                 content=(
-                    f"Wrong argument used when calling {self.metadata.name}: {str(e)}. "
+                    f"Wrong argument used when calling {self.metadata.name}: {str(e)}."
                     f"Valid arguments: {params_str}. please call the tool again with the correct arguments."
                 ),
                 raw_input={"args": args, "kwargs": kwargs},
@@ -222,9 +206,10 @@ class VectaraTool(FunctionTool):
             )
             return err_output
         except Exception as e:
+            import traceback
             err_output = ToolOutput(
                 tool_name=self.metadata.name,
-                content=f"Tool {self.metadata.name} Malfunction: {str(e)}",
+                content=f"Tool {self.metadata.name} Malfunction: {str(e)}, traceback: {traceback.format_exc()}",
                 raw_input={"args": args, "kwargs": kwargs},
                 raw_output={"response": str(e)},
             )
@@ -243,6 +228,27 @@ def _clean_type_repr(type_repr: str) -> str:
 
     type_repr = type_repr.replace("typing.", "")
     return type_repr
+
+def _format_type(annotation) -> str:
+    """
+    Turn things like Union[int, str, NoneType] into 'int | str | None',
+    and replace any leftover 'NoneType' → 'None'.
+    """
+    origin = get_origin(annotation)
+    if origin is Union:
+        parts = []
+        for arg in get_args(annotation):
+            if arg is type(None):
+                parts.append("None")
+            else:
+                # recurse in case of nested unions
+                parts.append(_format_type(arg))
+        return " | ".join(parts)
+
+    # Fallback
+    type_repr = str(annotation)
+    type_repr = _clean_type_repr(type_repr)
+    return type_repr.replace("NoneType", "None")
 
 def _make_docstring(
     function: Callable[..., ToolOutput],
@@ -269,8 +275,7 @@ def _make_docstring(
     """
     params_str_parts = []
     for p in all_params:
-        type_repr = str(p.annotation)
-        type_repr = _clean_type_repr(type_repr)
+        type_repr = _format_type(p.annotation)
         params_str_parts.append(f"{p.name}: {type_repr}")
 
     params_str = ", ".join(params_str_parts)
@@ -298,7 +303,7 @@ def _make_docstring(
             param = next((p for p in all_params if p.name == prop_name), None)
             ty_str = ""
             if param:
-                ty_str = _clean_type_repr(str(param.annotation))
+                ty_str = _format_type(param.annotation)
             elif "type" in schema_prop:
                 ty_info = schema_prop["type"]
                 if isinstance(ty_info, str):
@@ -424,7 +429,7 @@ _PARSE_RANGE_REGEX = re.compile(
 )
 
 
-def _parse_range(val_str: str) -> Tuple[float, float, bool, bool]:
+def _parse_range(val_str: str) -> Tuple[str, str, bool, bool]:
     """
     Parses '[1,10)' or '(0.5, 5]' etc.
     Returns (start, end, start_incl, end_incl) or raises ValueError.
@@ -433,10 +438,10 @@ def _parse_range(val_str: str) -> Tuple[float, float, bool, bool]:
     if not m:
         raise ValueError(f"Invalid range syntax: {val_str!r}")
     start_inc = m.group(1) == "["
-    end_inc = m.group(7) == "]"
-    start = float(m.group(2))
-    end = float(m.group(4))
-    if start > end:
+    end_inc = m.group(6) == "]"
+    start = m.group(2)
+    end = m.group(4)
+    if float(start) > float(end):
         raise ValueError(f"Range lower bound greater than upper bound: {val_str!r}")
     return start, end, start_inc, end_inc
 

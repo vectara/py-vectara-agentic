@@ -15,7 +15,7 @@ from .agent_config import AgentConfig
 from .tool_utils import _updated_openai_prepare_chat_with_tools
 
 provider_to_default_model_name = {
-    ModelProvider.OPENAI: "gpt-4.1",
+    ModelProvider.OPENAI: "gpt-4o",
     ModelProvider.ANTHROPIC: "claude-3-7-sonnet-latest",
     ModelProvider.TOGETHER: "Qwen/Qwen2.5-72B-Instruct-Turbo",
     ModelProvider.GROQ: "meta-llama/llama-4-scout-17b-16e-instruct",
