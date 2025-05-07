@@ -18,6 +18,7 @@ from llama_index.core.tools import FunctionTool
 vectara_corpus_key = "vectara-docs_1"
 vectara_api_key = "zqt_UXrBcnI2UXINZkrv4g1tQPhzj02vfdtqYJIDiA"
 
+from typing import Optional
 
 class TestToolsPackage(unittest.TestCase):
 
@@ -90,7 +91,7 @@ class TestToolsPackage(unittest.TestCase):
                 description="The ticker symbol for the company",
                 examples=["AAPL", "GOOG"],
             )
-            year: int | str = Field(
+            year: Optional[int | str] = Field(
                 default=None,
                 description="The year this query relates to. An integer between 2015 and 2024 or a string specifying a condition on the year",
                 examples=[
