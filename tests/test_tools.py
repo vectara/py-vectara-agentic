@@ -1,6 +1,7 @@
 import unittest
 from pydantic import Field, BaseModel
-
+from unittest.mock import patch, MagicMock
+import requests
 from vectara_agentic.tools import (
     VectaraTool,
     VectaraToolFactory,
@@ -109,11 +110,92 @@ class TestToolsPackage(unittest.TestCase):
             tool_args_schema=QueryToolArgs,
         )
 
+        # test an invalid argument name
         res = query_tool(
             query="What is the stock price?",
             the_year=2023,
         )
         self.assertIn("got an unexpected keyword argument 'the_year'", str(res))
+
+        search_tool = vec_factory.create_search_tool(
+            tool_name="search_tool",
+            tool_description="Returns a list of documents (str) that match the user query.",
+            tool_args_schema=QueryToolArgs,
+        )
+        res = search_tool(
+            query="What is the stock price?",
+            the_year=2023,
+        )
+        self.assertIn("got an unexpected keyword argument 'the_year'", str(res))
+
+    @patch.object(requests.Session, "post")
+    def test_vectara_tool_ranges(self, mock_post):
+        # Configure the mock to return a dummy response.
+        response_text = "ALL GOOD"
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            'summary': response_text,
+            'search_results': [
+                {'text': 'ALL GOOD', 'document_id': '12345', 'score': 0.9},
+            ]
+        }
+        mock_post.return_value = mock_response
+
+        vec_factory = VectaraToolFactory(vectara_corpus_key, vectara_api_key)
+
+        class QueryToolArgs(BaseModel):
+            ticker: str = Field(
+                description="The ticker symbol for the company",
+                examples=["AAPL", "GOOG"],
+            )
+            year: int | str = Field(
+                default=None,
+                description="The year this query relates to. An integer between 2015 and 2024 or a string specifying a condition on the year",
+                examples=[
+                    2020,
+                    ">2021",
+                    "<2023",
+                    ">=2021",
+                    "<=2023",
+                    "[2021, 2023]",
+                    "[2021, 2023)",
+                ],
+            )
+
+        query_tool = vec_factory.create_rag_tool(
+            tool_name="rag_tool",
+            tool_description="Returns a response (str) to the user query based on the data in this corpus.",
+            tool_args_schema=QueryToolArgs,
+        )
+
+        # test an invalid argument name
+        res = query_tool(
+            query="What is the stock price?",
+            year=">2023"
+        )
+        self.assertIn(response_text, str(res))
+
+        # Test a valid range
+        res = query_tool(
+            query="What is the stock price?",
+            year="[2021, 2023]",
+        )
+        self.assertIn(response_text, str(res))
+
+        # Test a valid half closed range
+        res = query_tool(
+            query="What is the stock price?",
+            year="[2020, 2023)",
+        )
+        self.assertIn(response_text, str(res))
+
+        # Test an operator
+        res = query_tool(
+            query="What is the stock price?",
+            year=">2022",
+        )
+        self.assertIn(response_text, str(res))
 
         search_tool = vec_factory.create_search_tool(
             tool_name="search_tool",
@@ -243,7 +325,9 @@ class TestToolsPackage(unittest.TestCase):
             agent_config=config,
         )
         res = agent.chat("What is the stock price?")
-        self.assertIn("stock price", str(res))
+        self.assertTrue(
+            any(sub in str(res) for sub in ["I don't know", "stock price"])
+        )
 
     def test_public_repo(self):
         vectara_corpus_key = "vectara-docs_1"

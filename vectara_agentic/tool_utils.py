@@ -185,7 +185,7 @@ class VectaraTool(FunctionTool):
             err_output = ToolOutput(
                 tool_name=self.metadata.name,
                 content=(
-                    f"Wrong argument used when calling {self.metadata.name}: {str(e)}. "
+                    f"Wrong argument used when calling {self.metadata.name}: {str(e)}."
                     f"Valid arguments: {params_str}. please call the tool again with the correct arguments."
                 ),
                 raw_input={"args": args, "kwargs": kwargs},
@@ -222,9 +222,10 @@ class VectaraTool(FunctionTool):
             )
             return err_output
         except Exception as e:
+            import traceback
             err_output = ToolOutput(
                 tool_name=self.metadata.name,
-                content=f"Tool {self.metadata.name} Malfunction: {str(e)}",
+                content=f"Tool {self.metadata.name} Malfunction: {str(e)}, traceback: {traceback.format_exc()}",
                 raw_input={"args": args, "kwargs": kwargs},
                 raw_output={"response": str(e)},
             )
@@ -424,7 +425,7 @@ _PARSE_RANGE_REGEX = re.compile(
 )
 
 
-def _parse_range(val_str: str) -> Tuple[float, float, bool, bool]:
+def _parse_range(val_str: str) -> Tuple[str, str, bool, bool]:
     """
     Parses '[1,10)' or '(0.5, 5]' etc.
     Returns (start, end, start_incl, end_incl) or raises ValueError.
@@ -433,9 +434,9 @@ def _parse_range(val_str: str) -> Tuple[float, float, bool, bool]:
     if not m:
         raise ValueError(f"Invalid range syntax: {val_str!r}")
     start_inc = m.group(1) == "["
-    end_inc = m.group(7) == "]"
-    start = float(m.group(2))
-    end = float(m.group(4))
+    end_inc = m.group(6) == "]"
+    start = m.group(2)
+    end = m.group(4)
     if start > end:
         raise ValueError(f"Range lower bound greater than upper bound: {val_str!r}")
     return start, end, start_inc, end_inc
