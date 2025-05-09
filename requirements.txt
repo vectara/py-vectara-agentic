@@ -1,4 +1,4 @@
-llama-index==0.12.34
+llama-index==0.12.35
 llama-index-indices-managed-vectara==0.4.5
 llama-index-agent-llm-compiler==0.3.0
 llama-index-agent-lats==0.3.0
@@ -18,13 +18,15 @@ llama-index-tools-google==0.3.0
 llama-index-tools-tavily_research==0.3.0
 llama_index.tools.brave_search==0.3.0
 llama-index-tools-neo4j==0.3.0
+llama-index-tools-waii==0.3.0
 llama-index-graph-stores-kuzu==0.7.0
+llama-index-tools-salesforce==0.3.0
 llama-index-tools-slack==0.3.0
 llama-index-tools-exa==0.3.0
 llama-index-tools-wikipedia==0.3.0
 llama-index-tools-bing-search==0.3.0
-tavily-python==0.5.4
-exa-py==1.12.0
+tavily-python==0.7.2
+exa-py==1.12.1
 openinference-instrumentation-llama-index==4.2.1
 opentelemetry-proto>=1.31.0
 arize-phoenix==8.26.1

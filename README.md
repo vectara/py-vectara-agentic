@@ -295,51 +295,92 @@ vectara-agentic includes various other tools from LlamaIndex ToolSpecs:
   * Tavily Search: Real-time web search using [Tavily API](https://tavily.com/)
     ```python
     from vectara_agentic.tools_catalog import ToolsCatalog
-    tavily_tool = ToolsCatalog(agent_config).tavily_search
+    tools_factory = ToolsFactory()
+    tavily_tools = tools_factory.get_llama_index_tools(
+                    tool_package_name="tavily_research",
+                    tool_spec_name="TavilyToolSpec",
+                    api_key=str(os.environ["TAVILY_API_KEY"]),
+                )
     ```
   * EXA.AI: Advanced web search and data extraction
     ```python
-    exa_tool = ToolsCatalog(agent_config).exa_search
+    exa_tools = tools_factory.get_llama_index_tools(
+                    tool_package_name="exa.ai",
+                    tool_spec_name="ExaToolSpec",
+                    api_key=str(os.environ["EXA_API_KEY"]),
+                )
     ```
   * Brave Search: Web search using Brave's search engine
     ```python
-    brave_tool = ToolsCatalog(agent_config).brave_search
+    brave_tools = tools_factory.get_llama_index_tools(
+                    tool_package_name="brave_search",
+                    tool_spec_name="BraveSearchToolSpec",
+                    api_key=str(os.environ["BRAVE_API_KEY"]),
+                )
     ```
 
 * **Academic Tools**
   * arXiv: Search and retrieve academic papers
     ```python
-    arxiv_tool = ToolsCatalog(agent_config).arxiv_search
+    arxiv_tools = tools_factory.get_llama_index_tools(
+                    tool_package_name="arxiv",
+                    tool_spec_name="ArxivToolSpec",
+                )
     ```
 
-* **Graph Database Tools**
+* **Database Tools**
   * Neo4j: Graph database integration
     ```python
-    neo4j_tool = ToolsCatalog(agent_config).neo4j_query
+    neo4j_tools = tools_factory.get_llama_index_tools(
+                    tool_package_name="neo4j",
+                    tool_spec_name="Neo4jQueryToolSpec",
+                )
     ```
   * Kuzu: Lightweight graph database
     ```python
-    kuzu_tool = ToolsCatalog(agent_config).kuzu_query
+    kuzu_tools = tools_factory.get_llama_index_tools(
+                    tool_package_name="kuzu",
+                    tool_spec_name="KuzuGraphStore",
+                )
+    ```
+  * Waii: tools for natural langauge query of a relational database
+    ```python
+    waii_tools = tools_factory.get_llama_index_tools(
+                    tool_package_name="waii",
+                    tool_spec_name="WaiiToolSpec",
+                )
     ```
 
 * **Google Tools**
   * Gmail: Read and send emails
     ```python
-    gmail_tool = ToolsCatalog(agent_config).gmail
+    gmail_tools = tools_factory.get_llama_index_tools(
+                    tool_package_name="google",
+                    tool_spec_name="GmailToolSpec",
+                )
     ```
   * Calendar: Manage calendar events
     ```python
-    calendar_tool = ToolsCatalog(agent_config).calendar
+    calendar_tools = tools_factory.get_llama_index_tools(
+                    tool_package_name="google",
+                    tool_spec_name="GoogleCalendarToolSpec",
+                )
     ```
   * Search: Google search integration
     ```python
-    google_search_tool = ToolsCatalog(agent_config).google_search
+    search_tools = tools_factory.get_llama_index_tools(
+                    tool_package_name="google",
+                    tool_spec_name="GoogleSearchToolSpec",
+                )
     ```
 
 * **Communication Tools**
   * Slack: Send messages and interact with Slack
     ```python
-    slack_tool = ToolsCatalog(agent_config).slack
+    slack_tools = tools_factory.get_llama_index_tools(
+                    tool_package_name="slack",
+                    tool_spec_name="SlackToolSpec",
+                )
     ```
 
 For detailed setup instructions and API key requirements, please refer the instructions on [LlamaIndex hub](https://llamahub.ai/?tab=tools) for the specific tool.
