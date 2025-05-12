@@ -112,6 +112,7 @@ class VectaraTool(FunctionTool):
         tool_metadata: Optional[ToolMetadata] = None,
         callback: Optional[Callable[[Any], Any]] = None,
         async_callback: Optional[AsyncCallable] = None,
+        partial_params: Optional[Dict[str, Any]] = None,
         tool_type: ToolType = ToolType.QUERY,
     ) -> "VectaraTool":
         tool = FunctionTool.from_defaults(
@@ -124,6 +125,7 @@ class VectaraTool(FunctionTool):
             tool_metadata,
             callback,
             async_callback,
+            partial_params
         )
         vectara_tool = cls(
             tool_type=tool_type,
