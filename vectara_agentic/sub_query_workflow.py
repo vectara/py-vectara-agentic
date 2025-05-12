@@ -133,7 +133,7 @@ class SubQuestionQueryWorkflow(Workflow):
             # If the LLM returns an empty list, we need to handle it gracefully
             # We use the original query as a single question fallback
             print("LLM returned empty sub-questions list")
-            return self.QueryEvent(question=original_query)
+            sub_questions = [original_query]
 
         await ctx.set("sub_question_count", len(sub_questions))
         for question in sub_questions:
