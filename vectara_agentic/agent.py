@@ -287,10 +287,10 @@ class Agent:
             A tool is invalid if it is mentioned in the instructions but not in the tools list.
             A tool's name must have at least two characters.
             Your response should be a comma-separated list of the invalid tools.
-            If not invalid tools exist, respond with "<OKAY>".
+            If no invalid tools exist, respond with "<OKAY>" (and nothing else).
             """
             llm = get_llm(LLMRole.MAIN, config=self.agent_config)
-            bad_tools_str = llm.complete(prompt).text
+            bad_tools_str = llm.complete(prompt).text.strip('\n')
             if bad_tools_str and bad_tools_str != "<OKAY>":
                 bad_tools = [tool.strip() for tool in bad_tools_str.split(",")]
                 numbered = ", ".join(

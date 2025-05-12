@@ -36,6 +36,8 @@ LI_packages = {
     "bing_search": ToolType.QUERY,
     "neo4j": ToolType.QUERY,
     "kuzu": ToolType.QUERY,
+    "waii": ToolType.QUERY,
+    "salesforce": ToolType.QUERY,
     "wikipedia": ToolType.QUERY,
     "google": {
         "GmailToolSpec": {
