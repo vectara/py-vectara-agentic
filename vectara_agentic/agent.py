@@ -35,7 +35,7 @@ from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
 from llama_index.core.agent.runner.base import AgentRunner
 from llama_index.core.agent.types import BaseAgent
-from llama_index.core.workflow import Workflow
+from llama_index.core.workflow import Workflow, Context
 
 from .types import (
     AgentType,
@@ -1059,15 +1059,17 @@ class Agent:
     # workflow will always get these arguments in the StartEvent: agent, tools, llm, verbose
     # the inputs argument comes from the call to run()
     #
-    async def run(self, inputs: Any, verbose: bool = False) -> Any:
+    async def run(self, inputs: Any, verbose: bool = False, return_context_on_exception: bool = False) -> Any:
         """
         Run a workflow using the agent.
         workflow class must be provided in the agent constructor.
         Args:
             inputs (Any): The inputs to the workflow.
             verbose (bool, optional): Whether to print verbose output. Defaults to False.
+            return_context_on_exception (bool, optional): Whether to return the workflow Context object in case of an error.
+                                                          Defaults to False.
         Returns:
-            Any: The output of the workflow.
+            Any: The output or context of the workflow.
         """
         # Create workflow
         if self.workflow_cls:
@@ -1079,21 +1081,33 @@ class Agent:
         if not isinstance(inputs, self.workflow_cls.InputsModel):
             raise ValueError(f"Inputs must be an instance of {workflow.InputsModel}.")
 
-        # run workflow
-        result = await workflow.run(
-            agent=self,
-            tools=self.tools,
-            llm=self.llm,
-            verbose=verbose,
-            inputs=inputs,
-        )
+        workflow_context = Context(workflow=workflow)
 
-        # return output in the form of workflow.OutputsModel
         try:
-            output = workflow.OutputsModel.model_validate(result)
-        except ValidationError as e:
-            raise ValueError(f"Failed to map workflow output to model: {e}") from e
+            # run workflow
+            result = await workflow.run(
+                ctx=workflow_context,
+                agent=self,
+                tools=self.tools,
+                llm=self.llm,
+                verbose=verbose,
+                inputs=inputs,
+            )
 
+            # return output in the form of workflow.OutputsModel
+            try:
+                output = workflow.OutputsModel.model_validate(result)
+            except ValidationError as e:
+                raise ValueError(f"Failed to map workflow output to model: {e}") from e
+
+        except Exception as e:
+            if return_context_on_exception:
+                print(f"Vectara Agentic: {e}. Returning current Context object from workflow.")
+                output = workflow_context
+            else:
+                print(f"Vectara Agentic: Workflow failed with unexpected error: {e}")
+                raise type(e)(str(e)).with_traceback(e.__traceback__)
+            
         return output
 
     #
