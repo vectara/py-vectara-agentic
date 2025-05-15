@@ -2,7 +2,7 @@
 This module contains the Agent class for handling different types of agents and their interactions.
 """
 
-from typing import List, Callable, Optional, Dict, Any, Union, Tuple
+from typing import List, Callable, Optional, Dict, Any, Union, Tuple, Type
 import os
 import re
 from datetime import date
@@ -1063,8 +1063,6 @@ class Agent:
         self,
         inputs: Any,
         verbose: bool = False,
-        return_context_on_exception: bool = False,
-        context_vars: dict = None
     ) -> Any:
         """
         Run a workflow using the agent.
@@ -1072,11 +1070,6 @@ class Agent:
         Args:
             inputs (Any): The inputs to the workflow.
             verbose (bool, optional): Whether to print verbose output. Defaults to False.
-            return_context_on_exception (bool, optional): Whether to return the workflow Context object in case of an error.
-                                                          Defaults to False.
-            context_vars (dict, optional): The variable names to return from the Context object and their corresponding types in case of exception.
-                                            The keys of the dictionary should be strings representing the names of the variables and
-                                            the values of the dictionary should be the types of those variables.
         Returns:
             Any: The output or context of the workflow.
         """
@@ -1091,7 +1084,6 @@ class Agent:
             raise ValueError(f"Inputs must be an instance of {workflow.InputsModel}.")
 
         workflow_context = Context(workflow=workflow)
-
         try:
             # run workflow
             result = await workflow.run(
@@ -1110,19 +1102,9 @@ class Agent:
                 raise ValueError(f"Failed to map workflow output to model: {e}") from e
 
         except Exception as e:
-            if return_context_on_exception and (context_vars is not None):
-                # return output in the form of OutputModelOnFail(BaseModel)
-                try:
-                    OutputModelOnFail = create_model(
-                        "OutputModelOnFail",
-                        **{field_name: (Optional[field_type], None) for field_name, field_type in context_vars.items()}
-                    )
-
-                    output = OutputModelOnFail(**{field_name: (await workflow_context.get(field_name, None)) for field_name in context_vars.keys()})
-                    print(f"Vectara Agentic: {e}. Returning specified Context variables from workflow.")
-                except Exception as e:
-                    print(f"Vectara Agentic: Workflow failed with unexpected error: {e}")
-                    raise type(e)(str(e)).with_traceback(e.__traceback__)
+            OutputModelOnFail = getattr(workflow.__class__, "OutputModelOnFail", None)
+            if OutputModelOnFail:
+                output = OutputModelOnFail.model_validate(workflow_context)
             else:
                 print(f"Vectara Agentic: Workflow failed with unexpected error: {e}")
                 raise type(e)(str(e)).with_traceback(e.__traceback__)
