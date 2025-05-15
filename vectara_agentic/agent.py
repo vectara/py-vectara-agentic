@@ -1059,7 +1059,13 @@ class Agent:
     # workflow will always get these arguments in the StartEvent: agent, tools, llm, verbose
     # the inputs argument comes from the call to run()
     #
-    async def run(self, inputs: Any, verbose: bool = False, return_context_on_exception: bool = False) -> Any:
+    async def run(
+        self,
+        inputs: Any,
+        verbose: bool = False,
+        return_context_on_exception: bool = False,
+        context_vars: dict = None
+    ) -> Any:
         """
         Run a workflow using the agent.
         workflow class must be provided in the agent constructor.
@@ -1068,6 +1074,9 @@ class Agent:
             verbose (bool, optional): Whether to print verbose output. Defaults to False.
             return_context_on_exception (bool, optional): Whether to return the workflow Context object in case of an error.
                                                           Defaults to False.
+            context_vars (dict, optional): The variable names to return from the Context object and their corresponding types in case of exception.
+                                            The keys of the dictionary should be strings representing the names of the variables and
+                                            the values of the dictionary should be the types of those variables.
         Returns:
             Any: The output or context of the workflow.
         """
@@ -1094,16 +1103,26 @@ class Agent:
                 inputs=inputs,
             )
 
-            # return output in the form of workflow.OutputsModel
+            # return output in the form of workflow.OutputsModel(BaseModel)
             try:
                 output = workflow.OutputsModel.model_validate(result)
             except ValidationError as e:
                 raise ValueError(f"Failed to map workflow output to model: {e}") from e
 
         except Exception as e:
-            if return_context_on_exception:
-                print(f"Vectara Agentic: {e}. Returning current Context object from workflow.")
-                output = workflow_context
+            if return_context_on_exception and (context_vars is not None):
+                # return output in the form of OutputModelOnFail(BaseModel)
+                try:
+                    OutputModelOnFail = create_model(
+                        "OutputModelOnFail",
+                        **{field_name: (Optional[field_type], None) for field_name, field_type in context_vars.items()}
+                    )
+
+                    output = OutputModelOnFail(**{field_name: (await workflow_context.get(field_name, None)) for field_name in context_vars.keys()})
+                    print(f"Vectara Agentic: {e}. Returning specified Context variables from workflow.")
+                except Exception as e:
+                    print(f"Vectara Agentic: Workflow failed with unexpected error: {e}")
+                    raise type(e)(str(e)).with_traceback(e.__traceback__)
             else:
                 print(f"Vectara Agentic: Workflow failed with unexpected error: {e}")
                 raise type(e)(str(e)).with_traceback(e.__traceback__)
