@@ -2,7 +2,7 @@
 This module contains the Agent class for handling different types of agents and their interactions.
 """
 
-from typing import List, Callable, Optional, Dict, Any, Union, Tuple, Type
+from typing import List, Callable, Optional, Dict, Any, Union, Tuple
 import os
 import re
 from datetime import date
@@ -1102,13 +1102,13 @@ class Agent:
                 raise ValueError(f"Failed to map workflow output to model: {e}") from e
 
         except Exception as e:
-            OutputModelOnFail = getattr(workflow.__class__, "OutputModelOnFail", None)
-            if OutputModelOnFail:
-                output = OutputModelOnFail.model_validate(workflow_context)
+            outputs_model_on_fail_cls = getattr(workflow.__class__, "OutputModelOnFail", None)
+            if outputs_model_on_fail_cls:
+                output = outputs_model_on_fail_cls.model_validate(workflow_context)
             else:
                 print(f"Vectara Agentic: Workflow failed with unexpected error: {e}")
                 raise type(e)(str(e)).with_traceback(e.__traceback__)
-            
+
         return output
 
     #
