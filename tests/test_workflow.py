@@ -126,10 +126,8 @@ class TestWorkflowFailure(unittest.IsolatedAsyncioTestCase):
         except Exception as e:
             assert isinstance(e, WorkflowTimeoutError)
 
-        # print(f"DEBUG: RES IS {res} OF TYPE {type(res)}")
         self.assertIsInstance(res, SubQuestionQueryWorkflowWithFailClass.OutputModelOnFail)
         self.assertEqual(res.original_query, "Compute 5 times 3, then add 7 to the result.")
-        print("DEBUG: ALL TESTS PASSED")
         
 
 if __name__ == "__main__":
