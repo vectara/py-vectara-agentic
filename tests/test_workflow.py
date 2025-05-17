@@ -128,7 +128,7 @@ class TestWorkflowFailure(unittest.IsolatedAsyncioTestCase):
 
         self.assertIsInstance(res, SubQuestionQueryWorkflowWithFailClass.OutputModelOnFail)
         self.assertEqual(res.original_query, "Compute 5 times 3, then add 7 to the result.")
-        
+
 
 if __name__ == "__main__":
     unittest.main()
