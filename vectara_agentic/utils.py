@@ -68,7 +68,7 @@ async def summarize_documents(
     api_key: str,
     doc_ids: list[str],
     llm_name: str = "gpt-4o",
-) -> dict[str, str]:
+) -> dict[str, str | BaseException]:
     """
     Summarize multiple documents in a Vectara corpus using the Vectara API.
     """

@@ -50,7 +50,7 @@ class SubQuestionQueryWorkflow(Workflow):
         answer: str
 
     @step
-    async def query(self, ctx: Context, ev: StartEvent) -> QueryEvent:
+    async def query(self, ctx: Context, ev: StartEvent) -> QueryEvent | None:
         """
         Given a user question, and a list of tools, output a list of relevant
         sub-questions, such that the answers to all the sub-questions put together
