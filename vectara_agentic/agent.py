@@ -198,7 +198,7 @@ class Agent:
 
     def __init__(
         self,
-        tools: list[FunctionTool],
+        tools: List[FunctionTool],
         topic: str = "general",
         custom_instructions: str = "",
         general_instructions: str = GENERAL_INSTRUCTIONS,
@@ -213,7 +213,7 @@ class Agent:
         fallback_agent_config: Optional[AgentConfig] = None,
         chat_history: Optional[list[Tuple[str, str]]] = None,
         validate_tools: bool = False,
-        workflow_cls: Workflow = None,
+        workflow_cls: Optional[Workflow] = None,
         workflow_timeout: int = 120,
     ) -> None:
         """
@@ -643,7 +643,7 @@ class Agent:
         validate_tools: bool = False,
         fallback_agent_config: Optional[AgentConfig] = None,
         chat_history: Optional[list[Tuple[str, str]]] = None,
-        workflow_cls: Workflow = None,
+        workflow_cls: Optional[Workflow] = None,
         workflow_timeout: int = 120,
     ) -> "Agent":
         """
@@ -712,8 +712,8 @@ class Agent:
         vectara_rerank_limit: Optional[int] = None,
         vectara_rerank_cutoff: Optional[float] = None,
         vectara_diversity_bias: float = 0.2,
-        vectara_udf_expression: str = None,
-        vectara_rerank_chain: List[Dict] = None,
+        vectara_udf_expression: Optional[str] = None,
+        vectara_rerank_chain: Optional[List[Dict]] = None,
         vectara_n_sentences_before: int = 2,
         vectara_n_sentences_after: int = 2,
         vectara_summary_num_results: int = 10,
@@ -1047,7 +1047,7 @@ class Agent:
                 time.sleep(1)
                 attempt += 1
 
-        return AgentResponse(
+        return AgentStreamingResponse(
             response=(
                 f"For {orig_llm} LLM - failure can't be resolved after "
                 f"{max_attempts} attempts ({last_error})."
@@ -1139,12 +1139,12 @@ class Agent:
                 fn_schema_serialized = {
                     "schema": (
                         fn_schema_cls.model_json_schema()
-                        if hasattr(fn_schema_cls, "model_json_schema")
+                        if fn_schema_cls and hasattr(fn_schema_cls, "model_json_schema")
                         else None
                     ),
                     "metadata": {
-                        "module": fn_schema_cls.__module__,
-                        "class": fn_schema_cls.__name__,
+                        "module": fn_schema_cls.__module__ if fn_schema_cls else None,
+                        "class": fn_schema_cls.__name__ if fn_schema_cls else None,
                     },
                 }
             else:
@@ -1193,7 +1193,7 @@ class Agent:
             if data.get("fallback_agent_config")
             else None
         )
-        tools = []
+        tools: list[FunctionTool] = []
 
         for tool_data in data["tools"]:
             query_args_model = None
