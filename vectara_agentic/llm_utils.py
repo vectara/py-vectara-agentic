@@ -12,7 +12,6 @@ from llama_index.llms.anthropic import Anthropic
 
 from .types import LLMRole, AgentType, ModelProvider
 from .agent_config import AgentConfig
-from .tool_utils import _updated_openai_prepare_chat_with_tools
 
 provider_to_default_model_name = {
     ModelProvider.OPENAI: "gpt-4o",
@@ -124,11 +123,6 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             is_function_calling_model=True,
             max_tokens=max_tokens,
         )
-        # pylint: disable=protected-access
-        llm._prepare_chat_with_tools = MethodType(
-            _updated_openai_prepare_chat_with_tools,
-            llm,
-        )
     elif model_provider == ModelProvider.GROQ:
         from llama_index.llms.groq import Groq
 
@@ -137,11 +131,6 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             temperature=0,
             is_function_calling_model=True,
             max_tokens=max_tokens,
-        )
-        # pylint: disable=protected-access
-        llm._prepare_chat_with_tools = MethodType(
-            _updated_openai_prepare_chat_with_tools,
-            llm,
         )
     elif model_provider == ModelProvider.FIREWORKS:
         from llama_index.llms.fireworks import Fireworks
@@ -166,11 +155,6 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             api_base=config.private_llm_api_base,
             api_key=config.private_llm_api_key,
             max_tokens=max_tokens,
-        )
-        # pylint: disable=protected-access
-        llm._prepare_chat_with_tools = MethodType(
-            _updated_openai_prepare_chat_with_tools,
-            llm,
         )
 
     else:

@@ -25,44 +25,6 @@ from .types import ToolType
 from .utils import is_float
 
 
-def _updated_openai_prepare_chat_with_tools(
-    self,
-    tools: Sequence["BaseTool"],
-    user_msg: Optional[Union[str, ChatMessage]] = None,
-    chat_history: Optional[List[ChatMessage]] = None,
-    verbose: bool = False,
-    allow_parallel_tool_calls: bool = False,
-    tool_choice: Union[str, dict] = "auto",
-    strict: Optional[bool] = None,
-    **kwargs: Any,
-) -> Dict[str, Any]:
-    """Predict and call the tool."""
-    tool_specs = [tool.metadata.to_openai_tool(skip_length_check=True) for tool in tools]
-
-    # if strict is passed in, use, else default to the class-level attribute, else default to True`
-    strict = strict if strict is not None else self.strict
-
-    if self.metadata.is_function_calling_model:
-        for tool_spec in tool_specs:
-            if tool_spec["type"] == "function":
-                tool_spec["function"]["strict"] = strict
-                # in current openai 1.40.0 it is always false.
-                tool_spec["function"]["parameters"]["additionalProperties"] = False
-
-    if isinstance(user_msg, str):
-        user_msg = ChatMessage(role=MessageRole.USER, content=user_msg)
-
-    messages = chat_history or []
-    if user_msg:
-        messages.append(user_msg)
-
-    return {
-        "messages": messages,
-        "tools": tool_specs or None,
-        "tool_choice": resolve_tool_choice(tool_choice) if tool_specs else None,
-        **kwargs,
-    }
-
 class VectaraToolMetadata(ToolMetadata):
     """
     A subclass of ToolMetadata adding the tool_type attribute.
