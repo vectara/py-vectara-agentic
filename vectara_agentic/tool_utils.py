@@ -7,7 +7,7 @@ import re
 
 from typing import (
     Callable, List, Dict, Any, Optional, Union, Type, Tuple,
-    Sequence, get_origin, get_args
+    get_origin, get_args
 )
 from pydantic import BaseModel, create_model
 from pydantic_core import PydanticUndefined
@@ -16,10 +16,6 @@ from llama_index.core.tools import FunctionTool
 from llama_index.core.tools.function_tool import AsyncCallable
 from llama_index.core.tools.types import ToolMetadata, ToolOutput
 from llama_index.core.workflow.context import Context
-
-from llama_index.core.tools.types import BaseTool
-from llama_index.core.base.llms.types import ChatMessage, MessageRole
-from llama_index.llms.openai.utils import resolve_tool_choice
 
 from .types import ToolType
 from .utils import is_float

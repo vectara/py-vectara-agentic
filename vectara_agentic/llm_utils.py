@@ -1,7 +1,6 @@
 """
 Utilities for the Vectara agentic.
 """
-from types import MethodType
 from typing import Tuple, Callable, Optional
 from functools import lru_cache
 import tiktoken
