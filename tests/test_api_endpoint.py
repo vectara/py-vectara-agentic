@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi.testclient import TestClient
 
 # Adjust this import to point at the file where you put create_app
-from vectara_agentic import create_app  
+from vectara_agentic import create_app
 from vectara_agentic.agent import Agent
 from vectara_agentic.agent_config import AgentConfig
 
@@ -13,9 +13,9 @@ class DummyAgent(Agent):
     def __init__(self):
         # satisfy Agent.__init__(tools: ...)
         super().__init__(tools=[])
+
     def chat(self, message: str) -> str:
         return f"Echo: {message}"
-
 
 class APITestCase(unittest.TestCase):
     @classmethod

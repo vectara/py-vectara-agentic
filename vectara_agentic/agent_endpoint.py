@@ -1,3 +1,6 @@
+"""
+agent_endpoint.py
+"""
 import logging
 import time
 import uuid
@@ -12,9 +15,11 @@ from .agent import Agent
 from .agent_config import AgentConfig
 
 class ChatRequest(BaseModel):
+    """Request schema for the /chat endpoint."""
     message: str
 
 class CompletionRequest(BaseModel):
+    """Request schema for the /v1/completions endpoint."""
     model: str
     prompt: Optional[Union[str, List[str]]] = None
     max_tokens: Optional[int] = Field(16, ge=1)
@@ -24,17 +29,20 @@ class CompletionRequest(BaseModel):
     stop: Optional[Union[str, List[str]]] = None
 
 class Choice(BaseModel):
+    """Choice schema returned in CompletionResponse."""
     text: str
     index: int
     logprobs: Optional[Any] = None
     finish_reason: Literal["stop", "length", "error", None]
 
 class CompletionUsage(BaseModel):
+    """Token usage details in CompletionResponse."""
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
 
 class CompletionResponse(BaseModel):
+    """Response schema for the /v1/completions endpoint."""
     id: str
     object: Literal["text_completion"]
     created: int
@@ -44,14 +52,32 @@ class CompletionResponse(BaseModel):
 
 
 def create_app(agent: Agent, config: AgentConfig) -> FastAPI:
+    """
+    Create and configure the FastAPI app.
+
+    Args:
+        agent (Agent): The agent instance to handle chat/completion.
+        config (AgentConfig): Configuration containing the API key.
+
+    Returns:
+        FastAPI: Configured FastAPI application.
+    """
     app = FastAPI()
     logger = logging.getLogger("uvicorn.error")
     logging.basicConfig(level=logging.INFO)
 
-    # ← define the header and the verifier *inside* create_app,
-    # so it closes over the config you passed.
     api_key_header = APIKeyHeader(name="X-API-Key")
+
     async def _verify_api_key(api_key: str = Depends(api_key_header)):
+        """
+        Dependency that verifies the X-API-Key header.
+
+        Raises:
+            HTTPException(403): If the provided key does not match.
+
+        Returns:
+            bool: True if key is valid.
+        """
         if api_key != config.endpoint_api_key:
             raise HTTPException(status_code=403, detail="Unauthorized")
         return True
@@ -62,13 +88,26 @@ def create_app(agent: Agent, config: AgentConfig) -> FastAPI:
         dependencies=[Depends(_verify_api_key)]
     )
     async def chat(message: str):
+        """
+        Handle GET /chat requests.
+
+        Args:
+            message (str): The user's message to the agent.
+
+        Returns:
+            dict: Contains the agent's response under 'response'.
+
+        Raises:
+            HTTPException(400): If message is empty.
+            HTTPException(500): On internal errors.
+        """
         if not message:
             raise HTTPException(status_code=400, detail="No message provided")
         try:
             res = agent.chat(message)
             return {"response": res}
-        except Exception:
-            raise HTTPException(status_code=500, detail="Internal server error")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     @app.post(
         "/v1/completions",
@@ -76,6 +115,19 @@ def create_app(agent: Agent, config: AgentConfig) -> FastAPI:
         dependencies=[Depends(_verify_api_key)]
     )
     async def completions(req: CompletionRequest):
+        """
+        Handle POST /v1/completions requests.
+
+        Args:
+            req (CompletionRequest): The completion request payload.
+
+        Returns:
+            CompletionResponse: The generated completion and usage stats.
+
+        Raises:
+            HTTPException(400): If prompt is missing.
+            HTTPException(500): On internal errors.
+        """
         if not req.prompt:
             raise HTTPException(status_code=400, detail="`prompt` is required")
         raw = req.prompt if isinstance(req.prompt, str) else req.prompt[0]
@@ -83,8 +135,8 @@ def create_app(agent: Agent, config: AgentConfig) -> FastAPI:
             start = time.time()
             text = agent.chat(raw)
             logger.info(f"Agent returned in {time.time()-start:.2f}s")
-        except Exception:
-            raise HTTPException(status_code=500, detail="Internal server error")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
         p_tokens = len(raw.split())
         c_tokens = len(text.split())
@@ -106,5 +158,13 @@ def create_app(agent: Agent, config: AgentConfig) -> FastAPI:
 
 
 def start_app(agent: Agent, host="0.0.0.0", port=8000):
+    """
+    Launch the FastAPI application using Uvicorn.
+
+    Args:
+        agent (Agent): The agent instance for request handling.
+        host (str, optional): Host interface. Defaults to "0.0.0.0".
+        port (int, optional): Port number. Defaults to 8000.
+    """
     app = create_app(agent, config=AgentConfig())
     uvicorn.run(app, host=host, port=port)
