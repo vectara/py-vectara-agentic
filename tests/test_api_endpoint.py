@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi.testclient import TestClient
 
 # Adjust this import to point at the file where you put create_app
-from vectara_agentic import create_app
+from vectara_agentic.agent_endpoint import create_app
 from vectara_agentic.agent import Agent
 from vectara_agentic.agent_config import AgentConfig
 
