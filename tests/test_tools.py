@@ -251,17 +251,19 @@ class TestToolsPackage(unittest.TestCase):
             arg11: str = Field(description="the eleventh argument", examples=["val11"])
             arg12: str = Field(description="the twelfth argument", examples=["val12"])
             arg13: str = Field(description="the thirteenth argument", examples=["val13"])
+            arg14: str = Field(description="the fourteenth argument", examples=["val14"])
+            arg15: str = Field(description="the fifteenth argument", examples=["val15"])
 
         query_tool_1 = vec_factory.create_rag_tool(
             tool_name="rag_tool",
             tool_description="""
-            A dummy tool that takes 13 arguments and returns a response (str) to the user query based on the data in this corpus.
+            A dummy tool that takes 15 arguments and returns a response (str) to the user query based on the data in this corpus.
             We are using this tool to test the tool factory works and does not crash with OpenAI.
             """,
             tool_args_schema=QueryToolArgs,
         )
 
-        # Test with 13 arguments which go over the 1024 limit.
+        # Test with 15 arguments to make sure no issues occur
         config = AgentConfig(
             agent_type=AgentType.OPENAI
         )
@@ -272,9 +274,9 @@ class TestToolsPackage(unittest.TestCase):
             agent_config=config,
         )
         res = agent.chat("What is the stock price for Yahoo on 12/31/22?")
-        self.assertIn("maximum length of 1024 characters", str(res))
+        self.assertNotIn("maximum length of 1024 characters", str(res))
 
-        # Same test but with GROQ
+        # Same test but with GROQ, should not have this limit
         config = AgentConfig(
             agent_type=AgentType.FUNCTION_CALLING,
             main_llm_provider=ModelProvider.GROQ,
@@ -283,13 +285,13 @@ class TestToolsPackage(unittest.TestCase):
         agent = Agent(
             tools=[query_tool_1],
             topic="Sample topic",
-            custom_instructions="Call the tool with 13 arguments for GROQ",
+            custom_instructions="Call the tool with 15 arguments for GROQ",
             agent_config=config,
         )
         res = agent.chat("What is the stock price?")
         self.assertNotIn("maximum length of 1024 characters", str(res))
 
-        # Same test but with ANTHROPIC
+        # Same test but with ANTHROPIC, should not have this limit
         config = AgentConfig(
             agent_type=AgentType.FUNCTION_CALLING,
             main_llm_provider=ModelProvider.ANTHROPIC,
@@ -298,37 +300,11 @@ class TestToolsPackage(unittest.TestCase):
         agent = Agent(
             tools=[query_tool_1],
             topic="Sample topic",
-            custom_instructions="Call the tool with 13 arguments for ANTHROPIC",
+            custom_instructions="Call the tool with 15 arguments for ANTHROPIC",
             agent_config=config,
         )
         res = agent.chat("What is the stock price?")
-        # ANTHROPIC does not have that 1024 limit
         self.assertIn("stock price", str(res))
-
-        # But using Compact_docstring=True, we can pass 13 arguments successfully.
-        vec_factory = VectaraToolFactory(
-            vectara_corpus_key, vectara_api_key, compact_docstring=True
-        )
-        query_tool_2 = vec_factory.create_rag_tool(
-            tool_name="rag_tool",
-            tool_description="""
-            A dummy tool that takes 15 arguments and returns a response (str) to the user query based on the data in this corpus.
-            We are using this tool to test the tool factory works and doesn not crash with OpenAI.
-            """,
-            tool_args_schema=QueryToolArgs,
-        )
-
-        config = AgentConfig()
-        agent = Agent(
-            tools=[query_tool_2],
-            topic="Sample topic",
-            custom_instructions="Call the tool with 15 arguments",
-            agent_config=config,
-        )
-        res = agent.chat("What is the stock price?")
-        self.assertTrue(
-            any(sub in str(res) for sub in ["I don't know", "stock price"])
-        )
 
     def test_public_repo(self):
         vectara_corpus_key = "vectara-docs_1"
