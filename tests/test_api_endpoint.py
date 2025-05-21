@@ -68,6 +68,59 @@ class APITestCase(unittest.TestCase):
         r = self.client.post("/v1/completions", json=payload, headers={"X-API-Key": "bad"})
         self.assertEqual(r.status_code, 403)
 
+    def test_chat_completion_success(self):
+        payload = {
+            "model": "m1",
+            "messages": [{"role": "user", "content": "hello"}]
+        }
+        r = self.client.post("/v1/chat", json=payload, headers=self.headers)
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+
+        # ID prefix + valid UUID check
+        self.assertTrue(data["id"].startswith("chatcmpl-"))
+        UUID(data["id"].split("-", 1)[1])
+
+        self.assertEqual(data["model"], "m1")
+        self.assertEqual(data["choices"][0]["message"]["content"], "Echo: hello")
+
+        # prompt_tokens=1, completion_tokens=2 ("Echo:", "hello")
+        self.assertEqual(data["usage"]["prompt_tokens"], 1)
+        self.assertEqual(data["usage"]["completion_tokens"], 2)
+
+    def test_chat_completion_multiple_user_messages(self):
+        payload = {
+            "model": "m1",
+            "messages": [
+                {"role": "system", "content": "ignore me"},
+                {"role": "user", "content": "foo"},
+                {"role": "assistant", "content": "pong"},
+                {"role": "user", "content": "bar"}
+            ]
+        }
+        r = self.client.post("/v1/chat", json=payload, headers=self.headers)
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+
+        # Should concatenate only user messages: "foo bar"
+        self.assertEqual(data["choices"][0]["message"]["content"], "Echo: foo bar")
+        self.assertEqual(data["usage"]["prompt_tokens"], 2)   # "foo","bar"
+        self.assertEqual(data["usage"]["completion_tokens"], 3)  # "Echo:","foo","bar"
+
+    def test_chat_completion_no_messages(self):
+        payload = {"model": "m1", "messages": []}
+        r = self.client.post("/v1/chat", json=payload, headers=self.headers)
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("`messages` is required", r.json()["detail"])
+
+    def test_chat_completion_unauthorized(self):
+        payload = {
+            "model": "m1",
+            "messages": [{"role": "user", "content": "oops"}]
+        }
+        r = self.client.post("/v1/chat", json=payload, headers={"X-API-Key": "bad"})
+        self.assertEqual(r.status_code, 403)
+
 
 if __name__ == "__main__":
     unittest.main()

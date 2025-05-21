@@ -51,6 +51,31 @@ class CompletionResponse(BaseModel):
     usage: CompletionUsage
 
 
+class ChatMessage(BaseModel):
+    role: Literal["system", "user", "assistant"]
+    content: str
+
+class ChatCompletionRequest(BaseModel):
+    model: str
+    messages: List[ChatMessage]
+    temperature: Optional[float] = Field(1.0, ge=0.0, le=2.0)
+    top_p: Optional[float]     = Field(1.0, ge=0.0, le=1.0)
+    n: Optional[int]           = Field(1, ge=1)
+
+class ChatCompletionChoice(BaseModel):
+    index: int
+    message: ChatMessage
+    finish_reason: Literal["stop", "length", "error", None]
+
+class ChatCompletionResponse(BaseModel):
+    id: str
+    object: Literal["chat.completion"]
+    created: int
+    model: str
+    choices: List[ChatCompletionChoice]
+    usage: CompletionUsage
+
+
 def create_app(agent: Agent, config: AgentConfig) -> FastAPI:
     """
     Create and configure the FastAPI app.
@@ -153,6 +178,48 @@ def create_app(agent: Agent, config: AgentConfig) -> FastAPI:
                 total_tokens=p_tokens + c_tokens,
             ),
         )
+    
+    @app.post(
+        "/v1/chat",
+        response_model=ChatCompletionResponse,
+        dependencies=[Depends(_verify_api_key)]
+    )
+    async def chat_completion(req: ChatCompletionRequest):
+        if not req.messages:
+            raise HTTPException(status_code=400, detail="`messages` is required")
+
+        # concatenate all user messages into a single prompt
+        raw = " ".join(m.content for m in req.messages if m.role == "user")
+
+        try:
+            start = time.time()
+            text = agent.chat(raw)
+            logger.info(f"Agent returned in {time.time()-start:.2f}s")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail="Internal server error") from e
+
+        p_tokens = len(raw.split())
+        c_tokens = len(text.split())
+
+        return ChatCompletionResponse(
+            id=f"chatcmpl-{uuid.uuid4()}",
+            object="chat.completion",
+            created=int(time.time()),
+            model=req.model,
+            choices=[
+                ChatCompletionChoice(
+                    index=0,
+                    message=ChatMessage(role="assistant", content=text),
+                    finish_reason="stop",
+                )
+            ],
+            usage=CompletionUsage(
+                prompt_tokens=p_tokens,
+                completion_tokens=c_tokens,
+                total_tokens=p_tokens + c_tokens,
+            ),
+        )
+
 
     return app
 
