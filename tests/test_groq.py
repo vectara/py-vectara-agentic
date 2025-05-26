@@ -54,7 +54,6 @@ def get_valid_years() -> list[str]:
     return years
 
 
-
 fc_config_groq = AgentConfig(
     agent_type=AgentType.FUNCTION_CALLING,
     main_llm_provider=ModelProvider.GROQ,
