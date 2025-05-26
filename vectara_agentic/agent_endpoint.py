@@ -1,6 +1,7 @@
 """
 agent_endpoint.py
 """
+
 import logging
 import time
 import uuid
@@ -14,12 +15,16 @@ import uvicorn
 from .agent import Agent
 from .agent_config import AgentConfig
 
+
 class ChatRequest(BaseModel):
     """Request schema for the /chat endpoint."""
+
     message: str
+
 
 class CompletionRequest(BaseModel):
     """Request schema for the /v1/completions endpoint."""
+
     model: str
     prompt: Optional[Union[str, List[str]]] = None
     max_tokens: Optional[int] = Field(16, ge=1)
@@ -28,21 +33,27 @@ class CompletionRequest(BaseModel):
     n: Optional[int] = Field(1, ge=1)
     stop: Optional[Union[str, List[str]]] = None
 
+
 class Choice(BaseModel):
     """Choice schema returned in CompletionResponse."""
+
     text: str
     index: int
     logprobs: Optional[Any] = None
     finish_reason: Literal["stop", "length", "error", None]
 
+
 class CompletionUsage(BaseModel):
     """Token usage details in CompletionResponse."""
+
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
 
+
 class CompletionResponse(BaseModel):
     """Response schema for the /v1/completions endpoint."""
+
     id: str
     object: Literal["text_completion"]
     created: int
@@ -52,22 +63,29 @@ class CompletionResponse(BaseModel):
 
 
 class ChatMessage(BaseModel):
+    """Schema for individual chat messages in ChatCompletionRequest."""
     role: Literal["system", "user", "assistant"]
     content: str
 
+
 class ChatCompletionRequest(BaseModel):
+    """Request schema for the /v1/chat endpoint."""
     model: str
     messages: List[ChatMessage]
     temperature: Optional[float] = Field(1.0, ge=0.0, le=2.0)
-    top_p: Optional[float]     = Field(1.0, ge=0.0, le=1.0)
-    n: Optional[int]           = Field(1, ge=1)
+    top_p: Optional[float] = Field(1.0, ge=0.0, le=1.0)
+    n: Optional[int] = Field(1, ge=1)
+
 
 class ChatCompletionChoice(BaseModel):
+    """Choice schema returned in ChatCompletionResponse."""
     index: int
     message: ChatMessage
     finish_reason: Literal["stop", "length", "error", None]
 
+
 class ChatCompletionResponse(BaseModel):
+    """Response schema for the /v1/chat endpoint."""
     id: str
     object: Literal["chat.completion"]
     created: int
@@ -108,9 +126,7 @@ def create_app(agent: Agent, config: AgentConfig) -> FastAPI:
         return True
 
     @app.get(
-        "/chat",
-        summary="Chat with the agent",
-        dependencies=[Depends(_verify_api_key)]
+        "/chat", summary="Chat with the agent", dependencies=[Depends(_verify_api_key)]
     )
     async def chat(message: str):
         """
@@ -137,7 +153,7 @@ def create_app(agent: Agent, config: AgentConfig) -> FastAPI:
     @app.post(
         "/v1/completions",
         response_model=CompletionResponse,
-        dependencies=[Depends(_verify_api_key)]
+        dependencies=[Depends(_verify_api_key)],
     )
     async def completions(req: CompletionRequest):
         """
@@ -178,11 +194,11 @@ def create_app(agent: Agent, config: AgentConfig) -> FastAPI:
                 total_tokens=p_tokens + c_tokens,
             ),
         )
-    
+
     @app.post(
         "/v1/chat",
         response_model=ChatCompletionResponse,
-        dependencies=[Depends(_verify_api_key)]
+        dependencies=[Depends(_verify_api_key)],
     )
     async def chat_completion(req: ChatCompletionRequest):
         if not req.messages:
@@ -219,7 +235,6 @@ def create_app(agent: Agent, config: AgentConfig) -> FastAPI:
                 total_tokens=p_tokens + c_tokens,
             ),
         )
-
 
     return app
 
