@@ -54,15 +54,14 @@ def get_valid_years() -> list[str]:
     return years
 
 
-
-fc_config_groq = AgentConfig(
+fc_config_gemini = AgentConfig(
     agent_type=AgentType.FUNCTION_CALLING,
-    main_llm_provider=ModelProvider.GROQ,
-    tool_llm_provider=ModelProvider.GROQ,
+    main_llm_provider=ModelProvider.GEMINI,
+    tool_llm_provider=ModelProvider.GEMINI,
 )
 
 
-class TestGROQ(unittest.TestCase):
+class TestGEMINI(unittest.TestCase):
 
     def test_tool_with_many_arguments(self):
 
@@ -104,7 +103,7 @@ class TestGROQ(unittest.TestCase):
             tools=[query_tool_1],
             topic="Sample topic",
             custom_instructions="Call the tool with 15 arguments",
-            agent_config=fc_config_groq,
+            agent_config=fc_config_gemini,
         )
         res = agent.chat("What is the stock price?")
         self.assertTrue(
