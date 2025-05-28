@@ -11,6 +11,7 @@ from vectara_agentic._prompts import GENERAL_INSTRUCTIONS
 
 
 def mult(x: float, y: float) -> float:
+    "Multiply two numbers"
     return x * y
 
 

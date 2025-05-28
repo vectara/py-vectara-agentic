@@ -1,17 +1,17 @@
-llama-index==0.12.35
+llama-index==0.12.37
 llama-index-indices-managed-vectara==0.4.5
-llama-index-agent-llm-compiler==0.3.0
+llama-index-agent-llm-compiler==0.3.1
 llama-index-agent-lats==0.3.0
 llama-index-agent-openai==0.4.8
-llama-index-llms-openai==0.3.42
+llama-index-llms-openai==0.3.44
 llama-index-llms-openai-like>=0.3.5
-llama-index-llms-anthropic==0.6.10
+llama-index-llms-anthropic==0.6.19
 llama-index-llms-together==0.3.1
 llama-index-llms-groq==0.3.1
 llama-index-llms-fireworks==0.3.2
 llama-index-llms-cohere==0.4.1
-llama-index-llms-google-genai ==0.1.12
-llama-index-llms-bedrock==0.3.8
+llama-index-llms-google-genai==0.1.14
+llama-index-llms-bedrock-converse==0.6.0
 llama-index-tools-yahoo-finance==0.3.0
 llama-index-tools-arxiv==0.3.0
 llama-index-tools-database==0.3.0
@@ -26,8 +26,8 @@ llama-index-tools-slack==0.3.0
 llama-index-tools-exa==0.3.0
 llama-index-tools-wikipedia==0.3.0
 llama-index-tools-bing-search==0.3.0
-tavily-python==0.7.2
-exa-py==1.12.1
+tavily-python==0.7.3
+exa-py==1.13.1
 openinference-instrumentation-llama-index==4.2.1
 opentelemetry-proto>=1.31.0
 arize-phoenix==8.26.1
