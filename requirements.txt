@@ -26,6 +26,7 @@ llama-index-tools-slack==0.3.0
 llama-index-tools-exa==0.3.0
 llama-index-tools-wikipedia==0.3.0
 llama-index-tools-bing-search==0.3.0
+openai>=1.82.0
 tavily-python==0.7.3
 exa-py==1.13.1
 openinference-instrumentation-llama-index==4.2.1
