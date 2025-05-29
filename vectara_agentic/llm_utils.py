@@ -141,10 +141,6 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
         from llama_index.llms.bedrock_converse import BedrockConverse
 
         aws_profile_name = os.getenv("AWS_PROFILE", None)
-        if not aws_profile_name:
-            raise ValueError(
-                "AWS_PROFILE environment variable not set. Can't use Bedrock models."
-            )
         aws_region = os.getenv("AWS_REGION", "us-east-2")
 
         llm = BedrockConverse(
