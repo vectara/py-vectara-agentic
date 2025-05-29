@@ -71,7 +71,11 @@ Check out our example AI assistants:
 - [Vectara account](https://console.vectara.com/signup/?utm_source=github&utm_medium=code&utm_term=DevRel&utm_content=vectara-agentic&utm_campaign=github-code-DevRel-vectara-agentic)
 - A Vectara corpus with an [API key](https://docs.vectara.com/docs/api-keys)
 - [Python 3.10 or higher](https://www.python.org/downloads/)
-- OpenAI API key (or API keys for Anthropic, TOGETHER.AI, Fireworks AI, Bedrock, Cohere, GEMINI or GROQ, if you choose to use them)
+- OpenAI API key (or API keys for Anthropic, TOGETHER.AI, Fireworks AI, Cohere, GEMINI or GROQ, if you choose to use them).
+  To use AWS Bedrock, make sure that
+  * The Bedrock models you need are enabled on your account
+  * Your environment includes `AWS_PROFILE` with your AWS profile name.
+  * Your environment includes `AWS_REGION` set to the region where you want to consume the AWS Bedrock services (defaults to us-east-2)
 
 ### Installation
 

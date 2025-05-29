@@ -1,7 +1,9 @@
 """
 Utilities for the Vectara agentic.
 """
+
 from typing import Tuple, Callable, Optional
+import os
 from functools import lru_cache
 import tiktoken
 
@@ -14,11 +16,11 @@ from .agent_config import AgentConfig
 
 provider_to_default_model_name = {
     ModelProvider.OPENAI: "gpt-4o",
-    ModelProvider.ANTHROPIC: "claude-3-7-sonnet-latest",
+    ModelProvider.ANTHROPIC: "claude-sonnet-4-20250514",
     ModelProvider.TOGETHER: "Qwen/Qwen2.5-72B-Instruct-Turbo",
     ModelProvider.GROQ: "meta-llama/llama-4-scout-17b-16e-instruct",
     ModelProvider.FIREWORKS: "accounts/fireworks/models/firefunction-v2",
-    ModelProvider.BEDROCK: "anthropic.claude-3-7-sonnet-20250219-v1:0",
+    ModelProvider.BEDROCK: "us.anthropic.claude-sonnet-4-20250514-v1:0",
     ModelProvider.COHERE: "command-a-03-2025",
     ModelProvider.GEMINI: "models/gemini-2.0-flash",
 }
@@ -136,9 +138,18 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
 
         llm = Fireworks(model=model_name, temperature=0, max_tokens=max_tokens)
     elif model_provider == ModelProvider.BEDROCK:
-        from llama_index.llms.bedrock import Bedrock
+        from llama_index.llms.bedrock_converse import BedrockConverse
 
-        llm = Bedrock(model=model_name, temperature=0, max_tokens=max_tokens)
+        aws_profile_name = os.getenv("AWS_PROFILE", None)
+        aws_region = os.getenv("AWS_REGION", "us-east-2")
+
+        llm = BedrockConverse(
+            model=model_name,
+            temperature=0,
+            max_tokens=max_tokens,
+            profile_name=aws_profile_name,
+            region_name=aws_region,
+        )
     elif model_provider == ModelProvider.COHERE:
         from llama_index.llms.cohere import Cohere
 
