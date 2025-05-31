@@ -169,8 +169,6 @@ class VectaraToolFactory:
             Dynamically generated function for semantic search Vectara.
             """
             # Convert args to kwargs using the function signature
-            # if 'ctx' in kwargs:
-            #     kwargs.pop('ctx')
             sig = inspect.signature(search_function)
             bound_args = sig.bind_partial(*args, **kwargs)
             bound_args.apply_defaults()
@@ -421,8 +419,6 @@ class VectaraToolFactory:
             """
             # Convert args to kwargs using the function signature
             sig = inspect.signature(rag_function)
-            # if 'ctx' in kwargs:
-            #     kwargs.pop('ctx')
             bound_args = sig.bind_partial(*args, **kwargs)
             bound_args.apply_defaults()
             kwargs = bound_args.arguments
