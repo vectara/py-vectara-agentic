@@ -209,10 +209,10 @@ LLM provider.
 Defaults:
 
 1.  For `OPENAI`, the default is `gpt-4o`.
-2.  For `ANTHROPIC`, the default is `claude-3-7-sonnet-latest`.
+2.  For `ANTHROPIC`, the default is `claude-sonnet-4-20250514`.
 3.  For `GEMINI`, the default is `gemini-2.0-flash`.
 4.  For `TOGETHER.AI`, the default is `Qwen/Qwen2.5-72B-Instruct-Turbo`.
 5.  For `COHERE`, the default is `command-a-03-2025`.
-6.  For `BEDROCK`, the default is `anthropic.claude-3-7-sonnet-20250219-v1:0`.
+6.  For `BEDROCK`, the default is `us.anthropic.claude-sonnet-4-20250514-v1:0`.
 7.  For `GROQ`, the default is `meta-llama/llama-4-scout-17b-16e-instruct`.
 8.  For `FIREWORKS`, the default is `accounts/fireworks/models/firefunction-v2`.
