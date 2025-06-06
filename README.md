@@ -245,11 +245,8 @@ There are also additional cool features supported here:
   and ticker='AAPL' would translate into query='what is the revenue' with metadata filtering condition of
   "doc.year=2022 AND doc.ticker='AAPL' and doc.filing_type='10K'"
 
-Note that `tool_args_type` is an optional dictionary that indicates:
-* `type`: the level at which metadata filtering is applied for each argument (`doc` or `part`)
-* `is_list`: whether the argument is a list type
-* `filter_name`: a filter name (in cases where variable name can't be used, e.g. with spaces) to be used 
-  instead of the variable name.
+Note that `tool_args_type` is an optional dictionary that indicates the level at which metadata filtering
+is applied for each argument (`doc` or `part`)
 
 #### Creating a Vectara search tool
 
