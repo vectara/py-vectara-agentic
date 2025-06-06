@@ -456,6 +456,12 @@ def build_filter_string(
         prefix = tool_args_dict.get("type", "doc")
         is_list = tool_args_dict.get("is_list", False)
 
+        # In case the tool_args_dict has a filter_name, use it, otherwise use the key
+        # This is helpful in case the filter name needs to have spaces or special characters
+        # not allowed in variable names.
+        key = tool_args_dict.get("filter_name", key)
+
+        # Validate prefix
         if prefix not in ("doc", "part"):
             raise ValueError(
                 f'Unrecognized prefix {prefix!r}. Please make sure to use either "doc" or "part" for the prefix.'
