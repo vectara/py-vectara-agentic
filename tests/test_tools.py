@@ -2,6 +2,9 @@ import unittest
 from pydantic import Field, BaseModel
 from unittest.mock import patch, MagicMock
 import requests
+
+from llama_index.indices.managed.vectara import VectaraIndex
+
 from vectara_agentic.tools import (
     VectaraTool,
     VectaraToolFactory,
@@ -19,6 +22,7 @@ vectara_corpus_key = "vectara-docs_1"
 vectara_api_key = "zqt_UXrBcnI2UXINZkrv4g1tQPhzj02vfdtqYJIDiA"
 
 from typing import Optional
+
 
 class TestToolsPackage(unittest.TestCase):
 
@@ -136,10 +140,10 @@ class TestToolsPackage(unittest.TestCase):
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
-            'summary': response_text,
-            'search_results': [
-                {'text': 'ALL GOOD', 'document_id': '12345', 'score': 0.9},
-            ]
+            "summary": response_text,
+            "search_results": [
+                {"text": "ALL GOOD", "document_id": "12345", "score": 0.9},
+            ],
         }
         mock_post.return_value = mock_response
 
@@ -171,10 +175,7 @@ class TestToolsPackage(unittest.TestCase):
         )
 
         # test an invalid argument name
-        res = query_tool(
-            query="What is the stock price?",
-            year=">2023"
-        )
+        res = query_tool(query="What is the stock price?", year=">2023")
         self.assertIn(response_text, str(res))
 
         # Test a valid range
@@ -250,8 +251,12 @@ class TestToolsPackage(unittest.TestCase):
             arg10: str = Field(description="the tenth argument", examples=["val10"])
             arg11: str = Field(description="the eleventh argument", examples=["val11"])
             arg12: str = Field(description="the twelfth argument", examples=["val12"])
-            arg13: str = Field(description="the thirteenth argument", examples=["val13"])
-            arg14: str = Field(description="the fourteenth argument", examples=["val14"])
+            arg13: str = Field(
+                description="the thirteenth argument", examples=["val13"]
+            )
+            arg14: str = Field(
+                description="the fourteenth argument", examples=["val14"]
+            )
             arg15: str = Field(description="the fifteenth argument", examples=["val15"])
 
         query_tool_1 = vec_factory.create_rag_tool(
@@ -264,9 +269,7 @@ class TestToolsPackage(unittest.TestCase):
         )
 
         # Test with 15 arguments to make sure no issues occur
-        config = AgentConfig(
-            agent_type=AgentType.OPENAI
-        )
+        config = AgentConfig(agent_type=AgentType.OPENAI)
         agent = Agent(
             tools=[query_tool_1],
             topic="Sample topic",
@@ -306,6 +309,58 @@ class TestToolsPackage(unittest.TestCase):
         res = agent.chat("What is the stock price?")
         self.assertIn("stock price", str(res))
 
+    @patch.object(VectaraIndex, "as_query_engine")
+    def test_vectara_tool_args_type(
+        self,
+        mock_as_query_engine,
+    ):
+        fake_engine = MagicMock()
+        fake_resp = MagicMock()
+        fake_node = MagicMock(metadata={"docid": "123"})
+        fake_resp.source_nodes, fake_resp.response, fake_resp.metadata = (
+            [fake_node],
+            "FAKE",
+            {"fcs": "0.99"},
+        )
+        fake_engine.query.return_value = fake_resp
+        mock_as_query_engine.return_value = fake_engine
+
+        class QueryToolArgs(BaseModel):
+            arg1: str
+            arg2: str
+            arg3: list[str]
+
+        tool_args_type = {
+            "arg1": {"type": "doc", "is_list": False, "filter_name": "arg1"},
+            "arg2": {"type": "doc", "is_list": False, "filter_name": "arg 2"},
+            "arg3": {"type": "part", "is_list": True, "filter_name": "arg_3"},
+        }
+
+        with patch("vectara_agentic.tools.build_filter_string") as mock_build_filter:
+            mock_build_filter.return_value = "dummy_filter"
+            vec_factory = VectaraToolFactory("dummy_key", "dummy_api")
+            query_tool = vec_factory.create_rag_tool(
+                tool_name="test_tool",
+                tool_description="Test filter-string construction",
+                tool_args_schema=QueryToolArgs,
+                tool_args_type=tool_args_type,
+            )
+            query_tool.call(
+                query="some query",
+                arg1="val1",
+                arg2="val2",
+                arg3=["val3_1", "val3_2"],
+            )
+            mock_build_filter.assert_called_once()
+            passed_kwargs, passed_type_map, passed_fixed = mock_build_filter.call_args[
+                0
+            ]
+            self.assertEqual(passed_type_map, tool_args_type)
+            self.assertEqual(passed_kwargs["arg1"], "val1")
+            self.assertEqual(passed_kwargs["arg2"], "val2")
+            self.assertEqual(passed_kwargs["arg3"], ["val3_1", "val3_2"])
+            fake_engine.query.assert_called_once_with("some query")
+
     def test_public_repo(self):
         vectara_corpus_key = "vectara-docs_1"
         vectara_api_key = "zqt_UXrBcnI2UXINZkrv4g1tQPhzj02vfdtqYJIDiA"
@@ -317,6 +372,7 @@ class TestToolsPackage(unittest.TestCase):
             data_description="data from Vectara website",
             assistant_specialty="RAG as a service",
             vectara_summarizer="mockingbird-2.0",
+            vectara_summary_num_results=10,
         )
 
         self.assertIn(
@@ -367,9 +423,15 @@ class TestToolsPackage(unittest.TestCase):
         )
 
         doc = dummy_tool.metadata.description
-        self.assertTrue(doc.startswith("dummy_tool(query: str, foo: int, bar: str) -> dict[str, Any]"))
+        self.assertTrue(
+            doc.startswith(
+                "dummy_tool(query: str, foo: int, bar: str) -> dict[str, Any]"
+            )
+        )
         self.assertIn("Args:", doc)
-        self.assertIn("query (str): The search query to perform, in the form of a question", doc)
+        self.assertIn(
+            "query (str): The search query to perform, in the form of a question", doc
+        )
         self.assertIn("foo (int): how many foos (e.g., 1, 2, 3)", doc)
         self.assertIn("bar (str, default='baz'): what bar to use (e.g., 'x', 'y')", doc)
         self.assertIn("Returns:", doc)
