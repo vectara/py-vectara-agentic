@@ -15,7 +15,7 @@ from .types import LLMRole, AgentType, ModelProvider
 from .agent_config import AgentConfig
 
 provider_to_default_model_name = {
-    ModelProvider.OPENAI: "gpt-4.1",
+    ModelProvider.OPENAI: "gpt-4o",
     ModelProvider.ANTHROPIC: "claude-sonnet-4-20250514",
     ModelProvider.TOGETHER: "Qwen/Qwen2.5-72B-Instruct-Turbo",
     ModelProvider.GROQ: "meta-llama/llama-4-scout-17b-16e-instruct",
