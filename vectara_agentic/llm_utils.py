@@ -69,11 +69,11 @@ def get_tokenizer_for_model(
     """
     Get the tokenizer for the specified model, as determined by the role & config.
     """
+    model_name = "Unknown model"
     try:
         model_provider, model_name = _get_llm_params_for_role(role, config)
         if model_provider == ModelProvider.OPENAI:
-            # This might raise an exception if the model_name is unknown to tiktoken
-            return tiktoken.encoding_for_model(model_name).encode
+            return tiktoken.encoding_for_model('gpt-4o').encode
         if model_provider == ModelProvider.ANTHROPIC:
             return Anthropic().tokenizer
     except Exception:

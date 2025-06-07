@@ -42,7 +42,7 @@ class TestLLMPackage(unittest.TestCase):
             tool_description="""
             Returns a response (str) to the user query based on the data in this corpus.
             """,
-            llm_name="gpt-4o-mini",
+            llm_name="gpt-4o",
         )
 
         self.assertIsInstance(query_tool, VectaraTool)
