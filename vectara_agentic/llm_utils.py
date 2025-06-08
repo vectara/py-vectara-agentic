@@ -18,7 +18,7 @@ provider_to_default_model_name = {
     ModelProvider.OPENAI: "gpt-4.1",
     ModelProvider.ANTHROPIC: "claude-sonnet-4-20250514",
     ModelProvider.TOGETHER: "Qwen/Qwen2.5-72B-Instruct-Turbo",
-    ModelProvider.GROQ: "meta-llama/llama-4-scout-17b-16e-instruct",
+    ModelProvider.GROQ: "deepseek-r1-distill-llama-70b",
     ModelProvider.FIREWORKS: "accounts/fireworks/models/firefunction-v2",
     ModelProvider.BEDROCK: "us.anthropic.claude-sonnet-4-20250514-v1:0",
     ModelProvider.COHERE: "command-a-03-2025",

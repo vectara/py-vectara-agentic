@@ -107,7 +107,7 @@ class TestGROQ(unittest.TestCase):
         )
         res = agent.chat("What is the stock price?")
         self.assertTrue(
-            any(sub in str(res) for sub in ["I don't know", "I do not have"])
+            any(sub in str(res) for sub in ["I don't know", "I do not have", "please specify which company"])
         )
 
 
