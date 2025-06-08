@@ -154,11 +154,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
         elif event_type == CBEventType.AGENT_STEP:
             self._handle_agent_step(payload, event_id)
         elif event_type == CBEventType.EXCEPTION:
-            import traceback
-            print(
-                f"Exception in handle_event: {payload.get(EventPayload.EXCEPTION)}, "
-                f"traceback: {traceback.format_exc()}"
-            )
+            print(f"Exception event in handle_event: {payload.get(EventPayload.EXCEPTION)}")
         else:
             print(f"Unknown event type: {event_type}, payload={payload}")
 
@@ -172,7 +168,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
         elif event_type == CBEventType.AGENT_STEP:
             await self._ahandle_agent_step(payload, event_id)
         elif event_type == CBEventType.EXCEPTION:
-            print(f"Exception in ahandle_event: {payload.get(EventPayload.EXCEPTION)}")
+            print(f"Exception event in ahandle_event: {payload.get(EventPayload.EXCEPTION)}")
         else:
             print(f"Unknown event type: {event_type}, payload={payload}")
 
