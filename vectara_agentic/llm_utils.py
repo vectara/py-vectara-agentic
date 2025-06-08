@@ -15,10 +15,10 @@ from .types import LLMRole, AgentType, ModelProvider
 from .agent_config import AgentConfig
 
 provider_to_default_model_name = {
-    ModelProvider.OPENAI: "gpt-4o",
+    ModelProvider.OPENAI: "gpt-4.1",
     ModelProvider.ANTHROPIC: "claude-sonnet-4-20250514",
     ModelProvider.TOGETHER: "Qwen/Qwen2.5-72B-Instruct-Turbo",
-    ModelProvider.GROQ: "meta-llama/llama-4-scout-17b-16e-instruct",
+    ModelProvider.GROQ: "deepseek-r1-distill-llama-70b",
     ModelProvider.FIREWORKS: "accounts/fireworks/models/firefunction-v2",
     ModelProvider.BEDROCK: "us.anthropic.claude-sonnet-4-20250514-v1:0",
     ModelProvider.COHERE: "command-a-03-2025",
@@ -69,11 +69,11 @@ def get_tokenizer_for_model(
     """
     Get the tokenizer for the specified model, as determined by the role & config.
     """
+    model_name = "Unknown model"
     try:
         model_provider, model_name = _get_llm_params_for_role(role, config)
         if model_provider == ModelProvider.OPENAI:
-            # This might raise an exception if the model_name is unknown to tiktoken
-            return tiktoken.encoding_for_model(model_name).encode
+            return tiktoken.encoding_for_model('gpt-4o').encode
         if model_provider == ModelProvider.ANTHROPIC:
             return Anthropic().tokenizer
     except Exception:

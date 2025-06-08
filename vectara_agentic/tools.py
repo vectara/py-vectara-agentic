@@ -124,7 +124,11 @@ class VectaraToolFactory:
             tool_name (str): The name of the tool.
             tool_description (str): The description of the tool.
             tool_args_schema (BaseModel, optional): The schema for the tool arguments.
-            tool_args_type (Dict[str, str], optional): The type of each argument (doc or part).
+            tool_args_type (Dict[str, dict], optional): attributes for each argument where they key is the field name
+                and the value is a dictionary with the following keys:
+                - 'type': the type of each filter attribute in Vectara (doc or part).
+                - 'is_list': whether the filterable attribute is a list.
+                - 'filter_name': the name of the filterable attribute in Vectara.
             fixed_filter (str, optional): A fixed Vectara filter condition to apply to all queries.
             lambda_val (Union[List[float] | float], optional): Lambda value (or list of values for each corpora)
                 for the Vectara query, when using hybrid search.
@@ -358,6 +362,7 @@ class VectaraToolFactory:
                 and the value is a dictionary with the following keys:
                 - 'type': the type of each filter attribute in Vectara (doc or part).
                 - 'is_list': whether the filterable attribute is a list.
+                - 'filter_name': the name of the filterable attribute in Vectara.
             fixed_filter (str, optional): A fixed Vectara filter condition to apply to all queries.
             vectara_summarizer (str, optional): The Vectara summarizer to use.
             vectara_prompt_text (str, optional): The prompt text for the Vectara summarizer.

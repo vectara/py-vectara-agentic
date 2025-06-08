@@ -8,6 +8,10 @@ import pandas as pd
 from .types import ObserverType
 from .agent_config import AgentConfig
 
+PROJECT_NAME = "vectara-agentic"
+SPAN_NAME: str = "VectaraQueryEngine._query"
+
+
 def setup_observer(config: AgentConfig, verbose: bool) -> bool:
     '''
     Setup the observer.
@@ -47,7 +51,7 @@ def setup_observer(config: AgentConfig, verbose: bool) -> bool:
 
     reg_kwargs = {
         "endpoint": phoenix_endpoint or 'http://localhost:6006/v1/traces',
-        "project_name": "vectara-agentic",
+        "project_name": PROJECT_NAME,
         "batch": False,
         "set_global_tracer_provider": False,
     }
@@ -103,9 +107,14 @@ def eval_fcs() -> None:
         "parent_id",
         "name"
     )
-    client = px.Client()
-    all_spans = client.query_spans(query, project_name="vectara-agentic")
-    vectara_spans = all_spans[all_spans['name'] == 'VectaraQueryEngine._query'].copy()
+    try:
+        client = px.Client()
+        all_spans = client.query_spans(query, project_name=PROJECT_NAME)
+    except Exception as e:
+        print(f"Failed to query spans: {e}")
+        return
+
+    vectara_spans = all_spans[all_spans['name'] == SPAN_NAME].copy()
     vectara_spans['top_level_parent_id'] = vectara_spans.apply(
         lambda row: _find_top_level_parent_id(row, all_spans), axis=1
     )
