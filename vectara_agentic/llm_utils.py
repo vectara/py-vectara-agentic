@@ -11,6 +11,42 @@ from llama_index.core.llms import LLM
 from llama_index.llms.openai import OpenAI
 from llama_index.llms.anthropic import Anthropic
 
+# Optional provider imports with graceful fallback
+try:
+    from llama_index.llms.google_genai import GoogleGenAI
+except ImportError:
+    GoogleGenAI = None
+
+try:
+    from llama_index.llms.together import TogetherLLM
+except ImportError:
+    TogetherLLM = None
+
+try:
+    from llama_index.llms.groq import Groq
+except ImportError:
+    Groq = None
+
+try:
+    from llama_index.llms.fireworks import Fireworks
+except ImportError:
+    Fireworks = None
+
+try:
+    from llama_index.llms.bedrock_converse import BedrockConverse
+except ImportError:
+    BedrockConverse = None
+
+try:
+    from llama_index.llms.cohere import Cohere
+except ImportError:
+    Cohere = None
+
+try:
+    from llama_index.llms.openai_like import OpenAILike
+except ImportError:
+    OpenAILike = None
+
 from .types import LLMRole, AgentType, ModelProvider
 from .agent_config import AgentConfig
 
@@ -106,8 +142,8 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             max_tokens=max_tokens,
         )
     elif model_provider == ModelProvider.GEMINI:
-        from llama_index.llms.google_genai import GoogleGenAI
-
+        if GoogleGenAI is None:
+            raise ImportError("google_genai not available. Install with: pip install llama-index-llms-google-genai")
         llm = GoogleGenAI(
             model=model_name,
             temperature=0,
@@ -116,8 +152,8 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             max_tokens=max_tokens,
         )
     elif model_provider == ModelProvider.TOGETHER:
-        from llama_index.llms.together import TogetherLLM
-
+        if TogetherLLM is None:
+            raise ImportError("together not available. Install with: pip install llama-index-llms-together")
         llm = TogetherLLM(
             model=model_name,
             temperature=0,
@@ -125,8 +161,8 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             max_tokens=max_tokens,
         )
     elif model_provider == ModelProvider.GROQ:
-        from llama_index.llms.groq import Groq
-
+        if Groq is None:
+            raise ImportError("groq not available. Install with: pip install llama-index-llms-groq")
         llm = Groq(
             model=model_name,
             temperature=0,
@@ -134,12 +170,12 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             max_tokens=max_tokens,
         )
     elif model_provider == ModelProvider.FIREWORKS:
-        from llama_index.llms.fireworks import Fireworks
-
+        if Fireworks is None:
+            raise ImportError("fireworks not available. Install with: pip install llama-index-llms-fireworks")
         llm = Fireworks(model=model_name, temperature=0, max_tokens=max_tokens)
     elif model_provider == ModelProvider.BEDROCK:
-        from llama_index.llms.bedrock_converse import BedrockConverse
-
+        if BedrockConverse is None:
+            raise ImportError("bedrock_converse not available. Install with: pip install llama-index-llms-bedrock")
         aws_profile_name = os.getenv("AWS_PROFILE", None)
         aws_region = os.getenv("AWS_REGION", "us-east-2")
 
@@ -151,12 +187,12 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             region_name=aws_region,
         )
     elif model_provider == ModelProvider.COHERE:
-        from llama_index.llms.cohere import Cohere
-
+        if Cohere is None:
+            raise ImportError("cohere not available. Install with: pip install llama-index-llms-cohere")
         llm = Cohere(model=model_name, temperature=0, max_tokens=max_tokens)
     elif model_provider == ModelProvider.PRIVATE:
-        from llama_index.llms.openai_like import OpenAILike
-
+        if OpenAILike is None:
+            raise ImportError("openai_like not available. Install with: pip install llama-index-llms-openai-like")
         llm = OpenAILike(
             model=model_name,
             temperature=0,
