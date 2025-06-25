@@ -17,12 +17,12 @@ from .agent_config import AgentConfig
 provider_to_default_model_name = {
     ModelProvider.OPENAI: "gpt-4.1",
     ModelProvider.ANTHROPIC: "claude-sonnet-4-20250514",
-    ModelProvider.TOGETHER: "Qwen/Qwen2.5-72B-Instruct-Turbo",
+    ModelProvider.TOGETHER: "meta-llama/Llama-4-Scout-17B-16E-Instruct",
     ModelProvider.GROQ: "deepseek-r1-distill-llama-70b",
     ModelProvider.FIREWORKS: "accounts/fireworks/models/firefunction-v2",
     ModelProvider.BEDROCK: "us.anthropic.claude-sonnet-4-20250514-v1:0",
     ModelProvider.COHERE: "command-a-03-2025",
-    ModelProvider.GEMINI: "models/gemini-2.0-flash",
+    ModelProvider.GEMINI: "models/gemini-2.5-flash",
 }
 
 DEFAULT_MODEL_PROVIDER = ModelProvider.OPENAI
