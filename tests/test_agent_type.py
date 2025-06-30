@@ -19,10 +19,13 @@ react_config_anthropic = AgentConfig(
     tool_llm_provider=ModelProvider.ANTHROPIC,
 )
 
+# React with Google does not work with Gemini 2.5-flash
 react_config_gemini = AgentConfig(
     agent_type=AgentType.REACT,
     main_llm_provider=ModelProvider.GEMINI,
+    main_llm_model_name="models/gemini-2.0-flash",
     tool_llm_provider=ModelProvider.GEMINI,
+    tool_llm_model_name="models/gemini-2.0-flash",
 )
 
 react_config_together = AgentConfig(
@@ -97,7 +100,7 @@ class TestAgentType(unittest.TestCase):
         )
         agent.chat("What is 5 times 10. Only give the answer, nothing else")
         agent.chat("what is 3 times 7. Only give the answer, nothing else")
-        res = agent.chat("multiply the results of the last two multiplications. Only give the answer, nothing else.")
+        res = agent.chat("what is the result of multiplying the results of the last two multiplications. Only give the answer, nothing else.")
         self.assertIn("1050", res.response)
 
         agent = Agent(
@@ -108,7 +111,7 @@ class TestAgentType(unittest.TestCase):
         )
         agent.chat("What is 5 times 10. Only give the answer, nothing else")
         agent.chat("what is 3 times 7. Only give the answer, nothing else")
-        res = agent.chat("multiply the results of the last two multiplications. Only give the answer, nothing else.")
+        res = agent.chat("what is the result of multiplying the results of the last two multiplications. Only give the answer, nothing else.")
         self.assertIn("1050", res.response)
 
     def test_together(self):
