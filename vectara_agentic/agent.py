@@ -1126,9 +1126,14 @@ class Agent:
         return json.dumps(self.to_dict())
 
     @classmethod
-    def loads(cls, data: str) -> "Agent":
+    def loads(
+        cls,
+        data: str,
+        agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
+        query_logging_callback: Optional[Callable[[str, str], None]] = None
+    ) -> "Agent":
         """Create an Agent instance from a JSON string."""
-        return cls.from_dict(json.loads(data))
+        return cls.from_dict(json.loads(data), agent_progress_callback, query_logging_callback)
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize the Agent instance to a dictionary."""
@@ -1185,7 +1190,12 @@ class Agent:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Agent":
+    def from_dict(
+        cls,
+        data: Dict[str, Any],
+        agent_progress_callback: Optional[Callable] = None,
+        query_logging_callback: Optional[Callable] = None
+    ) -> "Agent":
         """Create an Agent instance from a dictionary."""
         agent_config = AgentConfig.from_dict(data["agent_config"])
         fallback_agent_config = (
@@ -1286,6 +1296,8 @@ class Agent:
             verbose=data["verbose"],
             fallback_agent_config=fallback_agent_config,
             workflow_cls=data["workflow_cls"],
+            agent_progress_callback=agent_progress_callback,
+            query_logging_callback=query_logging_callback,
         )
         memory = (
             pickle.loads(data["memory"].encode("latin-1"))
@@ -1294,4 +1306,5 @@ class Agent:
         )
         if memory:
             agent.agent.memory = memory
+            agent.memory = memory
         return agent
