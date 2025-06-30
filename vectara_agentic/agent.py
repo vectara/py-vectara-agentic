@@ -1127,7 +1127,7 @@ class Agent:
 
     @classmethod
     def loads(
-        cls, 
+        cls,
         data: str,
         agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
         query_logging_callback: Optional[Callable[[str, str], None]] = None
@@ -1191,10 +1191,10 @@ class Agent:
 
     @classmethod
     def from_dict(
-        cls, 
+        cls,
         data: Dict[str, Any],
-        agent_progress_callback: Optional[Callable]=None,
-        query_logging_callback: Optional[Callable]=None
+        agent_progress_callback: Optional[Callable] = None,
+        query_logging_callback: Optional[Callable] = None
     ) -> "Agent":
         """Create an Agent instance from a dictionary."""
         agent_config = AgentConfig.from_dict(data["agent_config"])
