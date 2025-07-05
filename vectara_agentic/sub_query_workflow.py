@@ -5,7 +5,7 @@ that takes a user question and a list of tools, and outputs a list of sub-questi
 
 import re
 import json
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from llama_index.core.workflow import (
     step,
@@ -36,6 +36,13 @@ class SubQuestionQueryWorkflow(Workflow):
         """
 
         response: str
+
+    class OutputModelOnFail(BaseModel):
+        """
+        Outputs for the workflow when it fails.
+        """
+
+        qna: list[str] = Field(default_factory=list, description="List of question-answer pairs")
 
     # Workflow Event types
     class QueryEvent(Event):
@@ -141,7 +148,7 @@ class SubQuestionQueryWorkflow(Workflow):
 
         return None
 
-    @step(num_workers=4)
+    @step(num_workers=5)
     async def sub_question(self, ctx: Context, ev: QueryEvent) -> AnswerEvent:
         """
         Given a sub-question, return the answer to the sub-question, using the agent.
@@ -149,8 +156,11 @@ class SubQuestionQueryWorkflow(Workflow):
         if await ctx.get("verbose"):
             print(f"Sub-question is {ev.question}")
         agent = await ctx.get("agent")
-        response = await agent.achat(ev.question)
-        return self.AnswerEvent(question=ev.question, answer=str(response))
+        question = ev.question
+        response = await agent.achat(question)
+        answer = str(response)
+        await ctx.set("qna", await ctx.get("qna", []) + [(question, answer)])
+        return self.AnswerEvent(question=question, answer=answer)
 
     @step
     async def combine_answers(self, ctx: Context, ev: AnswerEvent) -> StopEvent | None:
@@ -208,6 +218,15 @@ class SequentialSubQuestionsWorkflow(Workflow):
         """
 
         response: str
+
+    class OutputModelOnFail(BaseModel):
+        """
+        Outputs for the workflow when it fails.
+        """
+
+        qna: list[str] = Field(
+            default_factory=list, description="List of question-answer pairs"
+        )
 
     # Workflow Event types
     class QueryEvent(Event):
@@ -322,24 +341,27 @@ class SequentialSubQuestionsWorkflow(Workflow):
             print(f"Sub-question is {ev.question}")
         agent = await ctx.get("agent")
         sub_questions = await ctx.get("sub_questions")
+        question = ev.question
         if ev.prev_answer:
             prev_question = sub_questions[ev.num - 1]
             prompt = f"""
                 The answer to the question '{prev_question}' is: '{ev.prev_answer}'
-                Now answer the following question: '{ev.question}'
+                Now answer the following question: '{question}'
             """
             response = await agent.achat(prompt)
         else:
-            response = await agent.achat(ev.question)
+            response = await agent.achat(question)
+        answer = response.response
         if await ctx.get("verbose"):
-            print(f"Answer is {response}")
+            print(f"Answer is {answer}")
 
         if ev.num + 1 < len(sub_questions):
+            await ctx.set("qna", await ctx.get("qna", []) + [(question, answer)])
             return self.QueryEvent(
                 question=sub_questions[ev.num + 1],
-                prev_answer=response.response,
+                prev_answer=answer,
                 num=ev.num + 1,
             )
 
-        output = self.OutputsModel(response=response.response)
+        output = self.OutputsModel(response=answer)
         return StopEvent(result=output)

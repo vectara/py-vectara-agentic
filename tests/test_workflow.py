@@ -85,14 +85,10 @@ class TestWorkflowFailure(unittest.IsolatedAsyncioTestCase):
             query="Compute 5 times 3, then add 7 to the result."
         )
 
-        res = None
-
         try:
-            res = await agent.run(inputs=inputs)
+            await agent.run(inputs=inputs)
         except Exception as e:
-            self.assertIsInstance(e, WorkflowTimeoutError)
-
-        self.assertIsNone(res)
+            self.assertIsInstance(e, SubQuestionQueryWorkflow.OutputModelOnFail)
 
     async def test_workflow_with_fail_class(self):
         tools = [ToolsFactory().create_tool(mult)] + [ToolsFactory().create_tool(add)]

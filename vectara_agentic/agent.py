@@ -1103,14 +1103,14 @@ class Agent:
 
         except Exception as e:
             outputs_model_on_fail_cls = getattr(workflow.__class__, "OutputModelOnFail", None)
+            _missing = object()
             if outputs_model_on_fail_cls:
                 model_fields = outputs_model_on_fail_cls.model_fields
-                input_dict = {
-                    key: await workflow_context.get(key, None)
-                    for key in model_fields
-                }
-
-                # return output in the form of workflow.OutputModelOnFail(BaseModel)
+                input_dict = {}
+                for key in model_fields:
+                    value = await workflow_context.get(key, default=_missing)
+                    if value is not _missing:
+                        input_dict[key] = value
                 output = outputs_model_on_fail_cls.model_validate(input_dict)
             else:
                 print(f"Vectara Agentic: Workflow failed with unexpected error: {e}")
