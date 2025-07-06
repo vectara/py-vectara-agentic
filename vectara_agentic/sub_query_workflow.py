@@ -42,7 +42,7 @@ class SubQuestionQueryWorkflow(Workflow):
         Outputs for the workflow when it fails.
         """
 
-        qna: list[str] = Field(default_factory=list, description="List of question-answer pairs")
+        qna: list[tuple[str,str]] = Field(default_factory=list, description="List of question-answer pairs")
 
     # Workflow Event types
     class QueryEvent(Event):
@@ -224,7 +224,7 @@ class SequentialSubQuestionsWorkflow(Workflow):
         Outputs for the workflow when it fails.
         """
 
-        qna: list[str] = Field(
+        qna: list[tuple[str,str]] = Field(
             default_factory=list, description="List of question-answer pairs"
         )
 

@@ -1,9 +1,5 @@
 import unittest
 
-from pydantic import BaseModel
-
-from llama_index.core.workflow import WorkflowTimeoutError
-
 from vectara_agentic.agent import Agent
 from vectara_agentic.agent_config import AgentConfig
 from vectara_agentic.tools import ToolsFactory
@@ -68,7 +64,7 @@ class TestWorkflowPackage(unittest.IsolatedAsyncioTestCase):
 
 class TestWorkflowFailure(unittest.IsolatedAsyncioTestCase):
 
-    async def test_workflow_failure(self):
+    async def test_workflow_failure_sub_question(self):
         tools = [ToolsFactory().create_tool(mult)] + [ToolsFactory().create_tool(add)]
         topic = "AI topic"
         instructions = "You are a helpful AI assistant."
@@ -84,46 +80,27 @@ class TestWorkflowFailure(unittest.IsolatedAsyncioTestCase):
         inputs = SubQuestionQueryWorkflow.InputsModel(
             query="Compute 5 times 3, then add 7 to the result."
         )
+        res = await agent.run(inputs=inputs)
+        self.assertIsInstance(res, SubQuestionQueryWorkflow.OutputModelOnFail)
 
-        try:
-            await agent.run(inputs=inputs)
-        except Exception as e:
-            self.assertIsInstance(e, SubQuestionQueryWorkflow.OutputModelOnFail)
-
-    async def test_workflow_with_fail_class(self):
+    async def test_workflow_failure_seq_sub_question(self):
         tools = [ToolsFactory().create_tool(mult)] + [ToolsFactory().create_tool(add)]
         topic = "AI topic"
         instructions = "You are a helpful AI assistant."
-
-        class SubQuestionQueryWorkflowWithFailClass(SubQuestionQueryWorkflow):
-            class OutputModelOnFail(BaseModel):
-                """
-                In case of failure, returns the user's original query
-                """
-                original_query: str
-
         agent = Agent(
             tools=tools,
             topic=topic,
             custom_instructions=instructions,
             agent_config = AgentConfig(),
-            workflow_cls = SubQuestionQueryWorkflowWithFailClass,
+            workflow_cls = SequentialSubQuestionsWorkflow,
             workflow_timeout = 1
         )
 
-        inputs = SubQuestionQueryWorkflow.InputsModel(
+        inputs = SequentialSubQuestionsWorkflow.InputsModel(
             query="Compute 5 times 3, then add 7 to the result."
         )
-
-        res = None
-
-        try:
-            res = await agent.run(inputs=inputs)
-        except Exception as e:
-            assert isinstance(e, WorkflowTimeoutError)
-
-        self.assertIsInstance(res, SubQuestionQueryWorkflowWithFailClass.OutputModelOnFail)
-        self.assertEqual(res.original_query, "Compute 5 times 3, then add 7 to the result.")
+        res = await agent.run(inputs=inputs)
+        self.assertIsInstance(res, SequentialSubQuestionsWorkflow.OutputModelOnFail)
 
 
 if __name__ == "__main__":

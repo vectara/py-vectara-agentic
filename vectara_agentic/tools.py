@@ -130,7 +130,7 @@ class VectaraToolFactory:
                 - 'is_list': whether the filterable attribute is a list.
                 - 'filter_name': the name of the filterable attribute in Vectara.
             summarize_docs (bool, optional): Whether to summarize the retrieved documents.
-            summarize_llm_name (str, ptional): The name of the LLM to use for summarization.
+            summarize_llm_name (str, optional): The name of the LLM to use for summarization.
             fixed_filter (str, optional): A fixed Vectara filter condition to apply to all queries.
             lambda_val (Union[List[float] | float], optional): Lambda value (or list of values for each corpora)
                 for the Vectara query, when using hybrid search.
