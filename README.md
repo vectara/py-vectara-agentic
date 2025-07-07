@@ -517,7 +517,7 @@ print(workflow_result.answer)
 When a workflow reaches its timeout, the timeout handler builds and returns an `OutputModelOnFail` 
 by reading each field named in that model from the workflow’s Context; for any field that isn’t set in the context, 
 it uses the default value you’ve defined on `OutputModelOnFail`. In other words, every property in `OutputModelOnFail` 
-must declare a default so that even if the corresponding context variable is missing—the model can be fully populated and returned without errors.
+must declare a default so that even if the corresponding context variable is missing, the model can be fully populated and returned without errors.
 
 ### Built-in Workflows
 
