@@ -148,7 +148,7 @@ class SubQuestionQueryWorkflow(Workflow):
 
         return None
 
-    @step(num_workers=5)
+    @step(num_workers=8)
     async def sub_question(self, ctx: Context, ev: QueryEvent) -> AnswerEvent:
         """
         Given a sub-question, return the answer to the sub-question, using the agent.

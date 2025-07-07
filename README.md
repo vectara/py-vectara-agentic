@@ -454,6 +454,9 @@ class MyWorkflow(Workflow):
     class OutputsModel(BaseModel):
         answer: str
 
+    class OutputModelOnFail(BaseModel):
+        partial_response: str = ""
+
     @step
     async def my_step(self, ev: StartEvent) -> StopEvent:
         # do something here
@@ -510,6 +513,11 @@ workflow_result = asyncio.run(agent.run(inputs))
 # Access the output from the workflow's OutputsModel
 print(workflow_result.answer)
 ```
+
+When a workflow reaches its timeout, the timeout handler builds and returns an `OutputModelOnFail` 
+by reading each field named in that model from the workflow’s Context; for any field that isn’t set in the context, 
+it uses the default value you’ve defined on `OutputModelOnFail`. In other words, every property in `OutputModelOnFail` 
+must declare a default so that even if the corresponding context variable is missing—the model can be fully populated and returned without errors.
 
 ### Built-in Workflows
 
