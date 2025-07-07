@@ -15,6 +15,8 @@ from collections import Counter
 import inspect
 from inspect import Signature, Parameter, ismethod
 from pydantic import Field, create_model, ValidationError, BaseModel
+from pydantic_core import PydanticUndefined
+
 import cloudpickle as pickle
 
 from dotenv import load_dotenv
@@ -1083,6 +1085,15 @@ class Agent:
         if not isinstance(inputs, self.workflow_cls.InputsModel):
             raise ValueError(f"Inputs must be an instance of {workflow.InputsModel}.")
 
+        outputs_model_on_fail_cls = getattr(workflow.__class__, "OutputModelOnFail", None)
+        if outputs_model_on_fail_cls:
+            fields_without_default = []
+            for name, field_info in outputs_model_on_fail_cls.model_fields.items():
+                if field_info.default_factory is PydanticUndefined:
+                    fields_without_default.append(name)
+            if fields_without_default:
+                raise ValueError(f"Fields without default values: {fields_without_default}")
+
         workflow_context = Context(workflow=workflow)
         try:
             # run workflow
@@ -1102,15 +1113,14 @@ class Agent:
                 raise ValueError(f"Failed to map workflow output to model: {e}") from e
 
         except Exception as e:
-            outputs_model_on_fail_cls = getattr(workflow.__class__, "OutputModelOnFail", None)
+            _missing = object()
             if outputs_model_on_fail_cls:
                 model_fields = outputs_model_on_fail_cls.model_fields
-                input_dict = {
-                    key: await workflow_context.get(key, None)
-                    for key in model_fields
-                }
-
-                # return output in the form of workflow.OutputModelOnFail(BaseModel)
+                input_dict = {}
+                for key in model_fields:
+                    value = await workflow_context.get(key, default=_missing)
+                    if value is not _missing:
+                        input_dict[key] = value
                 output = outputs_model_on_fail_cls.model_validate(input_dict)
             else:
                 print(f"Vectara Agentic: Workflow failed with unexpected error: {e}")
