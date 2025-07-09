@@ -236,7 +236,7 @@ class VectaraToolFactory:
                 )
             unique_ids = set()
             docs = []
-            doc_matches = dict()
+            doc_matches = {}
             for doc in response:
                 if doc.id_ in unique_ids:
                     doc_matches[doc.id_].append(doc.text_resource.text)
