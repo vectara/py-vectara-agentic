@@ -239,10 +239,10 @@ class VectaraToolFactory:
             doc_matches = {}
             for doc in response:
                 if doc.id_ in unique_ids:
-                    doc_matches[doc.id_].append(doc.text)
+                    doc_matches[doc.id_].append(doc.node.get_content())
                     continue
                 unique_ids.add(doc.id_)
-                doc_matches[doc.id_] = [doc.text]
+                doc_matches[doc.id_] = [doc.node.get_content()]
                 docs.append((doc.id_, doc.metadata))
             tool_output = "Matching documents:\n"
             if summarize:
@@ -266,11 +266,11 @@ class VectaraToolFactory:
                         f"summary: '{summary}'\n\n"
                     )
             else:
-                matching_text = "\n".join(
-                    f"{i}. {piece}"
-                    for i, piece in enumerate(doc_matches[doc_id], start=1)
-                )
                 for doc_id, metadata in docs:
+                    matching_text = "\n".join(
+                        f"{i}. {piece}"
+                        for i, piece in enumerate(doc_matches[doc_id], start=1)
+                    )
                     tool_output += (
                         f"document_id: '{doc_id}'\nmetadata: '{metadata}'\n"
                         f"matching texts: '{matching_text}'\n"
