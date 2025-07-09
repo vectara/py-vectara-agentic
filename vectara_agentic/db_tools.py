@@ -114,7 +114,7 @@ class DatabaseTools:
         if sql_query is None:
             raise ValueError("A query parameter is necessary to filter the data.")
 
-        count_query = f"SELECT COUNT(*) FROM ({sql_query})"
+        count_query = f"SELECT COUNT(*) FROM ({sql_query}) c"
         try:
             count_rows = self._load_data(count_query)
         except Exception as e:
