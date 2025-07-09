@@ -239,10 +239,10 @@ class VectaraToolFactory:
             doc_matches = {}
             for doc in response:
                 if doc.id_ in unique_ids:
-                    doc_matches[doc.id_].append(doc.text_resource.text)
+                    doc_matches[doc.id_].append(doc.text)
                     continue
                 unique_ids.add(doc.id_)
-                doc_matches[doc.id_] = [doc.text_resource.text]
+                doc_matches[doc.id_] = [doc.text]
                 docs.append((doc.id_, doc.metadata))
             tool_output = "Matching documents:\n"
             if summarize:
