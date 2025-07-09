@@ -257,7 +257,7 @@ class VectaraToolFactory:
                 for doc_id, metadata in docs:
                     summary = summaries_dict.get(doc_id, "")
                     matching_text = "\n".join(
-                        f"{i}. {piece}"
+                        f"<match {i}>{piece}</match {i}>"
                         for i, piece in enumerate(doc_matches[doc_id], start=1)
                     )
                     tool_output += (
@@ -268,7 +268,7 @@ class VectaraToolFactory:
             else:
                 for doc_id, metadata in docs:
                     matching_text = "\n".join(
-                        f"{i}. {piece}"
+                        f"<match {i}>{piece}</match {i}>"
                         for i, piece in enumerate(doc_matches[doc_id], start=1)
                     )
                     tool_output += (
