@@ -62,6 +62,7 @@ from ._observability import setup_observer, eval_fcs
 from .tools import VectaraToolFactory, VectaraTool, ToolsFactory
 from .tools_catalog import get_current_date
 from .agent_config import AgentConfig
+from .hhem import HHEM
 
 
 class IgnoreUnpickleableAttributeFilter(logging.Filter):
@@ -217,6 +218,7 @@ class Agent:
         validate_tools: bool = False,
         workflow_cls: Optional[Workflow] = None,
         workflow_timeout: int = 120,
+        vectara_api_key: Optional[str] = None,
     ) -> None:
         """
         Initialize the agent with the specified type, tools, topic, and system message.
@@ -244,6 +246,7 @@ class Agent:
                 Defaults to False.
             workflow_cls (Workflow, optional): The workflow class to be used with run(). Defaults to None.
             workflow_timeout (int, optional): The timeout for the workflow in seconds. Defaults to 120.
+            vectara_api_key (str, optional): The Vectara API key for FCS evaluation. Defaults to None.
         """
         self.agent_config = agent_config or AgentConfig()
         self.agent_config_type = AgentConfigType.DEFAULT
@@ -263,6 +266,7 @@ class Agent:
 
         self.workflow_cls = workflow_cls
         self.workflow_timeout = workflow_timeout
+        self.vectara_api_key = vectara_api_key or os.environ.get("VECTARA_API_KEY", "")
 
         # Sanitize tools for Gemini if needed
         if self.agent_config.main_llm_provider == ModelProvider.GEMINI:
@@ -852,6 +856,7 @@ class Agent:
             agent_config=agent_config,
             fallback_agent_config=fallback_agent_config,
             chat_history=chat_history,
+            vectara_api_key=vectara_api_key,
         )
 
     def _switch_agent_config(self) -> None:
@@ -952,6 +957,30 @@ class Agent:
         """
         return asyncio.run(self.achat(prompt))
 
+    def _calc_fcs(self, agent_response: AgentResponse) -> None:
+        """
+        Calculate the Factual consistency score for the agent response.
+        """
+        if not self.vectara_api_key:
+            return          # can't calculate FCS without Vectara API key
+
+        chat_history = self.memory.chat_store.store['chat_history']
+        tool_outputs = []
+        for msg in chat_history:
+            if msg.role == MessageRole.TOOL:
+                all_text = ' '.join(
+                    [block.text for block in msg.blocks if block.block_type == 'text']
+                )
+                tool_outputs.append(all_text)
+        if not tool_outputs:
+            return
+
+        context = '\n'.join(tool_outputs)
+        score = HHEM(self.vectara_api_key).compute(context, agent_response.response)
+        if agent_response.metadata is None:
+            agent_response.metadata = {}
+        agent_response.metadata['fcs'] = score
+
     async def achat(self, prompt: str) -> AgentResponse:  # type: ignore
         """
         Interact with the agent using a chat prompt.
@@ -970,6 +999,7 @@ class Agent:
             try:
                 current_agent = self._get_current_agent()
                 agent_response = await current_agent.achat(prompt)
+                self._calc_fcs(agent_response)
                 await self._aformat_for_lats(prompt, agent_response)
                 if self.observability_enabled:
                     eval_fcs()
@@ -1032,6 +1062,7 @@ class Agent:
                         self.query_logging_callback(prompt, agent_response.response)
                     if self.observability_enabled:
                         eval_fcs()
+                    self._calc_fcs(agent_response)
 
                 agent_response.async_response_gen = (
                     _stream_response_wrapper  # Override the generator
