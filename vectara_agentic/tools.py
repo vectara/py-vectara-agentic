@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 from llama_index.core.tools import FunctionTool
 from llama_index.indices.managed.vectara import VectaraIndex
 from llama_index.core.utilities.sql_wrapper import SQLDatabase
-from llama_index.core.tools.types import ToolOutput
+from llama_index.core.schema import Document
 
 from .types import ToolType
 from .tools_catalog import ToolsCatalog, get_bad_topics
@@ -170,7 +170,7 @@ class VectaraToolFactory:
         )
 
         # Dynamically generate the search function
-        def search_function(*args: Any, **kwargs: Any) -> ToolOutput:
+        def search_function(*args: Any, **kwargs: Any) -> list[Document]:
             """
             Dynamically generated function for semantic search Vectara.
             """
@@ -192,12 +192,7 @@ class VectaraToolFactory:
                     kwargs, tool_args_type, fixed_filter
                 )
             except ValueError as e:
-                return ToolOutput(
-                    tool_name=search_function.__name__,
-                    content=str(e),
-                    raw_input={"args": args, "kwargs": kwargs},
-                    raw_output={"response": str(e)},
-                )
+                return [Document(text=str(e), metadata={})]
 
             vectara_retriever = vectara.as_retriever(
                 summary_enabled=False,
@@ -228,12 +223,7 @@ class VectaraToolFactory:
 
             if len(response) == 0:
                 msg = "Vectara Tool failed to retrieve any results for the query."
-                return ToolOutput(
-                    tool_name=search_function.__name__,
-                    content=msg,
-                    raw_input={"args": args, "kwargs": kwargs},
-                    raw_output={"response": msg},
-                )
+                return []
             unique_ids = set()
             docs = []
             doc_matches = {}
@@ -244,7 +234,8 @@ class VectaraToolFactory:
                 unique_ids.add(doc.id_)
                 doc_matches[doc.id_] = [doc.node.get_content()]
                 docs.append((doc.id_, doc.metadata))
-            tool_output = "Matching documents:\n"
+            
+            res = []
             if summarize:
                 summaries_dict = asyncio.run(
                     summarize_documents(
@@ -254,35 +245,19 @@ class VectaraToolFactory:
                         doc_ids=list(unique_ids),
                     )
                 )
-                for doc_id, metadata in docs:
-                    summary = summaries_dict.get(doc_id, "")
-                    matching_text = "\n".join(
-                        f"<match {i}>{piece}</match {i}>"
-                        for i, piece in enumerate(doc_matches[doc_id], start=1)
-                    )
-                    tool_output += (
-                        f"document_id: '{doc_id}'\nmetadata: '{metadata}'\n"
-                        f"matching texts: '{matching_text}'\n"
-                        f"summary: '{summary}'\n\n"
-                    )
-            else:
-                for doc_id, metadata in docs:
-                    matching_text = "\n".join(
-                        f"<match {i}>{piece}</match {i}>"
-                        for i, piece in enumerate(doc_matches[doc_id], start=1)
-                    )
-                    tool_output += (
-                        f"document_id: '{doc_id}'\nmetadata: '{metadata}'\n"
-                        f"matching texts: '{matching_text}'\n"
-                    )
 
-            out = ToolOutput(
-                tool_name=search_function.__name__,
-                content=tool_output,
-                raw_input={"args": args, "kwargs": kwargs},
-                raw_output=response,
-            )
-            return out
+            for doc_id, metadata in docs:
+                res.append(
+                    Document(
+                        text=summaries_dict.get(doc_id, "") if summarize else "",
+                        metadata={
+                            "document_id": doc_id,
+                            "metadata": metadata,
+                            "matching_text": doc_mathches[doc_id],
+                        },
+                    )
+                )
+            return res
 
         class SearchToolBaseParams(BaseModel):
             """Model for the base parameters of the search tool."""
@@ -362,6 +337,7 @@ class VectaraToolFactory:
         frequency_penalty: Optional[float] = None,
         presence_penalty: Optional[float] = None,
         include_citations: bool = True,
+        citation_pattern: str = "{doc.url}",
         save_history: bool = False,
         fcs_threshold: float = 0.0,
         return_direct: bool = False,
@@ -415,6 +391,9 @@ class VectaraToolFactory:
                 higher values increasing the diversity of topics.
             include_citations (bool, optional): Whether to include citations in the response.
                 If True, uses markdown vectara citations that requires the Vectara scale plan.
+            citation_pattern (str, optional): The pattern for the citations in the response.
+                Default is "{doc.url}" which uses the document URL.
+                If include_citations is False, this parameter is ignored.
             save_history (bool, optional): Whether to save the query in history.
             fcs_threshold (float, optional): A threshold for factual consistency.
                 If set above 0, the tool notifies the calling agent that it "cannot respond" if FCS is too low.
@@ -436,7 +415,7 @@ class VectaraToolFactory:
         )
 
         # Dynamically generate the RAG function
-        def rag_function(*args: Any, **kwargs: Any) -> ToolOutput:
+        def rag_function(*args: Any, **kwargs: Any) -> Document:
             """
             Dynamically generated function for RAG query with Vectara.
             """
@@ -452,12 +431,7 @@ class VectaraToolFactory:
                     kwargs, tool_args_type, fixed_filter
                 )
             except ValueError as e:
-                return ToolOutput(
-                    tool_name=rag_function.__name__,
-                    content=str(e),
-                    raw_input={"args": args, "kwargs": kwargs},
-                    raw_output={"response": str(e)},
-                )
+                return Document(text = str(e), metadata = {})
 
             vectara_query_engine = vectara.as_query_engine(
                 summary_enabled=True,
@@ -491,7 +465,7 @@ class VectaraToolFactory:
                 frequency_penalty=frequency_penalty,
                 presence_penalty=presence_penalty,
                 citations_style="markdown" if include_citations else None,
-                citations_url_pattern="{doc.url}" if include_citations else None,
+                citations_url_pattern=citation_pattern if include_citations else None,
                 save_history=save_history,
                 x_source_str="vectara-agentic",
                 verbose=verbose,
@@ -503,73 +477,44 @@ class VectaraToolFactory:
                     "Tool failed to generate a response since no matches were found. "
                     "Please check the arguments and try again."
                 )
-                return ToolOutput(
-                    tool_name=rag_function.__name__,
-                    content=msg,
-                    raw_input={"args": args, "kwargs": kwargs},
-                    raw_output={"response": msg},
-                )
+                return Document(text = msg, metadata = {"args": args, "kwargs": kwargs})
             if str(response) == "None":
                 msg = "Tool failed to generate a response."
-                return ToolOutput(
-                    tool_name=rag_function.__name__,
-                    content=msg,
-                    raw_input={"args": args, "kwargs": kwargs},
-                    raw_output={"response": msg},
-                )
+                return Document(text = msg, metadata = {"args": args, "kwargs": kwargs})
 
             # Extract citation metadata
+            print(f"DEBUG response: {response.response}")
             pattern = r"\[(\d+)\]"
             matches = re.findall(pattern, response.response)
             citation_numbers = sorted(set(int(match) for match in matches))
-            citation_metadata = ""
+            print(f"DEBUG citation_numbers: {citation_numbers}")
+            citation_metadata = {}
             keys_to_ignore = ["lang", "offset", "len"]
             for citation_number in citation_numbers:
-                metadata = response.source_nodes[citation_number - 1].metadata
-                citation_metadata += (
-                    f"[{citation_number}]: "
-                    + "; ".join(
-                        [
-                            f"{k}='{v}'"
-                            for k, v in metadata.items()
-                            if k not in keys_to_ignore
-                        ]
-                    )
-                    + ".\n"
-                )
+                metadata = {
+                    k: v
+                    for k, v in response.source_nodes[citation_number - 1].metadata.items()
+                    if k not in keys_to_ignore
+                }
+                citation_metadata[str(citation_number)] = metadata
+            print(f"DEBUG citation_metadata: {citation_metadata}")
             fcs = 0.0
             fcs_str = response.metadata["fcs"] if "fcs" in response.metadata else "0.0"
             if fcs_str and is_float(fcs_str):
                 fcs = float(fcs_str)
                 if fcs < fcs_threshold:
                     msg = f"Could not answer the query due to suspected hallucination (fcs={fcs})."
-                    return ToolOutput(
-                        tool_name=rag_function.__name__,
-                        content=msg,
-                        raw_input={"args": args, "kwargs": kwargs},
-                        raw_output={"response": msg},
+                    return Document(
+                        text = msg,
+                        metadata = {"args": args, "kwargs": kwargs, "fcs": fcs},
                     )
-            res = {
-                "response": response.response,
-                "references_metadata": citation_metadata,
-                "fcs_score": fcs,
-            }
-            if len(citation_metadata) > 0:
-                tool_output = f"""
-                    Response: '''{res['response']}'''
-                    fcs_score: {res['fcs_score']:.4f}
-                    References:
-                    {res['references_metadata']}
-                """
-            else:
-                tool_output = f"Response: '''{res['response']}'''"
-            out = ToolOutput(
-                tool_name=rag_function.__name__,
-                content=tool_output,
-                raw_input={"args": args, "kwargs": kwargs},
-                raw_output=res,
+            if fcs:
+                citation_metadata["fcs"] = fcs
+            res = Document(
+                text = response.response,
+                metadata = citation_metadata
             )
-            return out
+            return res
 
         class RagToolBaseParams(BaseModel):
             """Model for the base parameters of the RAG tool."""

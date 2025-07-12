@@ -962,13 +962,15 @@ class Agent:
         Calculate the Factual consistency score for the agent response.
         """
         if not self.vectara_api_key:
+            logging.debug("FCS calculation skipped: 'vectara_api_key' is missing.")  
             return          # can't calculate FCS without Vectara API key
 
         chat_history = self.memory.chat_store.store['chat_history']
         tool_outputs = []
         for msg in chat_history:
             if msg.role == MessageRole.TOOL:
-                all_text = ' '.join(
+                tool_name = msg.additional_kwargs.get('name', 'unknown_tool')
+                all_text = f'Output of {tool_name}: ' + ' '.join(
                     [block.text for block in msg.blocks if block.block_type == 'text']
                 )
                 tool_outputs.append(all_text)
@@ -976,10 +978,13 @@ class Agent:
             return
 
         context = '\n'.join(tool_outputs)
-        score = HHEM(self.vectara_api_key).compute(context, agent_response.response)
-        if agent_response.metadata is None:
-            agent_response.metadata = {}
-        agent_response.metadata['fcs'] = score
+        try:
+            score = HHEM(self.vectara_api_key).compute(context, agent_response.response)
+            if agent_response.metadata is None:
+                agent_response.metadata = {}
+            agent_response.metadata['fcs'] = score
+        except Exception as e:
+            logging.error(f"Failed to calculate FCS: {e}")
 
     async def achat(self, prompt: str) -> AgentResponse:  # type: ignore
         """

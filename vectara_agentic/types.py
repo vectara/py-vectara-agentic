@@ -3,6 +3,7 @@ This module contains the types used in the Vectara Agentic.
 """
 from enum import Enum
 
+from llama_index.core.schema import Document as LI_Document
 from llama_index.core.tools.types import ToolOutput as LI_ToolOutput
 from llama_index.core.chat_engine.types import AgentChatResponse as LI_AgentChatResponse
 from llama_index.core.chat_engine.types import StreamingAgentChatResponse as LI_StreamingAgentChatResponse
@@ -68,3 +69,4 @@ class AgentConfigType(Enum):
 ToolOutput = LI_ToolOutput
 AgentResponse = LI_AgentChatResponse
 AgentStreamingResponse = LI_StreamingAgentChatResponse
+Document = LI_Document

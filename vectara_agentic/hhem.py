@@ -9,6 +9,15 @@ class HHEM():
 
     def compute(self, context, hypothesis):
         """Calls the Vectara HHEM endpoint."""
+        ### TEMP
+        try:
+            with open("/Users/ofer/temp/hhem_output.txt", "w") as f:
+                f.write(f"DEBUG response: \n{hypothesis}\n\n")
+                f.write(f"DEBUG context: \n{context}")
+        except Exception as e:
+            print(f"DEBUG Failed to write debug output: {e}")
+        ### TEMP
+
         payload = {
             "model_parameters": {"model_name": "hhem_v2.3"},
             "generated_text": hypothesis,
