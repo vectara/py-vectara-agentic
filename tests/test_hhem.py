@@ -1,5 +1,4 @@
 import unittest
-import os
 
 from vectara_agentic.agent import Agent, AgentType
 from vectara_agentic.agent_config import AgentConfig

@@ -53,7 +53,7 @@ from .agent_config import AgentConfig
 provider_to_default_model_name = {
     ModelProvider.OPENAI: "gpt-4.1",
     ModelProvider.ANTHROPIC: "claude-sonnet-4-20250514",
-    ModelProvider.TOGETHER: "meta-llama/Llama-4-Scout-17B-16E-Instruct",
+    ModelProvider.TOGETHER: "deepseek-ai/DeepSeek-R1",
     ModelProvider.GROQ: "deepseek-r1-distill-llama-70b",
     ModelProvider.FIREWORKS: "accounts/fireworks/models/firefunction-v2",
     ModelProvider.BEDROCK: "us.anthropic.claude-sonnet-4-20250514-v1:0",

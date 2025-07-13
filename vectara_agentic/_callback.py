@@ -179,8 +179,8 @@ class AgentCallbackHandler(BaseCallbackHandler):
         event_id: str,
     ) -> None:
         if EventPayload.MESSAGES in payload:
-            response = str(payload.get(EventPayload.RESPONSE))
-            if response and response not in ["None", "assistant: None"]:
+            response = payload.get(EventPayload.RESPONSE)
+            if response and str(response) not in ["None", "assistant: None"]:
                 if self.fn:
                     self.fn(
                         status_type=AgentStatusType.AGENT_UPDATE,
@@ -188,7 +188,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
                         event_id=event_id,
                     )
         elif EventPayload.PROMPT in payload:
-            prompt = str(payload.get(EventPayload.PROMPT))
+            prompt = payload.get(EventPayload.PROMPT)
             if self.fn:
                 self.fn(
                     status_type=AgentStatusType.AGENT_UPDATE,
@@ -202,7 +202,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
 
     def _handle_function_call(self, payload: dict, event_id: str) -> None:
         if EventPayload.FUNCTION_CALL in payload:
-            fcall = str(payload.get(EventPayload.FUNCTION_CALL))
+            fcall = payload.get(EventPayload.FUNCTION_CALL)
             tool = payload.get(EventPayload.TOOL)
             if tool:
                 tool_name = tool.name
@@ -213,7 +213,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
                         event_id=event_id,
                     )
         elif EventPayload.FUNCTION_OUTPUT in payload:
-            response = str(payload.get(EventPayload.FUNCTION_OUTPUT))
+            response = payload.get(EventPayload.FUNCTION_OUTPUT)
             if self.fn:
                 self.fn(
                     status_type=AgentStatusType.TOOL_OUTPUT,
@@ -227,7 +227,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
 
     def _handle_agent_step(self, payload: dict, event_id: str) -> None:
         if EventPayload.MESSAGES in payload:
-            msg = str(payload.get(EventPayload.MESSAGES))
+            msg = payload.get(EventPayload.MESSAGES)
             if self.fn:
                 self.fn(
                     status_type=AgentStatusType.AGENT_STEP,
@@ -235,7 +235,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
                     event_id=event_id,
                 )
         elif EventPayload.RESPONSE in payload:
-            response = str(payload.get(EventPayload.RESPONSE))
+            response = payload.get(EventPayload.RESPONSE)
             if self.fn:
                 self.fn(
                     status_type=AgentStatusType.AGENT_STEP,
@@ -250,8 +250,8 @@ class AgentCallbackHandler(BaseCallbackHandler):
     # Asynchronous handlers
     async def _ahandle_llm(self, payload: dict, event_id: str) -> None:
         if EventPayload.MESSAGES in payload:
-            response = str(payload.get(EventPayload.RESPONSE))
-            if response and response not in ["None", "assistant: None"]:
+            response = payload.get(EventPayload.RESPONSE)
+            if response and str(response) not in ["None", "assistant: None"]:
                 if self.fn:
                     if inspect.iscoroutinefunction(self.fn):
                         await self.fn(
@@ -266,7 +266,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
                             event_id=event_id,
                         )
         elif EventPayload.PROMPT in payload:
-            prompt = str(payload.get(EventPayload.PROMPT))
+            prompt = payload.get(EventPayload.PROMPT)
             if self.fn:
                 self.fn(
                     status_type=AgentStatusType.AGENT_UPDATE,
@@ -280,7 +280,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
 
     async def _ahandle_function_call(self, payload: dict, event_id: str) -> None:
         if EventPayload.FUNCTION_CALL in payload:
-            fcall = str(payload.get(EventPayload.FUNCTION_CALL))
+            fcall = payload.get(EventPayload.FUNCTION_CALL)
             tool = payload.get(EventPayload.TOOL)
             if tool:
                 tool_name = tool.name
@@ -299,7 +299,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
                         )
         elif EventPayload.FUNCTION_OUTPUT in payload:
             if self.fn:
-                response = str(payload.get(EventPayload.FUNCTION_OUTPUT))
+                response = payload.get(EventPayload.FUNCTION_OUTPUT)
                 if inspect.iscoroutinefunction(self.fn):
                     await self.fn(
                         status_type=AgentStatusType.TOOL_OUTPUT,
@@ -318,7 +318,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
     async def _ahandle_agent_step(self, payload: dict, event_id: str) -> None:
         if EventPayload.MESSAGES in payload:
             if self.fn:
-                msg = str(payload.get(EventPayload.MESSAGES))
+                msg = payload.get(EventPayload.MESSAGES)
                 if inspect.iscoroutinefunction(self.fn):
                     await self.fn(
                         status_type=AgentStatusType.AGENT_STEP,
@@ -333,7 +333,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
                     )
         elif EventPayload.RESPONSE in payload:
             if self.fn:
-                response = str(payload.get(EventPayload.RESPONSE))
+                response = payload.get(EventPayload.RESPONSE)
                 if inspect.iscoroutinefunction(self.fn):
                     await self.fn(
                         status_type=AgentStatusType.AGENT_STEP,

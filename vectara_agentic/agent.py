@@ -962,7 +962,7 @@ class Agent:
         Calculate the Factual consistency score for the agent response.
         """
         if not self.vectara_api_key:
-            logging.debug("FCS calculation skipped: 'vectara_api_key' is missing.")  
+            logging.debug("FCS calculation skipped: 'vectara_api_key' is missing.")
             return          # can't calculate FCS without Vectara API key
 
         chat_history = self.memory.chat_store.store['chat_history']

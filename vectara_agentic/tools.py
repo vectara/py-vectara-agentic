@@ -223,7 +223,7 @@ class VectaraToolFactory:
 
             if len(response) == 0:
                 msg = "Vectara Tool failed to retrieve any results for the query."
-                return []
+                return [Document(text=msg, metadata={})]
             unique_ids = set()
             docs = []
             doc_matches = {}
@@ -234,7 +234,7 @@ class VectaraToolFactory:
                 unique_ids.add(doc.id_)
                 doc_matches[doc.id_] = [doc.node.get_content()]
                 docs.append((doc.id_, doc.metadata))
-            
+
             res = []
             if summarize:
                 summaries_dict = asyncio.run(
@@ -245,6 +245,8 @@ class VectaraToolFactory:
                         doc_ids=list(unique_ids),
                     )
                 )
+            else:
+                summaries_dict = {}
 
             for doc_id, metadata in docs:
                 res.append(
@@ -253,7 +255,7 @@ class VectaraToolFactory:
                         metadata={
                             "document_id": doc_id,
                             "metadata": metadata,
-                            "matching_text": doc_mathches[doc_id],
+                            "matching_text": doc_matches[doc_id],
                         },
                     )
                 )
@@ -431,7 +433,7 @@ class VectaraToolFactory:
                     kwargs, tool_args_type, fixed_filter
                 )
             except ValueError as e:
-                return Document(text = str(e), metadata = {})
+                return Document(text=str(e), metadata={})
 
             vectara_query_engine = vectara.as_query_engine(
                 summary_enabled=True,
@@ -477,27 +479,26 @@ class VectaraToolFactory:
                     "Tool failed to generate a response since no matches were found. "
                     "Please check the arguments and try again."
                 )
-                return Document(text = msg, metadata = {"args": args, "kwargs": kwargs})
+                return Document(text=msg, metadata={"args": args, "kwargs": kwargs})
             if str(response) == "None":
                 msg = "Tool failed to generate a response."
-                return Document(text = msg, metadata = {"args": args, "kwargs": kwargs})
+                return Document(text=msg, metadata={"args": args, "kwargs": kwargs})
 
             # Extract citation metadata
-            print(f"DEBUG response: {response.response}")
             pattern = r"\[(\d+)\]"
             matches = re.findall(pattern, response.response)
             citation_numbers = sorted(set(int(match) for match in matches))
-            print(f"DEBUG citation_numbers: {citation_numbers}")
             citation_metadata = {}
             keys_to_ignore = ["lang", "offset", "len"]
             for citation_number in citation_numbers:
                 metadata = {
                     k: v
-                    for k, v in response.source_nodes[citation_number - 1].metadata.items()
+                    for k, v in response.source_nodes[
+                        citation_number - 1
+                    ].metadata.items()
                     if k not in keys_to_ignore
                 }
                 citation_metadata[str(citation_number)] = metadata
-            print(f"DEBUG citation_metadata: {citation_metadata}")
             fcs = 0.0
             fcs_str = response.metadata["fcs"] if "fcs" in response.metadata else "0.0"
             if fcs_str and is_float(fcs_str):
@@ -505,15 +506,12 @@ class VectaraToolFactory:
                 if fcs < fcs_threshold:
                     msg = f"Could not answer the query due to suspected hallucination (fcs={fcs})."
                     return Document(
-                        text = msg,
-                        metadata = {"args": args, "kwargs": kwargs, "fcs": fcs},
+                        text=msg,
+                        metadata={"args": args, "kwargs": kwargs, "fcs": fcs},
                     )
             if fcs:
                 citation_metadata["fcs"] = fcs
-            res = Document(
-                text = response.response,
-                metadata = citation_metadata
-            )
+            res = Document(text=response.response, metadata=citation_metadata)
             return res
 
         class RagToolBaseParams(BaseModel):
