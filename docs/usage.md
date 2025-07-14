@@ -459,9 +459,13 @@ append the log messages to the session state.
 from vectara_agentic.agent import AgentStatusType
 
 def agent_progress_callback(status_type: AgentStatusType, payload: dict, event_id: str):
-  output = f"{status_type.value} - {msg}"
+  output = f"{status_type.value} - {payload}"
   st.session_state.log_messages.append(output)
 ```
+
+**Note:** version 0.3.0 introduces a breaking change in `agent_progress_callback`, 
+instead of the previous `msg` argument that was a string, it now returns the `payload`
+dictionary that provides more detailed and easier to handle information.
 
 **agent_config**
 The `agent_config` argument is an optional object that you can use to

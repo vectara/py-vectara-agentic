@@ -207,7 +207,7 @@ class Agent:
         general_instructions: str = GENERAL_INSTRUCTIONS,
         verbose: bool = True,
         use_structured_planning: bool = False,
-        update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
+        update_func: Optional[Callable[[AgentStatusType, dict, str], None]] = None,
         agent_progress_callback: Optional[
             Callable[[AgentStatusType, dict, str], None]
         ] = None,
@@ -640,9 +640,9 @@ class Agent:
         topic: str = "general",
         custom_instructions: str = "",
         verbose: bool = True,
-        update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
+        update_func: Optional[Callable[[AgentStatusType, dict, str], None]] = None,
         agent_progress_callback: Optional[
-            Callable[[AgentStatusType, str], None]
+            Callable[[AgentStatusType, dict, str], None]
         ] = None,
         query_logging_callback: Optional[Callable[[str, str], None]] = None,
         agent_config: AgentConfig = AgentConfig(),

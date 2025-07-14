@@ -192,7 +192,8 @@ class VectaraToolFactory:
                     kwargs, tool_args_type, fixed_filter
                 )
             except ValueError as e:
-                return [Document(text=str(e), metadata={})]
+                msg = f"Building filter string failed in search tool ({e})."
+                return [Document(text=msg, metadata={"args": args, "kwargs": kwargs})]
 
             vectara_retriever = vectara.as_retriever(
                 summary_enabled=False,
@@ -223,7 +224,7 @@ class VectaraToolFactory:
 
             if len(response) == 0:
                 msg = "Vectara Tool failed to retrieve any results for the query."
-                return [Document(text=msg, metadata={})]
+                return [Document(text=msg, metadata={"args": args, "kwargs": kwargs})]
             unique_ids = set()
             docs = []
             doc_matches = {}
@@ -433,7 +434,8 @@ class VectaraToolFactory:
                     kwargs, tool_args_type, fixed_filter
                 )
             except ValueError as e:
-                return Document(text=str(e), metadata={})
+                msg = f"Building filter string failed in rag tool ({e})"
+                return Document(text=msg, metadata={"args": args, "kwargs": kwargs})
 
             vectara_query_engine = vectara.as_query_engine(
                 summary_enabled=True,

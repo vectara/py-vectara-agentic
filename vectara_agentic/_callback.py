@@ -209,7 +209,10 @@ class AgentCallbackHandler(BaseCallbackHandler):
                 if self.fn:
                     self.fn(
                         status_type=AgentStatusType.TOOL_CALL,
-                        msg=f"Executing '{tool_name}' with arguments: {fcall}",
+                        msg={
+                            "tool_name": tool_name,
+                            "arguments": fcall
+                        },
                         event_id=event_id,
                     )
         elif EventPayload.FUNCTION_OUTPUT in payload:
