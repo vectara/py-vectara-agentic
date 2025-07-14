@@ -1014,6 +1014,11 @@ class Agent:
 
             except Exception as e:
                 last_error = e
+                if self.verbose:
+                    print(
+                        f"LLM call failed on attempt {attempt}. "
+                        f"Error: {e}."
+                    )
                 if attempt >= 2:
                     if self.verbose:
                         print(
