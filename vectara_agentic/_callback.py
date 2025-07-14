@@ -283,18 +283,23 @@ class AgentCallbackHandler(BaseCallbackHandler):
             fcall = payload.get(EventPayload.FUNCTION_CALL)
             tool = payload.get(EventPayload.TOOL)
             if tool:
-                tool_name = tool.name
                 if self.fn:
                     if inspect.iscoroutinefunction(self.fn):
                         await self.fn(
                             status_type=AgentStatusType.TOOL_CALL,
-                            msg=f"Executing '{tool_name}' with arguments: {fcall}",
+                            msg={
+                                "tool_name": tool.name,
+                                "arguments": fcall
+                            },
                             event_id=event_id,
                         )
                     else:
                         self.fn(
                             status_type=AgentStatusType.TOOL_CALL,
-                            msg=f"Executing '{tool_name}' with arguments: {fcall}",
+                            msg={
+                                "tool_name": tool.name,
+                                "arguments": fcall
+                            },
                             event_id=event_id,
                         )
         elif EventPayload.FUNCTION_OUTPUT in payload:

@@ -209,7 +209,7 @@ class Agent:
         use_structured_planning: bool = False,
         update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
         agent_progress_callback: Optional[
-            Callable[[AgentStatusType, str], None]
+            Callable[[AgentStatusType, dict, str], None]
         ] = None,
         query_logging_callback: Optional[Callable[[str, str], None]] = None,
         agent_config: Optional[AgentConfig] = None,
@@ -701,7 +701,7 @@ class Agent:
         vectara_corpus_key: str = str(os.environ.get("VECTARA_CORPUS_KEY", "")),
         vectara_api_key: str = str(os.environ.get("VECTARA_API_KEY", "")),
         agent_progress_callback: Optional[
-            Callable[[AgentStatusType, str], None]
+            Callable[[AgentStatusType, dict, str], None]
         ] = None,
         query_logging_callback: Optional[Callable[[str, str], None]] = None,
         agent_config: AgentConfig = AgentConfig(),
@@ -1175,7 +1175,7 @@ class Agent:
     def loads(
         cls,
         data: str,
-        agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
+        agent_progress_callback: Optional[Callable[[AgentStatusType, dict, str], None]] = None,
         query_logging_callback: Optional[Callable[[str, str], None]] = None
     ) -> "Agent":
         """Create an Agent instance from a JSON string."""

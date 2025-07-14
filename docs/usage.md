@@ -399,7 +399,7 @@ arguments:
     for a fallback_agent. If specified, this will get activated if the
     main agent API is not responding (e.g. when inference enpoint is down).
     If unspecified, no fallback agent is assumed.
-6.  `agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None`:
+6.  `agent_progress_callback: Optional[Callable[[AgentStatusType, dict, str], None]] = None`:
     This is an optional callback function that will be called on every
     agent step (see below)
 7.  `query_logging_callback: Optional[Callable[[str, str], None]] = None`:
@@ -458,7 +458,7 @@ append the log messages to the session state.
 ```python
 from vectara_agentic.agent import AgentStatusType
 
-def agent_progress_callback(status_type: AgentStatusType, msg: str):
+def agent_progress_callback(status_type: AgentStatusType, payload: dict, event_id: str):
   output = f"{status_type.value} - {msg}"
   st.session_state.log_messages.append(output)
 ```
