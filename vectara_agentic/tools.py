@@ -24,6 +24,7 @@ from .tool_utils import (
     create_tool_from_dynamic_function,
     build_filter_string,
     VectaraTool,
+    create_human_readable_output,
 )
 
 LI_packages = {
@@ -62,6 +63,7 @@ LI_packages = {
         }
     },
 }
+
 
 class VectaraToolFactory:
     """
@@ -258,7 +260,36 @@ class VectaraToolFactory:
                         },
                     }
                 )
-            return res
+
+            # Create human-readable output using sequential format
+            def format_search_results(results):
+                if not results:
+                    return "No search results found"
+
+                # Create a sequential view for human reading
+                formatted_results = []
+                for i, result in enumerate(results, 1):
+                    result_str = f"**Result #{i}**\n"
+                    result_str += f"Document ID: {result['metadata']['document_id']}\n"
+                    result_str += (
+                        f"Matches: {len(result['metadata']['matching_text'])}\n"
+                    )
+
+                    if summarize and result["text"]:
+                        result_str += f"Summary: {result['text']}\n"
+
+                    # Add sample matching text if available
+                    if result["metadata"]["matching_text"]:
+                        sample_matches = result["metadata"]["matching_text"][
+                            :2
+                        ]  # Show first 2 matches
+                        result_str += f"Sample matches: {', '.join(sample_matches)}\n"
+
+                    formatted_results.append(result_str)
+
+                return "\n".join(formatted_results)
+
+            return create_human_readable_output(res, format_search_results)
 
         class SearchToolBaseParams(BaseModel):
             """Model for the base parameters of the search tool."""
@@ -513,7 +544,27 @@ class VectaraToolFactory:
                 citation_metadata["fcs"] = fcs
 
             res = {"text": response.response, "metadata": citation_metadata}
-            return res
+
+            # Create human-readable output with citation formatting
+            def format_rag_response(result):
+                text = result["text"]
+                metadata = result["metadata"]
+
+                # Format citations if present
+                citation_info = []
+                for key, value in metadata.items():
+                    if key.isdigit():
+                        url = value.get("document", {}).get("url", None)
+                        if url:
+                            citation_info.append(
+                                f"[{key}]: {url}"
+                            )
+                if citation_info:
+                    text += "\n\nCitations:\n" + "\n".join(citation_info)
+
+                return text
+
+            return create_human_readable_output(res, format_rag_response)
 
         class RagToolBaseParams(BaseModel):
             """Model for the base parameters of the RAG tool."""

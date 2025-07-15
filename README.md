@@ -403,9 +403,31 @@ def mult_func(x, y):
 mult_tool = ToolsFactory().create_tool(mult_func)
 ```
 
+#### Human-Readable Tool Output
+
+Tools can provide both raw data and human-readable formatted output using the `create_human_readable_output` utility:
+
+```python
+from vectara_agentic.tool_utils import create_human_readable_output, format_as_table
+
+def my_data_tool(query: str):
+    """Tool that returns structured data with custom formatting."""
+    raw_data = [
+        {"name": "Alice", "age": 30, "city": "New York"},
+        {"name": "Bob", "age": 25, "city": "Boston"}
+    ]
+    
+    # Return human-readable output with built-in table formatter
+    return create_human_readable_output(raw_data, format_as_table)
+```
+
+Built-in formatters include `format_as_table`, `format_as_json`, and `format_as_markdown_list`. For detailed documentation and advanced usage, see [tools.md](docs/tools.md#human-readable-tool-output).
+
 > **Important:** When you define your own Python functions as tools, implement them at the top module level,
 > and not as nested functions. Nested functions are not supported if you use serialization 
 > (dumps/loads or from_dict/to_dict).
+
+The human-readable format, if available, is used when computing the factual consistency score.
 
 ### Tool Validation
 

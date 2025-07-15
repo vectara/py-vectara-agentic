@@ -1,12 +1,17 @@
 """
 This module contains the types used in the Vectara Agentic.
 """
+
 from enum import Enum
+from typing import Protocol, Any
 
 from llama_index.core.schema import Document as LI_Document
 from llama_index.core.tools.types import ToolOutput as LI_ToolOutput
 from llama_index.core.chat_engine.types import AgentChatResponse as LI_AgentChatResponse
-from llama_index.core.chat_engine.types import StreamingAgentChatResponse as LI_StreamingAgentChatResponse
+from llama_index.core.chat_engine.types import (
+    StreamingAgentChatResponse as LI_StreamingAgentChatResponse,
+)
+
 
 class AgentType(Enum):
     """Enumeration for different types of agents."""
@@ -16,6 +21,7 @@ class AgentType(Enum):
     FUNCTION_CALLING = "FUNCTION_CALLING"
     LLMCOMPILER = "LLMCOMPILER"
     LATS = "LATS"
+
 
 class ObserverType(Enum):
     """Enumeration for different types of observability integrations."""
@@ -56,13 +62,26 @@ class LLMRole(Enum):
 
 class ToolType(Enum):
     """Enumeration for different types of tools."""
+
     QUERY = "query"
     ACTION = "action"
 
+
 class AgentConfigType(Enum):
     """Enumeration for different types of agent configurations."""
+
     DEFAULT = "default"
     FALLBACK = "fallback"
+
+
+class HumanReadableOutput(Protocol):
+    """Protocol for tool outputs that can provide human-readable representations."""
+
+    def to_human_readable(self) -> str:
+        """Convert the output to a human-readable format."""
+
+    def get_raw_output(self) -> Any:
+        """Get the raw output data."""
 
 
 # classes for Agent responses
