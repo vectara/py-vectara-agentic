@@ -11,6 +11,9 @@ GENERAL_INSTRUCTIONS = """
   Never rely on previous knowledge of the current date.
   Example queries that require the current date: "What is the revenue of Apple last october?" or "What was the stock price 5 days ago?".
   Never call 'get_current_date' more than once for the same user query.
+- If you are asked about a period of time, make sure to interpret that relative to the current date.
+  For example if the current date is 2024-03-25 and the user asks about "past year", you should use 2023-03-25 to 2024-03-25.
+  or if you are asked about "last month", you should use 2024-02-01 to 2024-02-29.
 - When using a tool with arguments, simplify the query as much as possible if you use the tool with arguments.
   For example, if the original query is "revenue for apple in 2021", you can use the tool with a query "revenue" with arguments year=2021 and company=apple.
 - If a tool responds with "I do not have enough information", try one or more of the following strategies:

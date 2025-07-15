@@ -14,7 +14,6 @@ from pydantic import BaseModel, Field
 from llama_index.core.tools import FunctionTool
 from llama_index.indices.managed.vectara import VectaraIndex
 from llama_index.core.utilities.sql_wrapper import SQLDatabase
-from llama_index.core.schema import Document
 
 from .types import ToolType
 from .tools_catalog import ToolsCatalog, get_bad_topics
@@ -63,7 +62,6 @@ LI_packages = {
         }
     },
 }
-
 
 class VectaraToolFactory:
     """
@@ -170,7 +168,7 @@ class VectaraToolFactory:
         )
 
         # Dynamically generate the search function
-        def search_function(*args: Any, **kwargs: Any) -> list[Document]:
+        def search_function(*args: Any, **kwargs: Any) -> list[dict]:
             """
             Dynamically generated function for semantic search Vectara.
             """
@@ -193,7 +191,7 @@ class VectaraToolFactory:
                 )
             except ValueError as e:
                 msg = f"Building filter string failed in search tool ({e})."
-                return [Document(text=msg, metadata={"args": args, "kwargs": kwargs})]
+                return [{"text": msg, "metadata": {"args": args, "kwargs": kwargs}}]
 
             vectara_retriever = vectara.as_retriever(
                 summary_enabled=False,
@@ -224,7 +222,7 @@ class VectaraToolFactory:
 
             if len(response) == 0:
                 msg = "Vectara Tool failed to retrieve any results for the query."
-                return [Document(text=msg, metadata={"args": args, "kwargs": kwargs})]
+                return [{"text": msg, "metadata": {"args": args, "kwargs": kwargs}}]
             unique_ids = set()
             docs = []
             doc_matches = {}
@@ -251,14 +249,14 @@ class VectaraToolFactory:
 
             for doc_id, metadata in docs:
                 res.append(
-                    Document(
-                        text=summaries_dict.get(doc_id, "") if summarize else "",
-                        metadata={
+                    {
+                        "text": summaries_dict.get(doc_id, "") if summarize else "",
+                        "metadata": {
                             "document_id": doc_id,
                             "metadata": metadata,
                             "matching_text": doc_matches[doc_id],
                         },
-                    )
+                    }
                 )
             return res
 
@@ -418,7 +416,7 @@ class VectaraToolFactory:
         )
 
         # Dynamically generate the RAG function
-        def rag_function(*args: Any, **kwargs: Any) -> Document:
+        def rag_function(*args: Any, **kwargs: Any) -> dict:
             """
             Dynamically generated function for RAG query with Vectara.
             """
@@ -435,7 +433,7 @@ class VectaraToolFactory:
                 )
             except ValueError as e:
                 msg = f"Building filter string failed in rag tool ({e})"
-                return Document(text=msg, metadata={"args": args, "kwargs": kwargs})
+                return {"text": msg, "metadata": {"args": args, "kwargs": kwargs}}
 
             vectara_query_engine = vectara.as_query_engine(
                 summary_enabled=True,
@@ -481,10 +479,10 @@ class VectaraToolFactory:
                     "Tool failed to generate a response since no matches were found. "
                     "Please check the arguments and try again."
                 )
-                return Document(text=msg, metadata={"args": args, "kwargs": kwargs})
+                return {"text": msg, "metadata": {"args": args, "kwargs": kwargs}}
             if str(response) == "None":
                 msg = "Tool failed to generate a response."
-                return Document(text=msg, metadata={"args": args, "kwargs": kwargs})
+                return {"text": msg, "metadata": {"args": args, "kwargs": kwargs}}
 
             # Extract citation metadata
             pattern = r"\[(\d+)\]"
@@ -507,13 +505,14 @@ class VectaraToolFactory:
                 fcs = float(fcs_str)
                 if fcs < fcs_threshold:
                     msg = f"Could not answer the query due to suspected hallucination (fcs={fcs})."
-                    return Document(
-                        text=msg,
-                        metadata={"args": args, "kwargs": kwargs, "fcs": fcs},
-                    )
+                    return {
+                        "text": msg,
+                        "metadata": {"args": args, "kwargs": kwargs, "fcs": fcs},
+                    }
             if fcs:
                 citation_metadata["fcs"] = fcs
-            res = Document(text=response.response, metadata=citation_metadata)
+
+            res = {"text": response.response, "metadata": citation_metadata}
             return res
 
         class RagToolBaseParams(BaseModel):

@@ -965,15 +965,12 @@ class Agent:
             logging.debug("FCS calculation skipped: 'vectara_api_key' is missing.")
             return          # can't calculate FCS without Vectara API key
 
-        chat_history = self.memory.chat_store.store['chat_history']
+        chat_history = self.memory.get()
         tool_outputs = []
         for msg in chat_history:
             if msg.role == MessageRole.TOOL:
-                tool_name = msg.additional_kwargs.get('name', 'unknown_tool')
-                all_text = f'Output of {tool_name}: ' + ' '.join(
-                    [block.text for block in msg.blocks if block.block_type == 'text']
-                )
-                tool_outputs.append(all_text)
+                tool_outputs.append(msg.content)
+
         if not tool_outputs:
             return
 
