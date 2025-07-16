@@ -6,8 +6,16 @@ import inspect
 import re
 
 from typing import (
-    Callable, List, Dict, Any, Optional, Union, Type, Tuple,
-    get_origin, get_args
+    Callable,
+    List,
+    Dict,
+    Any,
+    Optional,
+    Union,
+    Type,
+    Tuple,
+    get_origin,
+    get_args,
 )
 from pydantic import BaseModel, create_model
 from pydantic_core import PydanticUndefined
@@ -83,7 +91,7 @@ class VectaraTool(FunctionTool):
             tool_metadata,
             callback,
             async_callback,
-            partial_params
+            partial_params,
         )
         vectara_tool = cls(
             tool_type=tool_type,
@@ -119,7 +127,8 @@ class VectaraTool(FunctionTool):
         self, *args: Any, ctx: Optional[Context] = None, **kwargs: Any
     ) -> ToolOutput:
         try:
-            return super().call(*args, ctx=ctx, **kwargs)
+            result = super().call(*args, ctx=ctx, **kwargs)
+            return self._format_tool_output(result)
         except TypeError as e:
             sig = inspect.signature(self.metadata.fn_schema)
             valid_parameters = list(sig.parameters.keys())
@@ -148,7 +157,8 @@ class VectaraTool(FunctionTool):
         self, *args: Any, ctx: Optional[Context] = None, **kwargs: Any
     ) -> ToolOutput:
         try:
-            return await super().acall(*args, ctx=ctx, **kwargs)
+            result = await super().acall(*args, ctx=ctx, **kwargs)
+            return self._format_tool_output(result)
         except TypeError as e:
             sig = inspect.signature(self.metadata.fn_schema)
             valid_parameters = list(sig.parameters.keys())
@@ -166,6 +176,7 @@ class VectaraTool(FunctionTool):
             return err_output
         except Exception as e:
             import traceback
+
             err_output = ToolOutput(
                 tool_name=self.metadata.name,
                 content=f"Tool {self.metadata.name} Malfunction: {str(e)}, traceback: {traceback.format_exc()}",
@@ -174,9 +185,38 @@ class VectaraTool(FunctionTool):
             )
             return err_output
 
+    def _format_tool_output(self, result: ToolOutput) -> ToolOutput:
+        """Format tool output to use human-readable representation if available."""
+        if hasattr(result, "content") and _is_human_readable_output(result.content):
+            try:
+                # Use human-readable format for content, keep raw output
+                human_readable_content = result.content.to_human_readable()
+                raw_output = result.content.get_raw_output()
+                return ToolOutput(
+                    tool_name=result.tool_name,
+                    content=human_readable_content,
+                    raw_input=result.raw_input,
+                    raw_output=raw_output,
+                )
+            except Exception as e:
+                # If formatting fails, fall back to original content with error info
+                import logging
+
+                logging.warning(
+                    f"Failed to format tool output for {result.tool_name}: {e}"
+                )
+                return ToolOutput(
+                    tool_name=result.tool_name,
+                    content=f"[Formatting Error] {str(result.content)}",
+                    raw_input=result.raw_input,
+                    raw_output={"error": str(e), "original_content": result.content},
+                )
+        return result
+
 
 class EmptyBaseModel(BaseModel):
     """empty base model"""
+
 
 def _clean_type_repr(type_repr: str) -> str:
     """Cleans the string representation of a type."""
@@ -187,6 +227,7 @@ def _clean_type_repr(type_repr: str) -> str:
 
     type_repr = type_repr.replace("typing.", "")
     return type_repr
+
 
 def _format_type(annotation) -> str:
     """
@@ -208,6 +249,7 @@ def _format_type(annotation) -> str:
     type_repr = str(annotation)
     type_repr = _clean_type_repr(type_repr)
     return type_repr.replace("NoneType", "None")
+
 
 def _make_docstring(
     function: Callable[..., ToolOutput],
@@ -267,11 +309,15 @@ def _make_docstring(
                 ty_info = schema_prop["type"]
                 if isinstance(ty_info, str):
                     ty_str = _clean_type_repr(ty_info)
-                elif isinstance(ty_info, list):  # Handle JSON schema array type e.g., ["integer", "string"]
+                elif isinstance(
+                    ty_info, list
+                ):  # Handle JSON schema array type e.g., ["integer", "string"]
                     ty_str = " | ".join([_clean_type_repr(t) for t in ty_info])
 
             # inline default if present
-            default_txt = f", default={default!r}" if default is not PydanticUndefined else ""
+            default_txt = (
+                f", default={default!r}" if default is not PydanticUndefined else ""
+            )
 
             # inline examples if any
             if examples:
@@ -288,8 +334,8 @@ def _make_docstring(
     doc_lines.append(f"    dict[str, Any]: {return_desc}")
 
     initial_docstring = "\n".join(doc_lines)
-    collapsed_spaces = re.sub(r' {2,}', ' ', initial_docstring)
-    final_docstring = re.sub(r'\n{2,}', '\n', collapsed_spaces).strip()
+    collapsed_spaces = re.sub(r" {2,}", " ", initial_docstring)
+    final_docstring = re.sub(r"\n{2,}", "\n", collapsed_spaces).strip()
     return final_docstring
 
 
@@ -317,13 +363,17 @@ def create_tool_from_dynamic_function(
     if tool_args_schema is None:
         tool_args_schema = EmptyBaseModel
 
-    if not isinstance(tool_args_schema, type) or not issubclass(tool_args_schema, BaseModel):
+    if not isinstance(tool_args_schema, type) or not issubclass(
+        tool_args_schema, BaseModel
+    ):
         raise TypeError("tool_args_schema must be a Pydantic BaseModel subclass")
 
     fields: Dict[str, Any] = {}
     base_params = []
     for field_name, field_info in base_params_model.model_fields.items():
-        default = Ellipsis if field_info.default is PydanticUndefined else field_info.default
+        default = (
+            Ellipsis if field_info.default is PydanticUndefined else field_info.default
+        )
         param = inspect.Parameter(
             field_name,
             inspect.Parameter.POSITIONAL_OR_KEYWORD,
@@ -338,7 +388,9 @@ def create_tool_from_dynamic_function(
         if field_name in fields:
             continue
 
-        default = Ellipsis if field_info.default is PydanticUndefined else field_info.default
+        default = (
+            Ellipsis if field_info.default is PydanticUndefined else field_info.default
+        )
         param = inspect.Parameter(
             field_name,
             inspect.Parameter.POSITIONAL_OR_KEYWORD,
@@ -362,9 +414,7 @@ def create_tool_from_dynamic_function(
     function.__name__ = re.sub(r"[^A-Za-z0-9_]", "_", tool_name)
 
     function.__doc__ = _make_docstring(
-        function,
-        tool_name, tool_description, fn_schema,
-        all_params, compact_docstring
+        function, tool_name, tool_description, fn_schema, all_params, compact_docstring
     )
     tool = VectaraTool.from_defaults(
         fn=function,
@@ -526,3 +576,115 @@ def build_filter_string(
     if fixed_filter and joined:
         return f"({fixed_filter}) AND ({joined})"
     return fixed_filter or joined
+
+
+def _is_human_readable_output(obj: Any) -> bool:
+    """Check if an object implements the HumanReadableOutput protocol."""
+    return (
+        hasattr(obj, "to_human_readable")
+        and hasattr(obj, "get_raw_output")
+        and callable(getattr(obj, "to_human_readable", None))
+        and callable(getattr(obj, "get_raw_output", None))
+    )
+
+
+def create_human_readable_output(
+    raw_output: Any, formatter: Optional[Callable[[Any], str]] = None
+) -> "HumanReadableToolOutput":
+    """Create a HumanReadableToolOutput wrapper for tool outputs."""
+    return HumanReadableToolOutput(raw_output, formatter)
+
+
+def format_as_table(data: List[Dict[str, Any]], max_width: int = 80) -> str:
+    """Format list of dictionaries as a table."""
+    if not data:
+        return "No data to display"
+
+    # Get all unique keys
+    all_keys = set()
+    for item in data:
+        all_keys.update(item.keys())
+
+    headers = list(all_keys)
+
+    # Calculate column widths
+    col_widths = {}
+    for header in headers:
+        col_widths[header] = max(
+            len(header), max(len(str(item.get(header, ""))) for item in data)
+        )
+        # Limit column width
+        col_widths[header] = min(col_widths[header], max_width // len(headers))
+
+    # Create table
+    lines = []
+
+    # Header row
+    header_row = " | ".join(header.ljust(col_widths[header]) for header in headers)
+    lines.append(header_row)
+    lines.append("-" * len(header_row))
+
+    # Data rows
+    for item in data:
+        row = " | ".join(
+            str(item.get(header, "")).ljust(col_widths[header])[: col_widths[header]]
+            for header in headers
+        )
+        lines.append(row)
+
+    return "\n".join(lines)
+
+
+def format_as_json(data: Any, indent: int = 2) -> str:
+    """Format data as pretty-printed JSON."""
+    import json
+
+    try:
+        return json.dumps(data, indent=indent, ensure_ascii=False)
+    except (TypeError, ValueError):
+        return str(data)
+
+
+def format_as_markdown_list(items: List[Any], numbered: bool = False) -> str:
+    """Format items as markdown list."""
+    if not items:
+        return "No items to display"
+
+    if numbered:
+        return "\n".join(f"{i+1}. {item}" for i, item in enumerate(items))
+    else:
+        return "\n".join(f"- {item}" for item in items)
+
+
+class HumanReadableToolOutput:
+    """Wrapper class that implements HumanReadableOutput protocol."""
+
+    def __init__(
+        self, raw_output: Any, formatter: Optional[Callable[[Any], str]] = None
+    ):
+        self._raw_output = raw_output
+        self._formatter = formatter or str
+
+    def to_human_readable(self) -> str:
+        """Convert the output to a human-readable format."""
+        try:
+            return self._formatter(self._raw_output)
+        except Exception as e:
+            import logging
+
+            logging.warning(f"Failed to format output with custom formatter: {e}")
+            # Fallback to string representation
+            try:
+                return str(self._raw_output)
+            except Exception:
+                return f"[Error formatting output: {e}]"
+
+    def get_raw_output(self) -> Any:
+        """Get the raw output data."""
+        return self._raw_output
+
+    def __str__(self) -> str:
+        return self.to_human_readable()
+
+    def __repr__(self) -> str:
+        return f"HumanReadableToolOutput({self._raw_output!r})"

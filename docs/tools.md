@@ -112,3 +112,71 @@ additional tools from the LlamaIndex Tools hub:
     including Gmail, Google Calendar, and Google Search.
 9.  `slack`: A tool that interacts with Slack.
 10. `salesforce`: A tool that queries Salesforce.
+
+## Human-Readable Tool Output
+
+Tools can return outputs that provide both raw data (for programmatic use) and human-readable formatted output (for display to users or when computing Factual Consistency Score). This feature allows tools to define their own presentation layer while maintaining access to the underlying data structure.
+
+### Using create_human_readable_output
+
+The simplest way to create human-readable output is using the `create_human_readable_output` utility:
+
+```python
+from vectara_agentic.tool_utils import create_human_readable_output
+from vectara_agentic.tools import ToolsFactory
+
+def my_tool(query: str):
+    """Example tool that returns structured data."""
+    raw_data = {
+        "query": query,
+        "results": [
+            {"id": 1, "title": "Result 1", "score": 0.95},
+            {"id": 2, "title": "Result 2", "score": 0.87}
+        ]
+    }
+    
+    # Define custom formatting function
+    def format_results(data):
+        formatted = f"Query: {data['query']}\n\n"
+        formatted += "Results:\n"
+        for result in data['results']:
+            formatted += f"- {result['title']} (score: {result['score']})\n"
+        return formatted
+    
+    # Return human-readable output
+    return create_human_readable_output(raw_data, format_results)
+
+# Create tool
+factory = ToolsFactory()
+tool = factory.create_tool(my_tool)
+```
+
+### Using Built-in Formatters
+
+Several built-in formatters are available for common data types:
+
+```python
+from vectara_agentic.tool_utils import (
+    create_human_readable_output, 
+    format_as_table, 
+    format_as_json, 
+    format_as_markdown_list
+)
+
+def data_tool():
+    """Tool that returns tabular data."""
+    data = [
+        {"name": "Alice", "age": 30, "city": "New York"},
+        {"name": "Bob", "age": 25, "city": "Boston"}
+    ]
+    
+    # Use built-in table formatter
+    return create_human_readable_output(data, format_as_table)
+```
+
+### Examples in the Codebase
+
+- **RAG Tool**: Formats citations and factual consistency scores
+- **Search Tool**: Displays results in sequential format with summaries and sample matches
+
+This pattern provides flexibility for tools to define their own presentation layer while maintaining access to the underlying data structure.

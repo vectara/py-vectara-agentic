@@ -26,9 +26,7 @@ class TestAgentPackage(unittest.TestCase):
             custom_instructions="You are a helpful assistant.",
         )
         res = agent.chat("What is Vectara?")
-        self.assertIn("Response:", str(res))
-        self.assertIn("fcs_score", str(res))
-        self.assertIn("References:", str(res))
+        self.assertIn("Vectara is an end-to-end platform designed", str(res))
 
     def test_from_corpus(self):
         agent = Agent.from_corpus(
@@ -40,9 +38,7 @@ class TestAgentPackage(unittest.TestCase):
             return_direct=True,
         )
         res = agent.chat("What is Vectara?")
-        self.assertIn("Response:", str(res))
-        self.assertIn("fcs_score", str(res))
-        self.assertIn("References:", str(res))
+        self.assertIn("Vectara is an end-to-end platform designed", str(res))
 
 
 if __name__ == "__main__":

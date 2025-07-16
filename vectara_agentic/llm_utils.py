@@ -53,7 +53,7 @@ from .agent_config import AgentConfig
 provider_to_default_model_name = {
     ModelProvider.OPENAI: "gpt-4.1",
     ModelProvider.ANTHROPIC: "claude-sonnet-4-20250514",
-    ModelProvider.TOGETHER: "meta-llama/Llama-4-Scout-17B-16E-Instruct",
+    ModelProvider.TOGETHER: "moonshotai/Kimi-K2-Instruct",
     ModelProvider.GROQ: "deepseek-r1-distill-llama-70b",
     ModelProvider.FIREWORKS: "accounts/fireworks/models/firefunction-v2",
     ModelProvider.BEDROCK: "us.anthropic.claude-sonnet-4-20250514-v1:0",
@@ -109,7 +109,7 @@ def get_tokenizer_for_model(
     try:
         model_provider, model_name = _get_llm_params_for_role(role, config)
         if model_provider == ModelProvider.OPENAI:
-            return tiktoken.encoding_for_model('gpt-4o').encode
+            return tiktoken.encoding_for_model("gpt-4o").encode
         if model_provider == ModelProvider.ANTHROPIC:
             return Anthropic().tokenizer
     except Exception:
@@ -124,8 +124,18 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
     Get the LLM for the specified role, using the provided config
     or a default if none is provided.
     """
-    max_tokens = 8192
     model_provider, model_name = _get_llm_params_for_role(role, config)
+    max_tokens = (
+        16384
+        if model_provider
+        in [
+            ModelProvider.GEMINI,
+            ModelProvider.TOGETHER,
+            ModelProvider.OPENAI,
+            ModelProvider.ANTHROPIC,
+        ]
+        else 8192
+    )
     if model_provider == ModelProvider.OPENAI:
         llm = OpenAI(
             model=model_name,
@@ -143,7 +153,9 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
         )
     elif model_provider == ModelProvider.GEMINI:
         if GoogleGenAI is None:
-            raise ImportError("google_genai not available. Install with: pip install llama-index-llms-google-genai")
+            raise ImportError(
+                "google_genai not available. Install with: pip install llama-index-llms-google-genai"
+            )
         llm = GoogleGenAI(
             model=model_name,
             temperature=0,
@@ -153,7 +165,9 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
         )
     elif model_provider == ModelProvider.TOGETHER:
         if TogetherLLM is None:
-            raise ImportError("together not available. Install with: pip install llama-index-llms-together")
+            raise ImportError(
+                "together not available. Install with: pip install llama-index-llms-together"
+            )
         llm = TogetherLLM(
             model=model_name,
             temperature=0,
@@ -162,7 +176,9 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
         )
     elif model_provider == ModelProvider.GROQ:
         if Groq is None:
-            raise ImportError("groq not available. Install with: pip install llama-index-llms-groq")
+            raise ImportError(
+                "groq not available. Install with: pip install llama-index-llms-groq"
+            )
         llm = Groq(
             model=model_name,
             temperature=0,
@@ -171,11 +187,15 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
         )
     elif model_provider == ModelProvider.FIREWORKS:
         if Fireworks is None:
-            raise ImportError("fireworks not available. Install with: pip install llama-index-llms-fireworks")
+            raise ImportError(
+                "fireworks not available. Install with: pip install llama-index-llms-fireworks"
+            )
         llm = Fireworks(model=model_name, temperature=0, max_tokens=max_tokens)
     elif model_provider == ModelProvider.BEDROCK:
         if BedrockConverse is None:
-            raise ImportError("bedrock_converse not available. Install with: pip install llama-index-llms-bedrock")
+            raise ImportError(
+                "bedrock_converse not available. Install with: pip install llama-index-llms-bedrock"
+            )
         aws_profile_name = os.getenv("AWS_PROFILE", None)
         aws_region = os.getenv("AWS_REGION", "us-east-2")
 
@@ -188,11 +208,15 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
         )
     elif model_provider == ModelProvider.COHERE:
         if Cohere is None:
-            raise ImportError("cohere not available. Install with: pip install llama-index-llms-cohere")
+            raise ImportError(
+                "cohere not available. Install with: pip install llama-index-llms-cohere"
+            )
         llm = Cohere(model=model_name, temperature=0, max_tokens=max_tokens)
     elif model_provider == ModelProvider.PRIVATE:
         if OpenAILike is None:
-            raise ImportError("openai_like not available. Install with: pip install llama-index-llms-openai-like")
+            raise ImportError(
+                "openai_like not available. Install with: pip install llama-index-llms-openai-like"
+            )
         llm = OpenAILike(
             model=model_name,
             temperature=0,

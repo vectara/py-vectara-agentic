@@ -60,8 +60,10 @@ from ._prompts import (
 from ._callback import AgentCallbackHandler
 from ._observability import setup_observer, eval_fcs
 from .tools import VectaraToolFactory, VectaraTool, ToolsFactory
+from .tool_utils import _is_human_readable_output
 from .tools_catalog import get_current_date
 from .agent_config import AgentConfig
+from .hhem import HHEM
 
 
 class IgnoreUnpickleableAttributeFilter(logging.Filter):
@@ -206,9 +208,9 @@ class Agent:
         general_instructions: str = GENERAL_INSTRUCTIONS,
         verbose: bool = True,
         use_structured_planning: bool = False,
-        update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
+        update_func: Optional[Callable[[AgentStatusType, dict, str], None]] = None,
         agent_progress_callback: Optional[
-            Callable[[AgentStatusType, str], None]
+            Callable[[AgentStatusType, dict, str], None]
         ] = None,
         query_logging_callback: Optional[Callable[[str, str], None]] = None,
         agent_config: Optional[AgentConfig] = None,
@@ -217,6 +219,7 @@ class Agent:
         validate_tools: bool = False,
         workflow_cls: Optional[Workflow] = None,
         workflow_timeout: int = 120,
+        vectara_api_key: Optional[str] = None,
     ) -> None:
         """
         Initialize the agent with the specified type, tools, topic, and system message.
@@ -244,6 +247,7 @@ class Agent:
                 Defaults to False.
             workflow_cls (Workflow, optional): The workflow class to be used with run(). Defaults to None.
             workflow_timeout (int, optional): The timeout for the workflow in seconds. Defaults to 120.
+            vectara_api_key (str, optional): The Vectara API key for FCS evaluation. Defaults to None.
         """
         self.agent_config = agent_config or AgentConfig()
         self.agent_config_type = AgentConfigType.DEFAULT
@@ -263,6 +267,7 @@ class Agent:
 
         self.workflow_cls = workflow_cls
         self.workflow_timeout = workflow_timeout
+        self.vectara_api_key = vectara_api_key or os.environ.get("VECTARA_API_KEY", "")
 
         # Sanitize tools for Gemini if needed
         if self.agent_config.main_llm_provider == ModelProvider.GEMINI:
@@ -292,7 +297,7 @@ class Agent:
             If no invalid tools exist, respond with "<OKAY>" (and nothing else).
             """
             llm = get_llm(LLMRole.MAIN, config=self.agent_config)
-            bad_tools_str = llm.complete(prompt).text.strip('\n')
+            bad_tools_str = llm.complete(prompt).text.strip("\n")
             if bad_tools_str and bad_tools_str != "<OKAY>":
                 bad_tools = [tool.strip() for tool in bad_tools_str.split(",")]
                 numbered = ", ".join(
@@ -636,9 +641,9 @@ class Agent:
         topic: str = "general",
         custom_instructions: str = "",
         verbose: bool = True,
-        update_func: Optional[Callable[[AgentStatusType, str], None]] = None,
+        update_func: Optional[Callable[[AgentStatusType, dict, str], None]] = None,
         agent_progress_callback: Optional[
-            Callable[[AgentStatusType, str], None]
+            Callable[[AgentStatusType, dict, str], None]
         ] = None,
         query_logging_callback: Optional[Callable[[str, str], None]] = None,
         agent_config: AgentConfig = AgentConfig(),
@@ -697,7 +702,7 @@ class Agent:
         vectara_corpus_key: str = str(os.environ.get("VECTARA_CORPUS_KEY", "")),
         vectara_api_key: str = str(os.environ.get("VECTARA_API_KEY", "")),
         agent_progress_callback: Optional[
-            Callable[[AgentStatusType, str], None]
+            Callable[[AgentStatusType, dict, str], None]
         ] = None,
         query_logging_callback: Optional[Callable[[str, str], None]] = None,
         agent_config: AgentConfig = AgentConfig(),
@@ -852,6 +857,7 @@ class Agent:
             agent_config=agent_config,
             fallback_agent_config=fallback_agent_config,
             chat_history=chat_history,
+            vectara_api_key=vectara_api_key,
         )
 
     def _switch_agent_config(self) -> None:
@@ -952,6 +958,45 @@ class Agent:
         """
         return asyncio.run(self.achat(prompt))
 
+    def _calc_fcs(self, agent_response: AgentResponse) -> None:
+        """
+        Calculate the Factual consistency score for the agent response.
+        """
+        if not self.vectara_api_key:
+            logging.debug("FCS calculation skipped: 'vectara_api_key' is missing.")
+            return  # can't calculate FCS without Vectara API key
+
+        chat_history = self.memory.get()
+        context = []
+        for msg in chat_history:
+            if msg.role == MessageRole.TOOL:
+                content = msg.content
+                if _is_human_readable_output(content):
+                    try:
+                        content = content.to_human_readable()
+                    except Exception as e:
+                        logging.debug(
+                            f"Failed to get human-readable format for FCS calculation: {e}"
+                        )
+                        # Fall back to string representation of the object
+                        content = str(content)
+
+                context.append(content)
+            elif msg.role in [MessageRole.USER, MessageRole.ASSISTANT] and msg.content:
+                context.append(msg.content)
+
+        if not context:
+            return
+
+        context_str = "\n".join(context)
+        try:
+            score = HHEM(self.vectara_api_key).compute(context_str, agent_response.response)
+            if agent_response.metadata is None:
+                agent_response.metadata = {}
+            agent_response.metadata["fcs"] = score
+        except Exception as e:
+            logging.error(f"Failed to calculate FCS: {e}")
+
     async def achat(self, prompt: str) -> AgentResponse:  # type: ignore
         """
         Interact with the agent using a chat prompt.
@@ -970,6 +1015,7 @@ class Agent:
             try:
                 current_agent = self._get_current_agent()
                 agent_response = await current_agent.achat(prompt)
+                self._calc_fcs(agent_response)
                 await self._aformat_for_lats(prompt, agent_response)
                 if self.observability_enabled:
                     eval_fcs()
@@ -979,6 +1025,8 @@ class Agent:
 
             except Exception as e:
                 last_error = e
+                if self.verbose:
+                    print(f"LLM call failed on attempt {attempt}. " f"Error: {e}.")
                 if attempt >= 2:
                     if self.verbose:
                         print(
@@ -1032,6 +1080,7 @@ class Agent:
                         self.query_logging_callback(prompt, agent_response.response)
                     if self.observability_enabled:
                         eval_fcs()
+                    self._calc_fcs(agent_response)
 
                 agent_response.async_response_gen = (
                     _stream_response_wrapper  # Override the generator
@@ -1085,14 +1134,18 @@ class Agent:
         if not isinstance(inputs, self.workflow_cls.InputsModel):
             raise ValueError(f"Inputs must be an instance of {workflow.InputsModel}.")
 
-        outputs_model_on_fail_cls = getattr(workflow.__class__, "OutputModelOnFail", None)
+        outputs_model_on_fail_cls = getattr(
+            workflow.__class__, "OutputModelOnFail", None
+        )
         if outputs_model_on_fail_cls:
             fields_without_default = []
             for name, field_info in outputs_model_on_fail_cls.model_fields.items():
                 if field_info.default_factory is PydanticUndefined:
                     fields_without_default.append(name)
             if fields_without_default:
-                raise ValueError(f"Fields without default values: {fields_without_default}")
+                raise ValueError(
+                    f"Fields without default values: {fields_without_default}"
+                )
 
         workflow_context = Context(workflow=workflow)
         try:
@@ -1139,11 +1192,15 @@ class Agent:
     def loads(
         cls,
         data: str,
-        agent_progress_callback: Optional[Callable[[AgentStatusType, str], None]] = None,
-        query_logging_callback: Optional[Callable[[str, str], None]] = None
+        agent_progress_callback: Optional[
+            Callable[[AgentStatusType, dict, str], None]
+        ] = None,
+        query_logging_callback: Optional[Callable[[str, str], None]] = None,
     ) -> "Agent":
         """Create an Agent instance from a JSON string."""
-        return cls.from_dict(json.loads(data), agent_progress_callback, query_logging_callback)
+        return cls.from_dict(
+            json.loads(data), agent_progress_callback, query_logging_callback
+        )
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize the Agent instance to a dictionary."""
@@ -1204,7 +1261,7 @@ class Agent:
         cls,
         data: Dict[str, Any],
         agent_progress_callback: Optional[Callable] = None,
-        query_logging_callback: Optional[Callable] = None
+        query_logging_callback: Optional[Callable] = None,
     ) -> "Agent":
         """Create an Agent instance from a dictionary."""
         agent_config = AgentConfig.from_dict(data["agent_config"])

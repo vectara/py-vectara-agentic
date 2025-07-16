@@ -31,7 +31,7 @@ llama-index-tools-bing-search==0.3.0
 openai>=1.82.1
 tavily-python==0.7.3
 exa-py==1.13.1
-openinference-instrumentation-llama-index==4.2.1
+openinference-instrumentation-llama-index==4.3.1
 opentelemetry-proto>=1.31.0
 arize-phoenix==10.9.1
 arize-phoenix-otel==0.10.3

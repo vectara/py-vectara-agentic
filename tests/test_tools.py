@@ -85,7 +85,7 @@ class TestToolsPackage(unittest.TestCase):
         self.assertNotIn("summarize", search_tool.metadata.description)
 
         res = search_tool(query="What is Vectara?")
-        self.assertIn("summary: 'Vectara is", str(res))
+        self.assertIn("Vectara is", str(res))
 
     def test_vectara_tool_validation(self):
         vec_factory = VectaraToolFactory(vectara_corpus_key, vectara_api_key)
