@@ -192,7 +192,10 @@ class VectaraToolFactory:
                     kwargs, tool_args_type, fixed_filter
                 )
             except ValueError as e:
-                msg = f"Building filter string failed in search tool ({e})."
+                msg = (
+                    f"Building filter string failed in search tool due to invalid input or configuration ({e}). "
+                    "Please verify the input arguments and ensure they meet the expected format or conditions."
+                )
                 return [{"text": msg, "metadata": {"args": args, "kwargs": kwargs}}]
 
             vectara_retriever = vectara.as_retriever(
@@ -463,7 +466,11 @@ class VectaraToolFactory:
                     kwargs, tool_args_type, fixed_filter
                 )
             except ValueError as e:
-                msg = f"Building filter string failed in rag tool ({e})"
+                msg = (
+                    f"Building filter string failed in rag tool. "
+                    f"Reason: {e}. Ensure that the input arguments match the expected "
+                    f"format and include all required fields. "
+                )
                 return {"text": msg, "metadata": {"args": args, "kwargs": kwargs}}
 
             vectara_query_engine = vectara.as_query_engine(
@@ -556,9 +563,7 @@ class VectaraToolFactory:
                     if key.isdigit():
                         url = value.get("document", {}).get("url", None)
                         if url:
-                            citation_info.append(
-                                f"[{key}]: {url}"
-                            )
+                            citation_info.append(f"[{key}]: {url}")
                 if citation_info:
                     text += "\n\nCitations:\n" + "\n".join(citation_info)
 
