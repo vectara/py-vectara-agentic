@@ -277,7 +277,7 @@ class VectaraToolFactory:
                     if summarize and result["text"]:
                         result_str += f"Summary: {result['text']}\n"
 
-                    # Add  matching text if available
+                    # Add all matching text if available
                     matches = result["metadata"]["matching_text"]
                     if matches:
                         result_str += ''.join(
