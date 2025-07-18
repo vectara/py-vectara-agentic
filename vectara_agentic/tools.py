@@ -280,7 +280,7 @@ class VectaraToolFactory:
                     # Add  matching text if available
                     matches = result["metadata"]["matching_text"]
                     if matches:
-                        result_str += (
+                        result_str += ''.join(
                             f"Match #{inx} Text: {match}\n"
                             for inx, match in enumerate(matches, 1)
                         )
@@ -443,6 +443,7 @@ class VectaraToolFactory:
             vectara_base_url=vectara_base_url,
             vectara_verify_ssl=vectara_verify_ssl,
         )
+        keys_to_ignore = ["lang", "offset", "len"]
 
         # Dynamically generate the RAG function
         def rag_function(*args: Any, **kwargs: Any) -> dict:
@@ -522,7 +523,6 @@ class VectaraToolFactory:
             matches = re.findall(pattern, response.response)
             citation_numbers = sorted(set(int(match) for match in matches))
             citation_metadata = {}
-            keys_to_ignore = ["lang", "offset", "len"]
             for citation_number in citation_numbers:
                 metadata = {
                     k: v

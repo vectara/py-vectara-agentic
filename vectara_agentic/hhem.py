@@ -51,7 +51,7 @@ class HHEM:
             requests.exceptions.RequestException: If there is a network-related error or the API call fails.
         """
 
-        # clean response from any markdown or other formmating.
+        # clean response from any markdown or other formatting.
         try:
             clean_hypothesis = markdown_to_text(hypothesis)
         except Exception:
