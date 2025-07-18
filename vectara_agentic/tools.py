@@ -560,7 +560,7 @@ class VectaraToolFactory:
                             [
                                 f"{k}='{v}'"
                                 for k, v in doc.items()
-                            ] + 
+                            ] +
                             [
                                 f"{k}='{v}'"
                                 for k, v in value.items()
