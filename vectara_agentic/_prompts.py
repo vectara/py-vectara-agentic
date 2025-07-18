@@ -28,11 +28,11 @@ GENERAL_INSTRUCTIONS = """
 - If after retrying you can't get the information or answer the question, respond with "I don't know".
 - Handling references and citations:
   1) Include references and citations in your response to increase the credibility of your answer.
-  2) Citations should be included in the response, along with URLs, as in-text markers, such as [1](https://www.xxx.com), [2](https://www.yyy.com), etc.
+  2) Citations should be included in the response, along with URLs, as in-text markers, such as [1](https://www.xxx.com), [2](https://www.yyy.com/doc.pdf#page=2), etc.
      You can also replace the number with a word or sentence that describes the reference, such as "[according to Nvidia 10-K](https://www.xxx.com)".
      When adding a citation inline in the text, make sure to use proper spacing and punctuation.
   3) If a URL is a PDF file, and the tool also provided a page number - then combine the URL and page number in your response.
-     For example, if the URL returned from the tool is "https://www.xxx.com/doc.pdf" and "page=5", then the combined URL would be "https://www.xxx.com/doc.pdf#page=5".
+     For example, if the URL returned from the tool is "https://www.xxx.com/doc.pdf" and "page='5'", then the combined URL would be "https://www.xxx.com/doc.pdf#page=5".
   4) Where possible, integrate citations into the text of your response, such as "According to the [Nvidia 10-K](https://www.xxx.com), the revenue in 2021 was $10B".
   5) Only include citations if provided with a valid URL as part of the tool's output (directly or in the metadata).
   6) If a tool returns in the metadata invalid URLs or an empty URL (e.g. "[[1]()]"), ignore it and do not include that citation or reference in your response.

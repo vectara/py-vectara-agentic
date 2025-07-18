@@ -274,22 +274,17 @@ class VectaraToolFactory:
                 for i, result in enumerate(results, 1):
                     result_str = f"**Result #{i}**\n"
                     result_str += f"Document ID: {result['metadata']['document_id']}\n"
-                    result_str += (
-                        f"Matches: {len(result['metadata']['matching_text'])}\n"
-                    )
-
                     if summarize and result["text"]:
                         result_str += f"Summary: {result['text']}\n"
 
-                    # Add sample matching text if available
-                    if result["metadata"]["matching_text"]:
-                        sample_matches = result["metadata"]["matching_text"][
-                            :2
-                        ]  # Show first 2 matches
-                        result_str += f"Sample matches: {', '.join(sample_matches)}\n"
-
+                    # Add all matching text if available
+                    matches = result["metadata"]["matching_text"]
+                    if matches:
+                        result_str += ''.join(
+                            f"Match #{inx} Text: {match}\n"
+                            for inx, match in enumerate(matches, 1)
+                        )
                     formatted_results.append(result_str)
-
                 return "\n".join(formatted_results)
 
             return create_human_readable_output(res, format_search_results)
@@ -448,6 +443,7 @@ class VectaraToolFactory:
             vectara_base_url=vectara_base_url,
             vectara_verify_ssl=vectara_verify_ssl,
         )
+        keys_to_ignore = ["lang", "offset", "len"]
 
         # Dynamically generate the RAG function
         def rag_function(*args: Any, **kwargs: Any) -> dict:
@@ -527,7 +523,6 @@ class VectaraToolFactory:
             matches = re.findall(pattern, response.response)
             citation_numbers = sorted(set(int(match) for match in matches))
             citation_metadata = {}
-            keys_to_ignore = ["lang", "offset", "len"]
             for citation_number in citation_numbers:
                 metadata = {
                     k: v
@@ -549,21 +544,30 @@ class VectaraToolFactory:
                     }
             if fcs:
                 citation_metadata["fcs"] = fcs
-
             res = {"text": response.response, "metadata": citation_metadata}
 
             # Create human-readable output with citation formatting
             def format_rag_response(result):
                 text = result["text"]
-                metadata = result["metadata"]
 
                 # Format citations if present
+                metadata = result["metadata"]
                 citation_info = []
                 for key, value in metadata.items():
                     if key.isdigit():
-                        url = value.get("document", {}).get("url", None)
-                        if url:
-                            citation_info.append(f"[{key}]: {url}")
+                        doc = value.get("document", {})
+                        doc_metadata = f"{key}: " + "; ".join(
+                            [
+                                f"{k}='{v}'"
+                                for k, v in doc.items()
+                            ] +
+                            [
+                                f"{k}='{v}'"
+                                for k, v in value.items()
+                                if k not in ["document"] + keys_to_ignore
+                            ]
+                        )
+                        citation_info.append(doc_metadata)
                 if citation_info:
                     text += "\n\nCitations:\n" + "\n".join(citation_info)
 

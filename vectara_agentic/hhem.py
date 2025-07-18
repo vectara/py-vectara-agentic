@@ -1,6 +1,34 @@
 """Vectara HHEM (Hypothesis Hypothetical Evaluation Model) client."""
 
 import requests
+from commonmark import Parser
+
+
+def markdown_to_text(md: str) -> str:
+    """
+    Convert a Markdown-formatted string into plain text.
+    """
+    parser = Parser()
+    ast = parser.parse(md)
+    out: list[str] = []
+
+    def recurse(node):
+        if node.t in ("text", "code", "html_inline"):
+            out.append(node.literal or "")
+        elif node.t == "softbreak":
+            out.append(" ")
+        elif node.t == "linebreak":
+            out.append("\n")
+        child = getattr(node, "first_child", None)
+        while child is not None:
+            recurse(child)
+            child = getattr(child, "next", None)
+
+    recurse(ast)
+    text = "".join(out)
+    # collapse runs of spaces but preserve newlines
+    lines = [" ".join(line.split()) for line in text.splitlines()]
+    return "\n".join(line if line.strip() else "" for line in lines)
 
 
 class HHEM:
@@ -23,9 +51,18 @@ class HHEM:
         Raises:
             requests.exceptions.RequestException: If there is a network-related error or the API call fails.
         """
+
+        # clean response from any markdown or other formatting.
+        try:
+            clean_hypothesis = markdown_to_text(hypothesis)
+        except Exception as e:
+            # If markdown parsing fails, use the original text
+            raise ValueError(f"Markdown parsing of hypothesis failed: {e}") from e
+
+        # compute HHEM with Vectara endpoint
         payload = {
             "model_parameters": {"model_name": "hhem_v2.3"},
-            "generated_text": hypothesis,
+            "generated_text": clean_hypothesis,
             "source_texts": [context],
         }
         headers = {
