@@ -27,7 +27,7 @@ def markdown_to_text(md: str) -> str:
     text = ''.join(out)
     # collapse runs of spaces but preserve newlines
     lines = [' '.join(line.split()) for line in text.splitlines()]
-    return '\n'.join(line for line in lines if line.strip())
+    return '\n'.join(line if line.strip() else '' for line in lines)
 
 
 class HHEM:
