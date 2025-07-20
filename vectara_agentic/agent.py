@@ -256,7 +256,7 @@ class Agent:
             self.tools += [ToolsFactory().create_tool(get_current_date)]
         self.agent_type = self.agent_config.agent_type
         self.use_structured_planning = use_structured_planning
-        self.llm = get_llm(LLMRole.MAIN, config=self.agent_config)
+        self._llm = None  # Lazy loading
         self._custom_instructions = custom_instructions
         self._general_instructions = general_instructions
         self._topic = topic
@@ -346,14 +346,9 @@ class Agent:
             self.memory = ChatMemoryBuffer.from_defaults(token_limit=128000)
 
         # Set up main agent and fallback agent
-        self.agent = self._create_agent(self.agent_config, callback_manager)
+        self._agent = None  # Lazy loading
         self.fallback_agent_config = fallback_agent_config
-        if self.fallback_agent_config:
-            self.fallback_agent = self._create_agent(
-                self.fallback_agent_config, callback_manager
-            )
-        else:
-            self.fallback_agent_config = None
+        self._fallback_agent = None  # Lazy loading
 
         # Setup observability
         try:
@@ -361,6 +356,30 @@ class Agent:
         except Exception as e:
             print(f"Failed to set up observer ({e}), ignoring")
             self.observability_enabled = False
+
+    @property
+    def llm(self):
+        """Lazy-loads the LLM."""
+        if self._llm is None:
+            self._llm = get_llm(LLMRole.MAIN, config=self.agent_config)
+        return self._llm
+
+    @property
+    def agent(self):
+        """Lazy-loads the agent."""
+        if self._agent is None:
+            self._agent = self._create_agent(self.agent_config, self.llm.callback_manager)
+        return self._agent
+
+    @property
+    def fallback_agent(self):
+        """Lazy-loads the fallback agent."""
+        if self._fallback_agent is None and self.fallback_agent_config:
+            self._fallback_agent = self._create_agent(
+                self.fallback_agent_config, self.llm.callback_manager
+            )
+        return self._fallback_agent
+
 
     def _sanitize_tools_for_gemini(
         self, tools: list[FunctionTool]

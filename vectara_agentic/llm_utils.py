@@ -11,41 +11,7 @@ from llama_index.core.llms import LLM
 from llama_index.llms.openai import OpenAI
 from llama_index.llms.anthropic import Anthropic
 
-# Optional provider imports with graceful fallback
-try:
-    from llama_index.llms.google_genai import GoogleGenAI
-except ImportError:
-    GoogleGenAI = None
-
-try:
-    from llama_index.llms.together import TogetherLLM
-except ImportError:
-    TogetherLLM = None
-
-try:
-    from llama_index.llms.groq import Groq
-except ImportError:
-    Groq = None
-
-try:
-    from llama_index.llms.fireworks import Fireworks
-except ImportError:
-    Fireworks = None
-
-try:
-    from llama_index.llms.bedrock_converse import BedrockConverse
-except ImportError:
-    BedrockConverse = None
-
-try:
-    from llama_index.llms.cohere import Cohere
-except ImportError:
-    Cohere = None
-
-try:
-    from llama_index.llms.openai_like import OpenAILike
-except ImportError:
-    OpenAILike = None
+# LLM provider imports are now lazy-loaded in get_llm() function
 
 from .types import LLMRole, AgentType, ModelProvider
 from .agent_config import AgentConfig
@@ -152,7 +118,9 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             max_tokens=max_tokens,
         )
     elif model_provider == ModelProvider.GEMINI:
-        if GoogleGenAI is None:
+        try:
+            from llama_index.llms.google_genai import GoogleGenAI
+        except ImportError:
             raise ImportError(
                 "google_genai not available. Install with: pip install llama-index-llms-google-genai"
             )
@@ -164,7 +132,9 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             max_tokens=max_tokens,
         )
     elif model_provider == ModelProvider.TOGETHER:
-        if TogetherLLM is None:
+        try:
+            from llama_index.llms.together import TogetherLLM
+        except ImportError:
             raise ImportError(
                 "together not available. Install with: pip install llama-index-llms-together"
             )
@@ -175,7 +145,9 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             max_tokens=max_tokens,
         )
     elif model_provider == ModelProvider.GROQ:
-        if Groq is None:
+        try:
+            from llama_index.llms.groq import Groq
+        except ImportError:
             raise ImportError(
                 "groq not available. Install with: pip install llama-index-llms-groq"
             )
@@ -186,13 +158,17 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             max_tokens=max_tokens,
         )
     elif model_provider == ModelProvider.FIREWORKS:
-        if Fireworks is None:
+        try:
+            from llama_index.llms.fireworks import Fireworks
+        except ImportError:
             raise ImportError(
                 "fireworks not available. Install with: pip install llama-index-llms-fireworks"
             )
         llm = Fireworks(model=model_name, temperature=0, max_tokens=max_tokens)
     elif model_provider == ModelProvider.BEDROCK:
-        if BedrockConverse is None:
+        try:
+            from llama_index.llms.bedrock_converse import BedrockConverse
+        except ImportError:
             raise ImportError(
                 "bedrock_converse not available. Install with: pip install llama-index-llms-bedrock"
             )
@@ -207,13 +183,17 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             region_name=aws_region,
         )
     elif model_provider == ModelProvider.COHERE:
-        if Cohere is None:
+        try:
+            from llama_index.llms.cohere import Cohere
+        except ImportError:
             raise ImportError(
                 "cohere not available. Install with: pip install llama-index-llms-cohere"
             )
         llm = Cohere(model=model_name, temperature=0, max_tokens=max_tokens)
     elif model_provider == ModelProvider.PRIVATE:
-        if OpenAILike is None:
+        try:
+            from llama_index.llms.openai_like import OpenAILike
+        except ImportError:
             raise ImportError(
                 "openai_like not available. Install with: pip install llama-index-llms-openai-like"
             )
