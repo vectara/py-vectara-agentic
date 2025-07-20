@@ -325,7 +325,7 @@ class Agent:
             callbacks.append(self.main_token_counter)
         if self.tool_token_counter:
             callbacks.append(self.tool_token_counter)
-        callback_manager = CallbackManager(callbacks)  # type: ignore
+        self.callback_manager = CallbackManager(callbacks)  # type: ignore
         self.verbose = verbose
 
         if chat_history:
@@ -368,7 +368,7 @@ class Agent:
     def agent(self):
         """Lazy-loads the agent."""
         if self._agent is None:
-            self._agent = self._create_agent(self.agent_config, self.llm.callback_manager)
+            self._agent = self._create_agent(self.agent_config, self.callback_manager)
         return self._agent
 
     @property
@@ -376,10 +376,9 @@ class Agent:
         """Lazy-loads the fallback agent."""
         if self._fallback_agent is None and self.fallback_agent_config:
             self._fallback_agent = self._create_agent(
-                self.fallback_agent_config, self.llm.callback_manager
+                self.fallback_agent_config, self.callback_manager
             )
         return self._fallback_agent
-
 
     def _sanitize_tools_for_gemini(
         self, tools: list[FunctionTool]
@@ -453,7 +452,8 @@ class Agent:
             Union[BaseAgent, AgentRunner]: The configured agent object.
         """
         agent_type = config.agent_type
-        llm = get_llm(LLMRole.MAIN, config=config)
+        # Use the same LLM instance for consistency
+        llm = self.llm if config == self.agent_config else get_llm(LLMRole.MAIN, config=config)
         llm.callback_manager = llm_callback_manager
 
         if agent_type == AgentType.FUNCTION_CALLING:
@@ -1009,7 +1009,9 @@ class Agent:
 
         context_str = "\n".join(context)
         try:
-            score = HHEM(self.vectara_api_key).compute(context_str, agent_response.response)
+            score = HHEM(self.vectara_api_key).compute(
+                context_str, agent_response.response
+            )
             if agent_response.metadata is None:
                 agent_response.metadata = {}
             agent_response.metadata["fcs"] = score
