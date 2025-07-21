@@ -11,41 +11,7 @@ from llama_index.core.llms import LLM
 from llama_index.llms.openai import OpenAI
 from llama_index.llms.anthropic import Anthropic
 
-# Optional provider imports with graceful fallback
-try:
-    from llama_index.llms.google_genai import GoogleGenAI
-except ImportError:
-    GoogleGenAI = None
-
-try:
-    from llama_index.llms.together import TogetherLLM
-except ImportError:
-    TogetherLLM = None
-
-try:
-    from llama_index.llms.groq import Groq
-except ImportError:
-    Groq = None
-
-try:
-    from llama_index.llms.fireworks import Fireworks
-except ImportError:
-    Fireworks = None
-
-try:
-    from llama_index.llms.bedrock_converse import BedrockConverse
-except ImportError:
-    BedrockConverse = None
-
-try:
-    from llama_index.llms.cohere import Cohere
-except ImportError:
-    Cohere = None
-
-try:
-    from llama_index.llms.openai_like import OpenAILike
-except ImportError:
-    OpenAILike = None
+# LLM provider imports are now lazy-loaded in get_llm() function
 
 from .types import LLMRole, AgentType, ModelProvider
 from .agent_config import AgentConfig
@@ -53,7 +19,7 @@ from .agent_config import AgentConfig
 provider_to_default_model_name = {
     ModelProvider.OPENAI: "gpt-4.1",
     ModelProvider.ANTHROPIC: "claude-sonnet-4-20250514",
-    ModelProvider.TOGETHER: "moonshotai/Kimi-K2-Instruct",
+    ModelProvider.TOGETHER: "deepseek-ai/DeepSeek-V3",
     ModelProvider.GROQ: "deepseek-r1-distill-llama-70b",
     ModelProvider.FIREWORKS: "accounts/fireworks/models/firefunction-v2",
     ModelProvider.BEDROCK: "us.anthropic.claude-sonnet-4-20250514-v1:0",
@@ -152,10 +118,12 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             max_tokens=max_tokens,
         )
     elif model_provider == ModelProvider.GEMINI:
-        if GoogleGenAI is None:
+        try:
+            from llama_index.llms.google_genai import GoogleGenAI
+        except ImportError as e:
             raise ImportError(
                 "google_genai not available. Install with: pip install llama-index-llms-google-genai"
-            )
+            ) from e
         llm = GoogleGenAI(
             model=model_name,
             temperature=0,
@@ -164,10 +132,12 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             max_tokens=max_tokens,
         )
     elif model_provider == ModelProvider.TOGETHER:
-        if TogetherLLM is None:
+        try:
+            from llama_index.llms.together import TogetherLLM
+        except ImportError as e:
             raise ImportError(
                 "together not available. Install with: pip install llama-index-llms-together"
-            )
+            ) from e
         llm = TogetherLLM(
             model=model_name,
             temperature=0,
@@ -175,10 +145,12 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             max_tokens=max_tokens,
         )
     elif model_provider == ModelProvider.GROQ:
-        if Groq is None:
+        try:
+            from llama_index.llms.groq import Groq
+        except ImportError as e:
             raise ImportError(
                 "groq not available. Install with: pip install llama-index-llms-groq"
-            )
+            ) from e
         llm = Groq(
             model=model_name,
             temperature=0,
@@ -186,16 +158,20 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             max_tokens=max_tokens,
         )
     elif model_provider == ModelProvider.FIREWORKS:
-        if Fireworks is None:
+        try:
+            from llama_index.llms.fireworks import Fireworks
+        except ImportError as e:
             raise ImportError(
                 "fireworks not available. Install with: pip install llama-index-llms-fireworks"
-            )
+            ) from e
         llm = Fireworks(model=model_name, temperature=0, max_tokens=max_tokens)
     elif model_provider == ModelProvider.BEDROCK:
-        if BedrockConverse is None:
+        try:
+            from llama_index.llms.bedrock_converse import BedrockConverse
+        except ImportError as e:
             raise ImportError(
                 "bedrock_converse not available. Install with: pip install llama-index-llms-bedrock"
-            )
+            ) from e
         aws_profile_name = os.getenv("AWS_PROFILE", None)
         aws_region = os.getenv("AWS_REGION", "us-east-2")
 
@@ -207,16 +183,20 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             region_name=aws_region,
         )
     elif model_provider == ModelProvider.COHERE:
-        if Cohere is None:
+        try:
+            from llama_index.llms.cohere import Cohere
+        except ImportError as e:
             raise ImportError(
                 "cohere not available. Install with: pip install llama-index-llms-cohere"
-            )
+            ) from e
         llm = Cohere(model=model_name, temperature=0, max_tokens=max_tokens)
     elif model_provider == ModelProvider.PRIVATE:
-        if OpenAILike is None:
+        try:
+            from llama_index.llms.openai_like import OpenAILike
+        except ImportError as e:
             raise ImportError(
                 "openai_like not available. Install with: pip install llama-index-llms-openai-like"
-            )
+            ) from e
         llm = OpenAILike(
             model=model_name,
             temperature=0,
