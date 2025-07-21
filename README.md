@@ -350,7 +350,7 @@ vectara-agentic includes various other tools from LlamaIndex ToolSpecs:
                     tool_spec_name="KuzuGraphStore",
                 )
     ```
-  * Waii: tools for natural langauge query of a relational database
+  * Waii: tools for natural language query of a relational database
     ```python
     waii_tools = tools_factory.get_llama_index_tools(
                     tool_package_name="waii",
