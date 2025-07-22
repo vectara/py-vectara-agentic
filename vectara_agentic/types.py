@@ -3,13 +3,13 @@ This module contains the types used in the Vectara Agentic.
 """
 
 from enum import Enum
-from typing import Protocol, Any
+from typing import Any, Dict, Callable, AsyncIterator, Protocol, cast
+from dataclasses import dataclass, field
 
 from llama_index.core.schema import Document as LI_Document
 from llama_index.core.tools.types import ToolOutput as LI_ToolOutput
-from llama_index.core.chat_engine.types import AgentChatResponse as LI_AgentChatResponse
 from llama_index.core.chat_engine.types import (
-    StreamingAgentChatResponse as LI_StreamingAgentChatResponse,
+    AgentChatResponse as LI_AgentChatResponse,
 )
 
 
@@ -84,8 +84,80 @@ class HumanReadableOutput(Protocol):
         """Get the raw output data."""
 
 
+class _StreamProto(Protocol):
+    """What we actually use from the LI streaming response."""
+
+    response: str | None
+    response_id: str | None
+
+    def get_response(self) -> LI_AgentChatResponse: ...         # pylint: disable=missing-function-docstring
+
+    # some LI versions expose these instead; keep them to satisfy linters:
+    def to_response(self) -> LI_AgentChatResponse: ...          # pylint: disable=missing-function-docstring
+    def get_final_response(self) -> LI_AgentChatResponse: ...   # pylint: disable=missing-function-docstring
+
+    def __iter__(self): ...                                     # pylint: disable=missing-function-docstring
+    async def async_response_gen(self) -> AsyncIterator[str]: ...  # pylint: disable=missing-function-docstring
+
+
 # classes for Agent responses
 ToolOutput = LI_ToolOutput
 AgentResponse = LI_AgentChatResponse
-AgentStreamingResponse = LI_StreamingAgentChatResponse
 Document = LI_Document
+
+
+@dataclass
+class AgentStreamingResponse:
+    """Our stream wrapper with writable metadata and a typed get_response()."""
+
+    base: _StreamProto
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def __getattr__(self, name: str):
+        return getattr(self.base, name)
+
+    def get_response(self) -> AgentResponse:
+        """Get the response from the base stream, merging metadata."""
+        # choose whichever method the base actually has
+        if hasattr(self.base, "get_response"):
+            resp = cast(AgentResponse, self.base.get_response())
+        elif hasattr(self.base, "to_response"):
+            resp = cast(AgentResponse, self.base.to_response())
+        else:
+            resp = cast(AgentResponse, self.base.get_final_response())
+
+        resp.metadata = (resp.metadata or {}) | self.metadata
+        return resp
+
+    @property
+    def async_response_gen(self) -> Callable[[], AsyncIterator[str]]:
+        """Get the async response generator from the base stream."""
+        return self.base.async_response_gen
+
+    @async_response_gen.setter
+    def async_response_gen(self, fn: Callable[[], AsyncIterator[str]]):
+        """Set the async response generator for the base stream."""
+        self.base.async_response_gen = fn
+
+    @classmethod
+    def from_error(cls, msg: str) -> "AgentStreamingResponse":
+        """Create an AgentStreamingResponse from an error message."""
+        async def _empty_gen():
+            if False:  # pylint: disable=using-constant-test
+                yield ""
+
+        class _ErrStream:
+            def __init__(self, msg: str):
+                self.response = msg
+                self.response_id = None
+
+            async def async_response_gen(self):
+                """Async generator that yields an error message."""
+                if False:   # pylint: disable=using-constant-test
+                    yield ""
+
+            def get_response(self) -> AgentResponse:
+                """Return an AgentResponse with the error message."""
+                return AgentResponse(response=self.response, metadata={})
+
+        return cls(base=_ErrStream(msg), metadata={})

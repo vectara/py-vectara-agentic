@@ -6,7 +6,6 @@ from typing import List, Callable, Optional, Dict, Any, Union, Tuple
 import os
 import re
 from datetime import date
-import time
 import json
 import logging
 import asyncio
@@ -64,6 +63,25 @@ from .tool_utils import _is_human_readable_output
 from .tools_catalog import get_current_date
 from .agent_config import AgentConfig
 from .hhem import HHEM
+
+
+json_type_to_python = {
+    "string": str,
+    "integer": int,
+    "boolean": bool,
+    "array": list,
+    "object": dict,
+    "number": float,
+    "null": type(None),
+}
+PY_TYPES = {
+    "str": str,
+    "int": int,
+    "float": float,
+    "bool": bool,
+    "dict": dict,
+    "list": list,
+}
 
 
 class IgnoreUnpickleableAttributeFilter(logging.Filter):
@@ -127,7 +145,7 @@ def _get_llm_compiler_prompt(
         str: The prompt with custom instructions added.
     """
     prompt += "\nAdditional Instructions:\n"
-    prompt += f"You have experise in {topic}.\n"
+    prompt += f"You have expertise in {topic}.\n"
     prompt += general_instructions
     prompt += custom_instructions
     prompt += f"Today is {date.today().strftime('%A, %B %d, %Y')}"
@@ -139,15 +157,6 @@ def get_field_type(field_schema: dict) -> Any:
     Convert a JSON schema field definition to a Python type.
     Handles 'type' and 'anyOf' cases.
     """
-    json_type_to_python = {
-        "string": str,
-        "integer": int,
-        "boolean": bool,
-        "array": list,
-        "object": dict,
-        "number": float,
-        "null": type(None),
-    }
     if not field_schema:  # Handles empty schema {}
         return Any
 
@@ -263,6 +272,11 @@ class Agent:
         self.agent_progress_callback = (
             agent_progress_callback if agent_progress_callback else update_func
         )
+        
+        # Debug logging for agent initialization
+        import logging
+        logging.info(f"🆕 [AGENT_INIT] Creating {self.agent_config.agent_type} agent - model: {getattr(self.agent_config, 'model', 'Unknown')}")
+        logging.info(f"🆕 [AGENT_INIT] Progress callback set: {self.agent_progress_callback is not None}")
         self.query_logging_callback = query_logging_callback
 
         self.workflow_cls = workflow_cls
@@ -453,7 +467,11 @@ class Agent:
         """
         agent_type = config.agent_type
         # Use the same LLM instance for consistency
-        llm = self.llm if config == self.agent_config else get_llm(LLMRole.MAIN, config=config)
+        llm = (
+            self.llm
+            if config == self.agent_config
+            else get_llm(LLMRole.MAIN, config=config)
+        )
         llm.callback_manager = llm_callback_manager
 
         if agent_type == AgentType.FUNCTION_CALLING:
@@ -491,7 +509,7 @@ class Agent:
                 verbose=self.verbose,
                 react_chat_formatter=ReActChatFormatter(system_header=prompt),
                 max_iterations=config.max_reasoning_steps,
-                callable_manager=llm_callback_manager,
+                callback_manager=llm_callback_manager,
             )
         elif agent_type == AgentType.OPENAI:
             if config.tool_llm_provider != ModelProvider.OPENAI:
@@ -815,14 +833,12 @@ class Agent:
         field_definitions["query"] = (str, Field(description="The user query"))  # type: ignore
         for field in vectara_filter_fields:
             field_definitions[field["name"]] = (
-                eval(field["type"]),
+                PY_TYPES.get(field["type"], Any),
                 Field(description=field["description"]),
             )  # type: ignore
-        query_args = create_model("QueryArgs", **field_definitions)  # type: ignore
-
-        # tool name must be valid Python function name
         if tool_name:
-            tool_name = re.sub(r"[^A-Za-z0-9_]", "_", tool_name)
+            tool_name = re.sub(r"[^A-Za-z0-9_]", "_", tool_name)  # sanitize tool name
+        query_args = create_model(f"{tool_name}_QueryArgs", **field_definitions)  # type: ignore
 
         vectara_tool = vec_factory.create_rag_tool(
             tool_name=tool_name or f"vectara_{vectara_corpus_key}",
@@ -880,7 +896,7 @@ class Agent:
         )
 
     def _switch_agent_config(self) -> None:
-        """ "
+        """
         Switch the configuration type of the agent.
         This function is called automatically to switch the agent configuration if the current configuration fails.
         """
@@ -949,6 +965,7 @@ class Agent:
         return (
             self.agent_config.agent_type
             if self.agent_config_type == AgentConfigType.DEFAULT
+            or not self.fallback_agent_config
             else self.fallback_agent_config.agent_type
         )
 
@@ -963,9 +980,9 @@ class Agent:
             return
 
         agent = self._get_current_agent()
-        agent_response.response = str(agent.llm.acomplete(llm_prompt))
+        agent_response.response = (await agent.llm.acomplete(llm_prompt)).text
 
-    def chat(self, prompt: str) -> AgentResponse:  # type: ignore
+    def chat(self, prompt: str) -> AgentResponse:
         """
         Interact with the agent using a chat prompt.
 
@@ -975,15 +992,23 @@ class Agent:
         Returns:
             AgentResponse: The response from the agent.
         """
-        return asyncio.run(self.achat(prompt))
+        try:
+            _ = asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(self.achat(prompt))
 
-    def _calc_fcs(self, agent_response: AgentResponse) -> None:
+        # We are inside a running loop (Jupyter, uvicorn, etc.)
+        raise RuntimeError(
+            "Use `await agent.achat(...)` inside an event loop (e.g. Jupyter)."
+        )
+
+    def _calc_fcs(self, agent_response: str) -> float | None:
         """
         Calculate the Factual consistency score for the agent response.
         """
         if not self.vectara_api_key:
             logging.debug("FCS calculation skipped: 'vectara_api_key' is missing.")
-            return  # can't calculate FCS without Vectara API key
+            return None  # can't calculate FCS without Vectara API key
 
         chat_history = self.memory.get()
         context = []
@@ -1005,18 +1030,15 @@ class Agent:
                 context.append(msg.content)
 
         if not context:
-            return
+            return None
 
         context_str = "\n".join(context)
         try:
-            score = HHEM(self.vectara_api_key).compute(
-                context_str, agent_response.response
-            )
-            if agent_response.metadata is None:
-                agent_response.metadata = {}
-            agent_response.metadata["fcs"] = score
+            score = HHEM(self.vectara_api_key).compute(context_str, agent_response)
+            return score
         except Exception as e:
             logging.error(f"Failed to calculate FCS: {e}")
+            return None
 
     async def achat(self, prompt: str) -> AgentResponse:  # type: ignore
         """
@@ -1036,7 +1058,10 @@ class Agent:
             try:
                 current_agent = self._get_current_agent()
                 agent_response = await current_agent.achat(prompt)
-                self._calc_fcs(agent_response)
+                fcs = self._calc_fcs(agent_response.response)
+                if fcs is not None:
+                    agent_response.metadata = agent_response.metadata or {}
+                    agent_response.metadata["fcs"] = fcs
                 await self._aformat_for_lats(prompt, agent_response)
                 if self.observability_enabled:
                     eval_fcs()
@@ -1048,23 +1073,23 @@ class Agent:
                 last_error = e
                 if self.verbose:
                     print(f"LLM call failed on attempt {attempt}. " f"Error: {e}.")
-                if attempt >= 2:
+                if attempt >= 2 and self.fallback_agent_config:
                     if self.verbose:
                         print(
                             f"LLM call failed on attempt {attempt}. Switching agent configuration."
                         )
                     self._switch_agent_config()
-                time.sleep(1)
+                await asyncio.sleep(1)
                 attempt += 1
 
         return AgentResponse(
             response=(
                 f"For {orig_llm} LLM - failure can't be resolved after "
-                f"{max_attempts} attempts ({last_error}."
+                f"{max_attempts} attempts ({last_error})."
             )
         )
 
-    def stream_chat(self, prompt: str) -> AgentStreamingResponse:  # type: ignore
+    def stream_chat(self, prompt: str) -> AgentStreamingResponse:
         """
         Interact with the agent using a chat prompt with streaming.
         Args:
@@ -1072,7 +1097,13 @@ class Agent:
         Returns:
             AgentStreamingResponse: The streaming response from the agent.
         """
-        return asyncio.run(self.astream_chat(prompt))
+        try:
+            _ = asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(self.astream_chat(prompt))
+        raise RuntimeError(
+            "Use `await agent.astream_chat(...)` inside an event loop (e.g. Jupyter)."
+        )
 
     async def astream_chat(self, prompt: str) -> AgentStreamingResponse:  # type: ignore
         """
@@ -1085,45 +1116,47 @@ class Agent:
         max_attempts = 4 if self.fallback_agent_config else 2
         attempt = 0
         orig_llm = self.llm.metadata.model_name
+        last_error = None
         while attempt < max_attempts:
             try:
                 current_agent = self._get_current_agent()
-                agent_response = await current_agent.astream_chat(prompt)
-                original_async_response_gen = agent_response.async_response_gen
+
+                li_stream = await current_agent.astream_chat(prompt)
+                orig_async = li_stream.async_response_gen
+                user_meta: Dict[str, Any] = {}
 
                 # Define a wrapper to preserve streaming behavior while executing post-stream logic.
                 async def _stream_response_wrapper():
-                    async for token in original_async_response_gen():
-                        yield token  # Yield tokens as they are generated
-                    # Post-streaming additional logic:
-                    await self._aformat_for_lats(prompt, agent_response)
+                    async for tok in orig_async():
+                        yield tok
+
+                    # post-stream hooks
+                    await self._aformat_for_lats(prompt, li_stream)
                     if self.query_logging_callback:
-                        self.query_logging_callback(prompt, agent_response.response)
+                        self.query_logging_callback(prompt, li_stream.response)
+                    fcs = self._calc_fcs(li_stream.response)
+                    if fcs is not None:
+                        user_meta["fcs"] = fcs
                     if self.observability_enabled:
                         eval_fcs()
-                    self._calc_fcs(agent_response)
 
-                agent_response.async_response_gen = (
-                    _stream_response_wrapper  # Override the generator
-                )
-                return agent_response
+                li_stream.async_response_gen = _stream_response_wrapper
+                return AgentStreamingResponse(base=li_stream, metadata=user_meta)
 
             except Exception as e:
                 last_error = e
-                if attempt >= 2:
+                if attempt >= 2 and self.fallback_agent_config:
                     if self.verbose:
                         print(
                             f"LLM call failed on attempt {attempt}. Switching agent configuration."
                         )
                     self._switch_agent_config()
-                time.sleep(1)
+                await asyncio.sleep(1)
                 attempt += 1
 
-        return AgentStreamingResponse(
-            response=(
-                f"For {orig_llm} LLM - failure can't be resolved after "
-                f"{max_attempts} attempts ({last_error})."
-            )
+        return AgentStreamingResponse.from_error(
+            f"For {orig_llm} LLM - failure can't be resolved after "
+            f"{max_attempts} attempts ({last_error})."
         )
 
     #
@@ -1269,12 +1302,13 @@ class Agent:
             "custom_instructions": self._custom_instructions,
             "verbose": self.verbose,
             "agent_config": self.agent_config.to_dict(),
-            "fallback_agent": (
+            "fallback_agent_config": (
                 self.fallback_agent_config.to_dict()
                 if self.fallback_agent_config
                 else None
             ),
             "workflow_cls": self.workflow_cls if self.workflow_cls else None,
+            "vectara_api_key": self.vectara_api_key,
         }
 
     @classmethod
@@ -1376,6 +1410,12 @@ class Agent:
             )
             tools.append(tool)
 
+        # Debug logging for agent deserialization
+        import logging
+        logging.info(f"🔄 [AGENT_LOADS] Creating agent from dict - type: {agent_config.agent_type}")
+        logging.info(f"🔄 [AGENT_LOADS] Model: {getattr(agent_config, 'model', 'Unknown')}")
+        logging.info(f"🔄 [AGENT_LOADS] Progress callback provided: {agent_progress_callback is not None}")
+        
         agent = cls(
             tools=tools,
             agent_config=agent_config,
@@ -1386,7 +1426,11 @@ class Agent:
             workflow_cls=data["workflow_cls"],
             agent_progress_callback=agent_progress_callback,
             query_logging_callback=query_logging_callback,
+            vectara_api_key=data.get("vectara_api_key"),
         )
+        
+        logging.info(f"✅ [AGENT_LOADS] Agent created - callback set: {agent.agent_progress_callback is not None}")
+        logging.info(f"🔍 [AGENT_LOADS] Callback manager handlers: {len(agent.callback_manager.handlers) if hasattr(agent, 'callback_manager') else 'N/A'}")
         memory = (
             pickle.loads(data["memory"].encode("latin-1"))
             if data.get("memory")
@@ -1395,4 +1439,27 @@ class Agent:
         if memory:
             agent.agent.memory = memory
             agent.memory = memory
+            
+            # Refresh callback manager for FunctionCallingAgent after memory restoration
+            # This ensures the progress callback works correctly for deserialized agents
+            from vectara_agentic.types import AgentType
+            if agent_config.agent_type == AgentType.FUNCTION_CALLING:
+                logging.info(f"🔄 [AGENT_LOADS] Refreshing callback manager for FunctionCallingAgent")
+                # Recreate the callback manager with the current progress callback
+                from llama_index.core.callbacks import CallbackManager
+                from vectara_agentic.callbacks import AgentCallbackHandler
+                
+                callbacks = [AgentCallbackHandler(agent.agent_progress_callback)]
+                if agent.main_token_counter:
+                    callbacks.append(agent.main_token_counter)
+                if agent.tool_token_counter:
+                    callbacks.append(agent.tool_token_counter)
+                
+                fresh_callback_manager = CallbackManager(callbacks)
+                agent.callback_manager = fresh_callback_manager
+                # Update the underlying agent's callback manager
+                agent.agent.callback_manager = fresh_callback_manager
+                logging.info(f"✅ [AGENT_LOADS] Callback manager refreshed for FunctionCallingAgent")
+                logging.info(f"🔍 [AGENT_LOADS] Fresh callback manager handlers: {len(fresh_callback_manager.handlers)}")
+                
         return agent
