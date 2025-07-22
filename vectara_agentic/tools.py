@@ -367,7 +367,9 @@ class VectaraToolFactory:
         frequency_penalty: Optional[float] = None,
         presence_penalty: Optional[float] = None,
         include_citations: bool = True,
-        citation_pattern: str = "{doc.url}",
+        citation_pattern: str = None,
+        citation_url_pattern: str = "{doc.url}",
+        citation_text_pattern: str = "{doc.title}",
         save_history: bool = False,
         fcs_threshold: float = 0.0,
         return_direct: bool = False,
@@ -421,8 +423,12 @@ class VectaraToolFactory:
                 higher values increasing the diversity of topics.
             include_citations (bool, optional): Whether to include citations in the response.
                 If True, uses markdown vectara citations that requires the Vectara scale plan.
-            citation_pattern (str, optional): The pattern for the citations in the response.
+            citation_url_pattern (str, optional): The pattern for the citations in the response.
                 Default is "{doc.url}" which uses the document URL.
+                If include_citations is False, this parameter is ignored.
+                citation_pattern (str, optional): old name for citation_url_pattern. Will be deprecated in future.
+            citation_text_pattern (str, optional): The text pattern for citations in the response.
+                Default is "{doc.title}" which uses the title of the document.
                 If include_citations is False, this parameter is ignored.
             save_history (bool, optional): Whether to save the query in history.
             fcs_threshold (float, optional): A threshold for factual consistency.
@@ -501,7 +507,8 @@ class VectaraToolFactory:
                 frequency_penalty=frequency_penalty,
                 presence_penalty=presence_penalty,
                 citations_style="markdown" if include_citations else None,
-                citations_url_pattern=citation_pattern if include_citations else None,
+                citations_url_pattern=(citation_pattern if citation_pattern is not None else citation_url_pattern) if include_citations else None,
+                citations_text_pattern=citation_text_pattern if include_citations else None,
                 save_history=save_history,
                 x_source_str="vectara-agentic",
                 verbose=verbose,
