@@ -999,8 +999,10 @@ class Agent:
 
         chat_history = self.memory.get()
         context = []
+        num_tool_calls = 0
         for msg in chat_history:
             if msg.role == MessageRole.TOOL:
+                num_tool_calls += 1
                 content = msg.content
                 if _is_human_readable_output(content):
                     try:
@@ -1016,7 +1018,7 @@ class Agent:
             elif msg.role in [MessageRole.USER, MessageRole.ASSISTANT] and msg.content:
                 context.append(msg.content)
 
-        if not context:
+        if not context or num_tool_calls == 0:
             return None
 
         context_str = "\n".join(context)
@@ -1192,6 +1194,9 @@ class Agent:
                     _final: Dict[str, Any] = {"resp": None}  # Initialize with default
 
                     async def _stream():
+                        had_tool_calls = False  # Track if we've seen tool calls before
+                        transitioned_to_prose = False  # Track if we've added transition newline
+                        
                         async for ev in handler.stream_events():
                             if self.agent_progress_callback:
                                 event_id = str(uuid.uuid4())
@@ -1228,7 +1233,15 @@ class Agent:
                                     )
                             
                             if isinstance(ev, AgentStream):
-                                if not ev.tool_calls:       # when tool_calls is empty, it's final prose
+                                if ev.tool_calls:
+                                    # Mark that we've seen tool calls
+                                    had_tool_calls = True
+                                elif not ev.tool_calls and had_tool_calls and not transitioned_to_prose:
+                                    # Transitioning from tool calls to prose - add a newline first
+                                    yield "\n"
+                                    transitioned_to_prose = True
+                                    yield ev.delta
+                                elif not ev.tool_calls:  # Regular prose output
                                     yield ev.delta
 
                         # when stream is done, await the handler to get the final AgentResponse
@@ -1289,7 +1302,14 @@ class Agent:
                         base.metadata = final.metadata or {}
 
                     # kick off post-processing without blocking the stream
-                    asyncio.create_task(_post_process())
+                    async def _safe_post_process():
+                        try:
+                            await _post_process()
+                        except Exception:
+                            import traceback
+                            traceback.print_exc()
+                    
+                    asyncio.create_task(_safe_post_process())
 
                     return AgentStreamingResponse(base=base, metadata=user_meta)
 
