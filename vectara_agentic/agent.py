@@ -213,7 +213,10 @@ def get_field_type(field_schema: dict) -> Any:
 
     return Any
 
-def _restore_memory_from_dict(data: Dict[str, Any], token_limit: int = 128_000) -> Memory:
+
+def _restore_memory_from_dict(
+    data: Dict[str, Any], token_limit: int = 128_000
+) -> Memory:
     session_id = data.get("memory_session_id", "default")
     mem = Memory.from_defaults(session_id=session_id, token_limit=token_limit)
 
@@ -230,9 +233,9 @@ def _restore_memory_from_dict(data: Dict[str, Any], token_limit: int = 128_000) 
             mem.put_messages(legacy_mem.get())
         except Exception:
             logging.debug("Legacy memory pickle could not be loaded; ignoring.")
-            pass
 
     return mem
+
 
 class Agent:
     """
@@ -302,7 +305,7 @@ class Agent:
         self.agent_progress_callback = (
             agent_progress_callback if agent_progress_callback else update_func
         )
-        
+
         self.query_logging_callback = query_logging_callback
         self.workflow_cls = workflow_cls
         self.workflow_timeout = workflow_timeout
@@ -367,8 +370,12 @@ class Agent:
         self.callback_manager = CallbackManager(callbacks)  # type: ignore
         self.verbose = verbose
 
-        self.session_id = getattr(self, "session_id", None) or f"{topic}:{date.today().isoformat()}"
-        self.memory = Memory.from_defaults(session_id=self.session_id, token_limit=128_000)
+        self.session_id = (
+            getattr(self, "session_id", None) or f"{topic}:{date.today().isoformat()}"
+        )
+        self.memory = Memory.from_defaults(
+            session_id=self.session_id, token_limit=128_000
+        )
         if chat_history:
             msgs = []
             for u, a in chat_history:
@@ -617,6 +624,7 @@ class Agent:
         return agent
 
     def clear_memory(self) -> None:
+        """ Clear the agent's memory."""
         self.memory.reset()
         if getattr(self, "_agent", None):
             self._agent.memory = self.memory
@@ -1067,59 +1075,78 @@ class Agent:
             try:
                 current_agent = self._get_current_agent()
                 if self._get_current_agent_type() == AgentType.FUNCTION_CALLING:
-                    ctx = Context(current_agent)                     # optional shared state
-                    handler = current_agent.run(user_msg=prompt, ctx=ctx, memory=self.memory)
-                    
+                    ctx = Context(current_agent)  # optional shared state
+                    handler = current_agent.run(
+                        user_msg=prompt, ctx=ctx, memory=self.memory
+                    )
+
                     # NEW: Listen to workflow events if progress callback is set
                     if self.agent_progress_callback:
                         async for event in handler.stream_events():
                             event_id = str(uuid.uuid4())
-                            
+
                             # Handle different types of workflow events
-                            if hasattr(event, 'tool_call'):
+                            if hasattr(event, "tool_call"):
                                 tool_call = event.tool_call
                                 self.agent_progress_callback(
                                     AgentStatusType.TOOL_CALL,
                                     {
-                                        "tool_name": tool_call.tool_name if hasattr(tool_call, 'tool_name') else getattr(tool_call, 'name', 'Unknown Tool'),
-                                        "arguments": json.dumps(tool_call.tool_input if hasattr(tool_call, 'tool_input') else getattr(tool_call, 'arguments', {}))
+                                        "tool_name": (
+                                            tool_call.tool_name
+                                            if hasattr(tool_call, "tool_name")
+                                            else getattr(
+                                                tool_call, "name", "Unknown Tool"
+                                            )
+                                        ),
+                                        "arguments": json.dumps(
+                                            tool_call.tool_input
+                                            if hasattr(tool_call, "tool_input")
+                                            else getattr(tool_call, "arguments", {})
+                                        ),
                                     },
-                                    event_id
+                                    event_id,
                                 )
-                            elif hasattr(event, 'tool_output'):
+                            elif hasattr(event, "tool_output"):
                                 tool_output = event.tool_output
                                 self.agent_progress_callback(
                                     AgentStatusType.TOOL_OUTPUT,
                                     {
-                                        "content": str(tool_output.content if hasattr(tool_output, 'content') else str(tool_output))
+                                        "content": str(
+                                            tool_output.content
+                                            if hasattr(tool_output, "content")
+                                            else str(tool_output)
+                                        )
                                     },
-                                    event_id
+                                    event_id,
                                 )
-                            elif hasattr(event, 'msg') and 'tool' in str(event).lower():
+                            elif hasattr(event, "msg") and "tool" in str(event).lower():
                                 # Fallback: try to extract tool info from generic events
                                 self.agent_progress_callback(
                                     AgentStatusType.AGENT_STEP,
-                                    str(event.msg if hasattr(event, 'msg') else str(event)),
-                                    event_id
+                                    str(
+                                        event.msg
+                                        if hasattr(event, "msg")
+                                        else str(event)
+                                    ),
+                                    event_id,
                                 )
-                    
+
                     result = await handler
                     # Ensure we have an AgentResponse object with a string response
-                    if hasattr(result, 'response'):
+                    if hasattr(result, "response"):
                         response_text = result.response
                     else:
                         response_text = str(result)
-                    
+
                     # Handle case where response is a ChatMessage object
-                    if hasattr(response_text, 'content'):
+                    if hasattr(response_text, "content"):
                         response_text = response_text.content
                     elif not isinstance(response_text, str):
                         response_text = str(response_text)
-                    
+
                     agent_response = AgentResponse(
-                        response=response_text,
-                        metadata=getattr(result, 'metadata', {})
-                    ) 
+                        response=response_text, metadata=getattr(result, "metadata", {})
+                    )
                 else:
                     agent_response = await current_agent.achat(prompt)
                 fcs = self._calc_fcs(agent_response.response)
@@ -1188,19 +1215,23 @@ class Agent:
 
                 if self._get_current_agent_type() == AgentType.FUNCTION_CALLING:
                     ctx = Context(current_agent)
-                    handler = current_agent.run(user_msg=prompt, ctx=ctx, memory=self.memory)
+                    handler = current_agent.run(
+                        user_msg=prompt, ctx=ctx, memory=self.memory
+                    )
 
                     # buffer to stash final response object
                     _final: Dict[str, Any] = {"resp": None}  # Initialize with default
 
                     async def _stream():
                         had_tool_calls = False  # Track if we've seen tool calls before
-                        transitioned_to_prose = False  # Track if we've added transition newline
-                        
+                        transitioned_to_prose = (
+                            False  # Track if we've added transition newline
+                        )
+
                         async for ev in handler.stream_events():
                             if self.agent_progress_callback:
                                 event_id = str(uuid.uuid4())
-                                
+
                                 # Handle different types of workflow events
                                 if isinstance(ev, ToolCall):
                                     self.agent_progress_callback(
@@ -1209,7 +1240,7 @@ class Agent:
                                             "tool_name": ev.tool_name,
                                             "arguments": json.dumps(ev.tool_kwargs),
                                         },
-                                        event_id
+                                        event_id,
                                     )
                                 elif isinstance(ev, ToolCallResult):
                                     self.agent_progress_callback(
@@ -1217,26 +1248,30 @@ class Agent:
                                         {
                                             "content": str(ev.tool_output),
                                         },
-                                        event_id
+                                        event_id,
                                     )
                                 elif isinstance(ev, AgentInput):
                                     self.agent_progress_callback(
                                         AgentStatusType.AGENT_UPDATE,
                                         f"Agent input: {ev.input}",
-                                        event_id
+                                        event_id,
                                     )
                                 elif isinstance(ev, AgentOutput):
                                     self.agent_progress_callback(
                                         AgentStatusType.AGENT_UPDATE,
                                         f"Agent output: {ev.response}",
-                                        event_id
+                                        event_id,
                                     )
-                            
+
                             if isinstance(ev, AgentStream):
                                 if ev.tool_calls:
                                     # Mark that we've seen tool calls
                                     had_tool_calls = True
-                                elif not ev.tool_calls and had_tool_calls and not transitioned_to_prose:
+                                elif (
+                                    not ev.tool_calls
+                                    and had_tool_calls
+                                    and not transitioned_to_prose
+                                ):
                                     # Transitioning from tool calls to prose - add a newline first
                                     yield "\n"
                                     transitioned_to_prose = True
@@ -1247,49 +1282,69 @@ class Agent:
                         # when stream is done, await the handler to get the final AgentResponse
                         try:
                             _final["resp"] = await handler
-                        except Exception as e:
+                        except Exception:
                             # Fallback: create a basic response if handler fails
-                            _final["resp"] = type('AgentResponse', (), {
-                                'response': 'Response completed',
-                                'source_nodes': [],
-                                'metadata': None
-                            })()
+                            _final["resp"] = type(
+                                "AgentResponse",
+                                (),
+                                {
+                                    "response": "Response completed",
+                                    "source_nodes": [],
+                                    "metadata": None,
+                                },
+                            )()
 
                     # Minimal object that looks like LI's StreamingAgentChatResponse
                     class _Base:
-                        pass
+                        """Lightweight container to mimic LI's StreamingAgentChatResponse.base."""
+                        def __init__(
+                            self,
+                            async_response_gen: Callable[[], Any] | None = None,
+                            response: str = "",
+                            metadata: Dict[str, Any] | None = None,
+                        ) -> None:
+                            self.async_response_gen = async_response_gen
+                            self.response = response
+                            self.metadata = metadata or {}
+
                     base = _Base()
-                    base.async_response_gen = _stream  # what AgentStreamingResponse expects
-                    base.response = ""                  # will be filled post-stream
+                    base.async_response_gen = (
+                        _stream  # what AgentStreamingResponse expects
+                    )
+                    base.response = ""  # will be filled post-stream
                     base.metadata = {}
 
                     async def _post_process():
                         # wait until the generator above has finished (and _final is populated)
                         result = _final.get("resp")
                         if result is None:
-                            result = type('AgentResponse', (), {
-                                'response': 'Response completed',
-                                'source_nodes': [],
-                                'metadata': None
-                            })()
-                        
+                            result = type(
+                                "AgentResponse",
+                                (),
+                                {
+                                    "response": "Response completed",
+                                    "source_nodes": [],
+                                    "metadata": None,
+                                },
+                            )()
+
                         # Ensure we have an AgentResponse object with a string response
-                        if hasattr(result, 'response'):
+                        if hasattr(result, "response"):
                             response_text = result.response
                         else:
                             response_text = str(result)
-                        
+
                         # Handle case where response is a ChatMessage object
-                        if hasattr(response_text, 'content'):
+                        if hasattr(response_text, "content"):
                             response_text = response_text.content
                         elif not isinstance(response_text, str):
                             response_text = str(response_text)
-                        
+
                         final = AgentResponse(
                             response=response_text,
-                            metadata=getattr(result, 'metadata', {})
+                            metadata=getattr(result, "metadata", {}),
                         )
-                        
+
                         await self._aformat_for_lats(prompt, final)
                         if self.query_logging_callback:
                             self.query_logging_callback(prompt, final.response)
@@ -1307,8 +1362,9 @@ class Agent:
                             await _post_process()
                         except Exception:
                             import traceback
+
                             traceback.print_exc()
-                    
+
                     asyncio.create_task(_safe_post_process())
 
                     return AgentStreamingResponse(base=base, metadata=user_meta)
@@ -1602,7 +1658,7 @@ class Agent:
                 tool_type=ToolType(tool_data["tool_type"]),
             )
             tools.append(tool)
-        
+
         agent = cls(
             tools=tools,
             agent_config=agent_config,
@@ -1615,7 +1671,7 @@ class Agent:
             query_logging_callback=query_logging_callback,
             vectara_api_key=data.get("vectara_api_key"),
         )
-        
+
         mem = _restore_memory_from_dict(data, token_limit=128_000)
         agent.memory = mem
 
