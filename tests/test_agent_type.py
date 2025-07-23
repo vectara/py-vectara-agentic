@@ -23,9 +23,9 @@ react_config_anthropic = AgentConfig(
 react_config_gemini = AgentConfig(
     agent_type=AgentType.REACT,
     main_llm_provider=ModelProvider.GEMINI,
-    main_llm_model_name="models/gemini-2.0-flash",
+    main_llm_model_name="models/gemini-2.5-flash",
     tool_llm_provider=ModelProvider.GEMINI,
-    tool_llm_model_name="models/gemini-2.0-flash",
+    tool_llm_model_name="models/gemini-2.5-flash",
 )
 
 react_config_together = AgentConfig(

@@ -129,6 +129,21 @@ class AgentStreamingResponse:
         resp.metadata = (resp.metadata or {}) | self.metadata
         return resp
 
+    async def aget_response(self) -> AgentResponse:
+        """Get the response from the base stream, merging metadata (async version)."""
+        # prefer async version if available
+        if hasattr(self.base, "aget_response"):
+            resp = cast(AgentResponse, await self.base.aget_response())
+        elif hasattr(self.base, "get_response"):
+            resp = cast(AgentResponse, self.base.get_response())
+        elif hasattr(self.base, "to_response"):
+            resp = cast(AgentResponse, self.base.to_response())
+        else:
+            resp = cast(AgentResponse, self.base.get_final_response())
+
+        resp.metadata = (resp.metadata or {}) | self.metadata
+        return resp
+
     @property
     def async_response_gen(self) -> Callable[[], AsyncIterator[str]]:
         """Get the async response generator from the base stream."""

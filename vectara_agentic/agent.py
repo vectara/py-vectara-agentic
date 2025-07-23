@@ -4,31 +4,21 @@ This module contains the Agent class for handling different types of agents and 
 
 from typing import List, Callable, Optional, Dict, Any, Union, Tuple
 import os
-import re
 from datetime import date
 import json
 import logging
 import asyncio
-import importlib
 from collections import Counter
 import uuid
-import inspect
-from inspect import Signature, Parameter, ismethod
 
-from pydantic import Field, create_model, ValidationError, BaseModel
+from pydantic import ValidationError
 from pydantic_core import PydanticUndefined
-
-import cloudpickle as pickle
 
 from dotenv import load_dotenv
 
 from llama_index.core.memory import Memory
 from llama_index.core.llms import ChatMessage, MessageRole
 from llama_index.core.tools import FunctionTool
-from llama_index.core.agent import (
-    ReActAgent,
-    StructuredPlannerAgent,
-)
 from llama_index.core.workflow import Workflow, Context
 from llama_index.core.agent.workflow import (
     AgentInput,
@@ -36,15 +26,10 @@ from llama_index.core.agent.workflow import (
     ToolCall,
     ToolCallResult,
     AgentStream,
-    FunctionAgent,
 )
 
-from llama_index.core.agent.react.formatter import ReActChatFormatter
-from llama_index.agent.llm_compiler import LLMCompilerAgentWorker
-from llama_index.agent.lats import LATSAgentWorker
 from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.core.callbacks.base_handler import BaseCallbackHandler
-from llama_index.agent.openai import OpenAIAgent
 from llama_index.core.agent.runner.base import AgentRunner
 from llama_index.core.agent.types import BaseAgent
 
@@ -52,189 +37,39 @@ from .types import (
     AgentType,
     AgentStatusType,
     LLMRole,
-    ToolType,
     ModelProvider,
     AgentResponse,
     AgentStreamingResponse,
     AgentConfigType,
 )
 from .llm_utils import get_llm, get_tokenizer_for_model
-from ._prompts import (
-    REACT_PROMPT_TEMPLATE,
-    GENERAL_PROMPT_TEMPLATE,
-    GENERAL_INSTRUCTIONS,
-    STRUCTURED_PLANNER_PLAN_REFINE_PROMPT,
-    STRUCTURED_PLANNER_INITIAL_PLAN_PROMPT,
-)
+from .agent_core.prompts import GENERAL_INSTRUCTIONS
 from ._callback import AgentCallbackHandler
 from ._observability import setup_observer, eval_fcs
-from .tools import VectaraToolFactory, VectaraTool, ToolsFactory
+from .tools import ToolsFactory
 from .tool_utils import _is_human_readable_output
 from .tools_catalog import get_current_date
 from .agent_config import AgentConfig
 from .hhem import HHEM
 
+# Import utilities from agent core modules
+from .agent_core.streaming import StreamingResponseAdapter
+from .agent_core.factory import create_agent_from_config, create_agent_from_corpus
+from .agent_core.serialization import (
+    serialize_agent_to_dict,
+    deserialize_agent_from_dict,
+)
+from .agent_core.utils import (
+    sanitize_tools_for_gemini,
+    setup_agent_logging,
+)
 
-json_type_to_python = {
-    "string": str,
-    "integer": int,
-    "boolean": bool,
-    "array": list,
-    "object": dict,
-    "number": float,
-    "null": type(None),
-}
-PY_TYPES = {
-    "str": str,
-    "int": int,
-    "float": float,
-    "bool": bool,
-    "dict": dict,
-    "list": list,
-}
-
-
-class IgnoreUnpickleableAttributeFilter(logging.Filter):
-    """
-    Filter to ignore log messages that contain certain strings
-    """
-
-    def filter(self, record):
-        msgs_to_ignore = [
-            "Removing unpickleable private attribute _chunking_tokenizer_fn",
-            "Removing unpickleable private attribute _split_fns",
-            "Removing unpickleable private attribute _sub_sentence_split_fns",
-        ]
-        return all(msg not in record.getMessage() for msg in msgs_to_ignore)
-
-
-logging.getLogger().addFilter(IgnoreUnpickleableAttributeFilter())
+setup_agent_logging()
 
 logger = logging.getLogger("opentelemetry.exporter.otlp.proto.http.trace_exporter")
 logger.setLevel(logging.CRITICAL)
 
 load_dotenv(override=True)
-
-
-def _get_prompt(
-    prompt_template: str,
-    general_instructions: str,
-    topic: str,
-    custom_instructions: str,
-):
-    """
-    Generate a prompt by replacing placeholders with topic and date.
-
-    Args:
-        prompt_template (str): The template for the prompt.
-        general_instructions (str): General instructions to be included in the prompt.
-        topic (str): The topic to be included in the prompt.
-        custom_instructions(str): The custom instructions to be included in the prompt.
-
-    Returns:
-        str: The formatted prompt.
-    """
-    return (
-        prompt_template.replace("{chat_topic}", topic)
-        .replace("{today}", date.today().strftime("%A, %B %d, %Y"))
-        .replace("{custom_instructions}", custom_instructions)
-        .replace("{INSTRUCTIONS}", general_instructions)
-    )
-
-
-def _get_llm_compiler_prompt(
-    prompt: str, general_instructions: str, topic: str, custom_instructions: str
-) -> str:
-    """
-    Add custom instructions to the prompt.
-
-    Args:
-        prompt (str): The prompt to which custom instructions should be added.
-
-    Returns:
-        str: The prompt with custom instructions added.
-    """
-    prompt += "\nAdditional Instructions:\n"
-    prompt += f"You have expertise in {topic}.\n"
-    prompt += general_instructions
-    prompt += custom_instructions
-    prompt += f"Today is {date.today().strftime('%A, %B %d, %Y')}"
-    return prompt
-
-
-def get_field_type(field_schema: dict) -> Any:
-    """
-    Convert a JSON schema field definition to a Python type.
-    Handles 'type' and 'anyOf' cases.
-    """
-    if not field_schema:  # Handles empty schema {}
-        return Any
-
-    if "anyOf" in field_schema:
-        types = []
-        for option_schema in field_schema["anyOf"]:
-            types.append(get_field_type(option_schema))  # Recursive call
-        if not types:
-            return Any
-        return Union[tuple(types)]
-
-    if "type" in field_schema and isinstance(field_schema["type"], list):
-        types = []
-        for type_name in field_schema["type"]:
-            if type_name == "array":
-                item_schema = field_schema.get("items", {})
-                types.append(List[get_field_type(item_schema)])
-            elif type_name in json_type_to_python:
-                types.append(json_type_to_python[type_name])
-            else:
-                types.append(Any)  # Fallback for unknown types in the list
-        if not types:
-            return Any
-        return Union[tuple(types)]  # type: ignore
-
-    if "type" in field_schema:
-        schema_type_name = field_schema["type"]
-        if schema_type_name == "array":
-            item_schema = field_schema.get(
-                "items", {}
-            )  # Default to Any if "items" is missing
-            return List[get_field_type(item_schema)]
-
-        return json_type_to_python.get(schema_type_name, Any)
-
-    # If only "items" is present (implies array by some conventions, but less standard)
-    # Or if it's a schema with other keywords like 'properties' (implying object)
-    # For simplicity, if no "type" or "anyOf" at this point, default to Any or add more specific handling.
-    # If 'properties' in field_schema or 'additionalProperties' in field_schema, it's likely an object.
-    if "properties" in field_schema or "additionalProperties" in field_schema:
-        # This path might need to reconstruct a nested Pydantic model if you encounter such schemas.
-        # For now, treating as 'dict' or 'Any' might be a simpler placeholder.
-        return dict  # Or Any, or more sophisticated object reconstruction.
-
-    return Any
-
-
-def _restore_memory_from_dict(
-    data: Dict[str, Any], token_limit: int = 128_000
-) -> Memory:
-    session_id = data.get("memory_session_id", "default")
-    mem = Memory.from_defaults(session_id=session_id, token_limit=token_limit)
-
-    # New JSON dump format
-    dump = data.get("memory_dump", [])
-    if dump:
-        mem.put_messages([ChatMessage(**m) for m in dump])
-
-    # Legacy pickle fallback
-    legacy_blob = data.get("memory")
-    if legacy_blob and not dump:
-        try:
-            legacy_mem = pickle.loads(legacy_blob.encode("latin-1"))
-            mem.put_messages(legacy_mem.get())
-        except Exception:
-            logging.debug("Legacy memory pickle could not be loaded; ignoring.")
-
-    return mem
 
 
 class Agent:
@@ -248,7 +83,7 @@ class Agent:
         topic: str = "general",
         custom_instructions: str = "",
         general_instructions: str = GENERAL_INSTRUCTIONS,
-        verbose: bool = True,
+        verbose: bool = False,
         use_structured_planning: bool = False,
         update_func: Optional[Callable[[AgentStatusType, dict, str], None]] = None,
         agent_progress_callback: Optional[
@@ -313,7 +148,7 @@ class Agent:
 
         # Sanitize tools for Gemini if needed
         if self.agent_config.main_llm_provider == ModelProvider.GEMINI:
-            self.tools = self._sanitize_tools_for_gemini(self.tools)
+            self.tools = sanitize_tools_for_gemini(self.tools)
 
         # Validate tools
         # Check for:
@@ -325,6 +160,7 @@ class Agent:
             raise ValueError(f"Duplicate tools detected: {', '.join(duplicates)}")
 
         if validate_tools:
+            # pylint: disable=duplicate-code
             prompt = f"""
             You are provided these tools:
             <tools>{','.join(tool_names)}</tools>
@@ -418,63 +254,6 @@ class Agent:
             )
         return self._fallback_agent
 
-    def _sanitize_tools_for_gemini(
-        self, tools: list[FunctionTool]
-    ) -> list[FunctionTool]:
-        """
-        Strip all default values from:
-        - tool.fn
-        - tool.async_fn
-        - tool.metadata.fn_schema
-        so Gemini sees *only* required parameters, no defaults.
-        """
-        for tool in tools:
-            # 1) strip defaults off the actual callables
-            for func in (tool.fn, tool.async_fn):
-                if not func:
-                    continue
-                orig_sig = inspect.signature(func)
-                new_params = [
-                    p.replace(default=Parameter.empty)
-                    for p in orig_sig.parameters.values()
-                ]
-                new_sig = Signature(
-                    new_params, return_annotation=orig_sig.return_annotation
-                )
-                if ismethod(func):
-                    func.__func__.__signature__ = new_sig
-                else:
-                    func.__signature__ = new_sig
-
-            # 2) rebuild the Pydantic schema so that *every* field is required
-            schema_cls = getattr(tool.metadata, "fn_schema", None)
-            if schema_cls and hasattr(schema_cls, "model_fields"):
-                # collect (name → (type, Field(...))) for all fields
-                new_fields: dict[str, tuple[type, Any]] = {}
-                for name, mf in schema_cls.model_fields.items():
-                    typ = mf.annotation
-                    desc = getattr(mf, "description", "")
-                    # force required (no default) with Field(...)
-                    new_fields[name] = (typ, Field(..., description=desc))
-
-                # make a brand-new schema class where every field is required
-                no_default_schema = create_model(
-                    f"{schema_cls.__name__}",  # new class name
-                    **new_fields,  # type: ignore
-                )
-
-                # give it a clean __signature__ so inspect.signature sees no defaults
-                params = [
-                    Parameter(n, Parameter.POSITIONAL_OR_KEYWORD, annotation=typ)
-                    for n, (typ, _) in new_fields.items()
-                ]
-                no_default_schema.__signature__ = Signature(params)
-
-                # swap it back onto the tool
-                tool.metadata.fn_schema = no_default_schema
-
-        return tools
-
     def _create_agent(
         self, config: AgentConfig, llm_callback_manager: CallbackManager
     ) -> Union[BaseAgent, AgentRunner]:
@@ -482,14 +261,12 @@ class Agent:
         Creates the agent based on the configuration object.
 
         Args:
-
             config: The configuration of the agent.
             llm_callback_manager: The callback manager for the agent's llm.
 
         Returns:
             Union[BaseAgent, AgentRunner]: The configured agent object.
         """
-        agent_type = config.agent_type
         # Use the same LLM instance for consistency
         llm = (
             self.llm
@@ -498,133 +275,21 @@ class Agent:
         )
         llm.callback_manager = llm_callback_manager
 
-        if agent_type == AgentType.FUNCTION_CALLING:
-            if config.tool_llm_provider == ModelProvider.OPENAI:
-                raise ValueError(
-                    "Vectara-agentic: Function calling agent type is not supported with the OpenAI LLM."
-                )
-            prompt = _get_prompt(
-                GENERAL_PROMPT_TEMPLATE,
-                self._general_instructions,
-                self._topic,
-                self._custom_instructions,
-            )
-            agent = FunctionAgent(
-                tools=self.tools,
-                llm=llm,
-                memory=self.memory,
-                verbose=self.verbose,
-                max_function_calls=config.max_reasoning_steps,
-                callback_manager=llm_callback_manager,
-                system_prompt=prompt,
-                allow_parallel_tool_calls=True,
-            )
-        elif agent_type == AgentType.REACT:
-            prompt = _get_prompt(
-                REACT_PROMPT_TEMPLATE,
-                self._general_instructions,
-                self._topic,
-                self._custom_instructions,
-            )
-            agent = ReActAgent.from_tools(
-                tools=self.tools,
-                llm=llm,
-                memory=self.memory,
-                verbose=self.verbose,
-                react_chat_formatter=ReActChatFormatter(system_header=prompt),
-                max_iterations=config.max_reasoning_steps,
-                callback_manager=llm_callback_manager,
-            )
-        elif agent_type == AgentType.OPENAI:
-            if config.tool_llm_provider != ModelProvider.OPENAI:
-                raise ValueError(
-                    "Vectara-agentic: OPENAI agent type requires the OpenAI LLM."
-                )
-            prompt = _get_prompt(
-                GENERAL_PROMPT_TEMPLATE,
-                self._general_instructions,
-                self._topic,
-                self._custom_instructions,
-            )
-            agent = OpenAIAgent.from_tools(
-                tools=self.tools,
-                llm=llm,
-                memory=self.memory,
-                verbose=self.verbose,
-                callback_manager=llm_callback_manager,
-                max_function_calls=config.max_reasoning_steps,
-                system_prompt=prompt,
-            )
-        elif agent_type == AgentType.LLMCOMPILER:
-            agent_worker = LLMCompilerAgentWorker.from_tools(
-                tools=self.tools,
-                llm=llm,
-                verbose=self.verbose,
-                callback_manager=llm_callback_manager,
-            )
-            agent_worker.system_prompt = _get_prompt(
-                prompt_template=_get_llm_compiler_prompt(
-                    prompt=agent_worker.system_prompt,
-                    general_instructions=self._general_instructions,
-                    topic=self._topic,
-                    custom_instructions=self._custom_instructions,
-                ),
-                general_instructions=self._general_instructions,
-                topic=self._topic,
-                custom_instructions=self._custom_instructions,
-            )
-            agent_worker.system_prompt_replan = _get_prompt(
-                prompt_template=_get_llm_compiler_prompt(
-                    prompt=agent_worker.system_prompt_replan,
-                    general_instructions=GENERAL_INSTRUCTIONS,
-                    topic=self._topic,
-                    custom_instructions=self._custom_instructions,
-                ),
-                general_instructions=GENERAL_INSTRUCTIONS,
-                topic=self._topic,
-                custom_instructions=self._custom_instructions,
-            )
-            agent = agent_worker.as_agent()
-        elif agent_type == AgentType.LATS:
-            agent_worker = LATSAgentWorker.from_tools(
-                tools=self.tools,
-                llm=llm,
-                num_expansions=3,
-                max_rollouts=-1,
-                verbose=self.verbose,
-                callback_manager=llm_callback_manager,
-            )
-            prompt = _get_prompt(
-                REACT_PROMPT_TEMPLATE,
-                self._general_instructions,
-                self._topic,
-                self._custom_instructions,
-            )
-            agent_worker.chat_formatter = ReActChatFormatter(system_header=prompt)
-            agent = agent_worker.as_agent()
-        else:
-            raise ValueError(f"Unknown agent type: {agent_type}")
-
-        # Set up structured planner if needed
-        if self.use_structured_planning or self.agent_type in [
-            AgentType.LLMCOMPILER,
-            AgentType.LATS,
-        ]:
-            planner_llm = get_llm(LLMRole.TOOL, config=config)
-            agent = StructuredPlannerAgent(
-                agent_worker=agent.agent_worker,
-                tools=self.tools,
-                llm=planner_llm,
-                memory=self.memory,
-                verbose=self.verbose,
-                initial_plan_prompt=STRUCTURED_PLANNER_INITIAL_PLAN_PROMPT,
-                plan_refine_prompt=STRUCTURED_PLANNER_PLAN_REFINE_PROMPT,
-            )
-
-        return agent
+        return create_agent_from_config(
+            tools=self.tools,
+            llm=llm,
+            memory=self.memory,
+            config=config,
+            callback_manager=llm_callback_manager,
+            general_instructions=self._general_instructions,
+            topic=self._topic,
+            custom_instructions=self._custom_instructions,
+            verbose=self.verbose,
+            use_structured_planning=self.use_structured_planning,
+        )
 
     def clear_memory(self) -> None:
-        """ Clear the agent's memory."""
+        """Clear the agent's memory."""
         self.memory.reset()
         if getattr(self, "_agent", None):
             self._agent.memory = self.memory
@@ -787,127 +452,50 @@ class Agent:
         vectara_save_history: bool = True,
         return_direct: bool = False,
     ) -> "Agent":
-        """
-        Create an agent from a single Vectara corpus
-
-        Args:
-            tool_name (str): The name of Vectara tool used by the agent
-            vectara_corpus_key (str): The Vectara corpus key (or comma separated list of keys).
-            vectara_api_key (str): The Vectara API key.
-            agent_progress_callback (Callable): A callback function the code calls on any agent updates.
-            query_logging_callback (Callable): A callback function the code calls upon completion of a query
-            agent_config (AgentConfig, optional): The configuration of the agent.
-            fallback_agent_config (AgentConfig, optional): The fallback configuration of the agent.
-            chat_history (Tuple[str, str], optional): A list of user/agent chat pairs to initialize the agent memory.
-            data_description (str): The description of the data.
-            assistant_specialty (str): The specialty of the assistant.
-            general_instructions (str, optional): General instructions for the agent.
-                The Agent has a default set of instructions that are crafted to help it operate effectively.
-                This allows you to customize the agent's behavior and personality, but use with caution.
-            verbose (bool, optional): Whether to print verbose output.
-            vectara_filter_fields (List[dict], optional): The filterable attributes
-                (each dict maps field name to Tuple[type, description]).
-            vectara_offset (int, optional): Number of results to skip.
-            vectara_lambda_val (float, optional): Lambda value for Vectara hybrid search.
-            vectara_semantics: (str, optional): Indicates whether the query is intended as a query or response.
-            vectara_custom_dimensions: (Dict, optional): Custom dimensions for the query.
-            vectara_reranker (str, optional): The Vectara reranker name (default "slingshot")
-            vectara_rerank_k (int, optional): The number of results to use with reranking.
-            vectara_rerank_limit: (int, optional): The maximum number of results to return after reranking.
-            vectara_rerank_cutoff: (float, optional): The minimum score threshold for results to include after
-                reranking.
-            vectara_diversity_bias (float, optional): The MMR diversity bias.
-            vectara_udf_expression (str, optional): The user defined expression for reranking results.
-            vectara_rerank_chain (List[Dict], optional): A list of Vectara rerankers to be applied sequentially.
-            vectara_n_sentences_before (int, optional): The number of sentences before the matching text
-            vectara_n_sentences_after (int, optional): The number of sentences after the matching text.
-            vectara_summary_num_results (int, optional): The number of results to use in summarization.
-            vectara_summarizer (str, optional): The Vectara summarizer name.
-            vectara_summary_response_language (str, optional): The response language for the Vectara summary.
-            vectara_summary_prompt_text (str, optional): The custom prompt, using appropriate prompt variables and
-                functions.
-            vectara_max_response_chars (int, optional): The desired maximum number of characters for the generated
-                summary.
-            vectara_max_tokens (int, optional): The maximum number of tokens to be returned by the LLM.
-            vectara_temperature (float, optional): The sampling temperature; higher values lead to more randomness.
-            vectara_frequency_penalty (float, optional): How much to penalize repeating tokens in the response,
-                higher values reducing likelihood of repeating the same line.
-            vectara_presence_penalty (float, optional): How much to penalize repeating tokens in the response,
-                higher values increasing the diversity of topics.
-            vectara_save_history (bool, optional): Whether to save the query in history.
-            return_direct (bool, optional): Whether the agent should return the tool's response directly.
-
-        Returns:
-            Agent: An instance of the Agent class.
-        """
-        vec_factory = VectaraToolFactory(
-            vectara_api_key=vectara_api_key,
+        """Create an agent from a single Vectara corpus using the factory function."""
+        # Use the factory function to avoid code duplication
+        config = create_agent_from_corpus(
+            tool_name=tool_name,
+            data_description=data_description,
+            assistant_specialty=assistant_specialty,
+            general_instructions=general_instructions,
             vectara_corpus_key=vectara_corpus_key,
-        )
-        field_definitions = {}
-        field_definitions["query"] = (str, Field(description="The user query"))  # type: ignore
-        for field in vectara_filter_fields:
-            field_definitions[field["name"]] = (
-                PY_TYPES.get(field["type"], Any),
-                Field(description=field["description"]),
-            )  # type: ignore
-        if tool_name:
-            tool_name = re.sub(r"[^A-Za-z0-9_]", "_", tool_name)  # sanitize tool name
-        query_args = create_model(f"{tool_name}_QueryArgs", **field_definitions)  # type: ignore
-
-        vectara_tool = vec_factory.create_rag_tool(
-            tool_name=tool_name or f"vectara_{vectara_corpus_key}",
-            tool_description=f"""
-            Given a user query,
-            returns a response (str) to a user question about {data_description}.
-            """,
-            tool_args_schema=query_args,
-            reranker=vectara_reranker,
-            rerank_k=vectara_rerank_k,
-            rerank_limit=vectara_rerank_limit,
-            rerank_cutoff=vectara_rerank_cutoff,
-            mmr_diversity_bias=vectara_diversity_bias,
-            udf_expression=vectara_udf_expression,
-            rerank_chain=vectara_rerank_chain,
-            n_sentences_before=vectara_n_sentences_before,
-            n_sentences_after=vectara_n_sentences_after,
-            offset=vectara_offset,
-            lambda_val=vectara_lambda_val,
-            semantics=vectara_semantics,
-            custom_dimensions=vectara_custom_dimensions,
-            summary_num_results=vectara_summary_num_results,
-            vectara_summarizer=vectara_summarizer,
-            summary_response_lang=vectara_summary_response_language,
-            vectara_prompt_text=vectara_summary_prompt_text,
-            max_response_chars=vectara_max_response_chars,
-            max_tokens=vectara_max_tokens,
-            temperature=vectara_temperature,
-            frequency_penalty=vectara_frequency_penalty,
-            presence_penalty=vectara_presence_penalty,
-            save_history=vectara_save_history,
-            include_citations=True,
+            vectara_api_key=vectara_api_key,
+            agent_config=agent_config,
+            fallback_agent_config=fallback_agent_config,
             verbose=verbose,
+            vectara_filter_fields=vectara_filter_fields,
+            vectara_offset=vectara_offset,
+            vectara_lambda_val=vectara_lambda_val,
+            vectara_semantics=vectara_semantics,
+            vectara_custom_dimensions=vectara_custom_dimensions,
+            vectara_reranker=vectara_reranker,
+            vectara_rerank_k=vectara_rerank_k,
+            vectara_rerank_limit=vectara_rerank_limit,
+            vectara_rerank_cutoff=vectara_rerank_cutoff,
+            vectara_diversity_bias=vectara_diversity_bias,
+            vectara_udf_expression=vectara_udf_expression,
+            vectara_rerank_chain=vectara_rerank_chain,
+            vectara_n_sentences_before=vectara_n_sentences_before,
+            vectara_n_sentences_after=vectara_n_sentences_after,
+            vectara_summary_num_results=vectara_summary_num_results,
+            vectara_summarizer=vectara_summarizer,
+            vectara_summary_response_language=vectara_summary_response_language,
+            vectara_summary_prompt_text=vectara_summary_prompt_text,
+            vectara_max_response_chars=vectara_max_response_chars,
+            vectara_max_tokens=vectara_max_tokens,
+            vectara_temperature=vectara_temperature,
+            vectara_frequency_penalty=vectara_frequency_penalty,
+            vectara_presence_penalty=vectara_presence_penalty,
+            vectara_save_history=vectara_save_history,
             return_direct=return_direct,
         )
 
-        assistant_instructions = f"""
-        - You are a helpful {assistant_specialty} assistant.
-        - You can answer questions about {data_description}.
-        - Never discuss politics, and always respond politely.
-        """
-
         return cls(
-            tools=[vectara_tool],
-            topic=assistant_specialty,
-            custom_instructions=assistant_instructions,
-            general_instructions=general_instructions,
-            verbose=verbose,
+            chat_history=chat_history,
             agent_progress_callback=agent_progress_callback,
             query_logging_callback=query_logging_callback,
-            agent_config=agent_config,
-            fallback_agent_config=fallback_agent_config,
-            chat_history=chat_history,
-            vectara_api_key=vectara_api_key,
+            **config
         )
 
     def _switch_agent_config(self) -> None:
@@ -1074,13 +662,15 @@ class Agent:
         while attempt < max_attempts:
             try:
                 current_agent = self._get_current_agent()
+
+                # Deal with Function Calling agent type
                 if self._get_current_agent_type() == AgentType.FUNCTION_CALLING:
-                    ctx = Context(current_agent)  # optional shared state
+                    ctx = Context(current_agent)
                     handler = current_agent.run(
                         user_msg=prompt, ctx=ctx, memory=self.memory
                     )
 
-                    # NEW: Listen to workflow events if progress callback is set
+                    # Listen to workflow events if progress callback is set
                     if self.agent_progress_callback:
                         async for event in handler.stream_events():
                             event_id = str(uuid.uuid4())
@@ -1147,12 +737,14 @@ class Agent:
                     agent_response = AgentResponse(
                         response=response_text, metadata=getattr(result, "metadata", {})
                     )
+
+                # Standard chat interaction for other agent types
                 else:
                     agent_response = await current_agent.achat(prompt)
-                fcs = self._calc_fcs(agent_response.response)
-                if fcs is not None:
-                    agent_response.metadata = agent_response.metadata or {}
-                    agent_response.metadata["fcs"] = fcs
+
+                # Post processing after response is generated
+                agent_response.metadata = agent_response.metadata or {}
+                agent_response.metadata["fcs"] = self._calc_fcs(agent_response.response)
                 await self._aformat_for_lats(prompt, agent_response)
                 if self.observability_enabled:
                     eval_fcs()
@@ -1213,6 +805,7 @@ class Agent:
                 current_agent = self._get_current_agent()
                 user_meta: Dict[str, Any] = {}
 
+                # Deal with Function Calling agent type
                 if self._get_current_agent_type() == AgentType.FUNCTION_CALLING:
                     ctx = Context(current_agent)
                     handler = current_agent.run(
@@ -1221,12 +814,11 @@ class Agent:
 
                     # buffer to stash final response object
                     _final: Dict[str, Any] = {"resp": None}  # Initialize with default
+                    stream_complete = asyncio.Event()  # Synchronization event
 
                     async def _stream():
-                        had_tool_calls = False  # Track if we've seen tool calls before
-                        transitioned_to_prose = (
-                            False  # Track if we've added transition newline
-                        )
+                        had_tool_calls = False
+                        transitioned_to_prose = False
 
                         async for ev in handler.stream_events():
                             if self.agent_progress_callback:
@@ -1265,25 +857,22 @@ class Agent:
 
                             if isinstance(ev, AgentStream):
                                 if ev.tool_calls:
-                                    # Mark that we've seen tool calls
                                     had_tool_calls = True
                                 elif (
                                     not ev.tool_calls
                                     and had_tool_calls
                                     and not transitioned_to_prose
                                 ):
-                                    # Transitioning from tool calls to prose - add a newline first
-                                    yield "\n"
+                                    yield "\n\n"
                                     transitioned_to_prose = True
                                     yield ev.delta
-                                elif not ev.tool_calls:  # Regular prose output
+                                elif not ev.tool_calls:
                                     yield ev.delta
 
                         # when stream is done, await the handler to get the final AgentResponse
                         try:
                             _final["resp"] = await handler
-                        except Exception:
-                            # Fallback: create a basic response if handler fails
+                        except Exception as e:
                             _final["resp"] = type(
                                 "AgentResponse",
                                 (),
@@ -1293,29 +882,13 @@ class Agent:
                                     "metadata": None,
                                 },
                             )()
-
-                    # Minimal object that looks like LI's StreamingAgentChatResponse
-                    class _Base:
-                        """Lightweight container to mimic LI's StreamingAgentChatResponse.base."""
-                        def __init__(
-                            self,
-                            async_response_gen: Callable[[], Any] | None = None,
-                            response: str = "",
-                            metadata: Dict[str, Any] | None = None,
-                        ) -> None:
-                            self.async_response_gen = async_response_gen
-                            self.response = response
-                            self.metadata = metadata or {}
-
-                    base = _Base()
-                    base.async_response_gen = (
-                        _stream  # what AgentStreamingResponse expects
-                    )
-                    base.response = ""  # will be filled post-stream
-                    base.metadata = {}
+                        finally:
+                            # Signal that stream processing is complete
+                            stream_complete.set()
 
                     async def _post_process():
                         # wait until the generator above has finished (and _final is populated)
+                        await stream_complete.wait()
                         result = _final.get("resp")
                         if result is None:
                             result = type(
@@ -1337,6 +910,13 @@ class Agent:
                         # Handle case where response is a ChatMessage object
                         if hasattr(response_text, "content"):
                             response_text = response_text.content
+                        elif hasattr(response_text, "blocks"):
+                            # Extract text from ChatMessage blocks
+                            text_parts = []
+                            for block in response_text.blocks:
+                                if hasattr(block, "text"):
+                                    text_parts.append(block.text)
+                            response_text = "".join(text_parts)
                         elif not isinstance(response_text, str):
                             response_text = str(response_text)
 
@@ -1353,23 +933,33 @@ class Agent:
                             user_meta["fcs"] = fcs
                         if self.observability_enabled:
                             eval_fcs()
-                        base.response = final.response
-                        base.metadata = final.metadata or {}
+                        return final
 
-                    # kick off post-processing without blocking the stream
+                    # kick off post-processing task
                     async def _safe_post_process():
                         try:
-                            await _post_process()
+                            return await _post_process()
                         except Exception:
                             import traceback
 
                             traceback.print_exc()
+                            # Return empty response on error
+                            return AgentResponse(response="", metadata={})
 
-                    asyncio.create_task(_safe_post_process())
+                    post_process_task = asyncio.create_task(_safe_post_process())
+
+                    base = StreamingResponseAdapter(
+                        async_response_gen=_stream,
+                        response="",  # will be filled post-stream
+                        metadata={},
+                        post_process_task=post_process_task,
+                    )
 
                     return AgentStreamingResponse(base=base, metadata=user_meta)
 
+                #
                 # For other agent types, use the standard async chat method
+                #
                 li_stream = await current_agent.astream_chat(prompt)
                 orig_async = li_stream.async_response_gen
 
@@ -1506,59 +1096,7 @@ class Agent:
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize the Agent instance to a dictionary."""
-        tool_info = []
-        for tool in self.tools:
-            if hasattr(tool.metadata, "fn_schema"):
-                fn_schema_cls = tool.metadata.fn_schema
-                fn_schema_serialized = {
-                    "schema": (
-                        fn_schema_cls.model_json_schema()
-                        if fn_schema_cls and hasattr(fn_schema_cls, "model_json_schema")
-                        else None
-                    ),
-                    "metadata": {
-                        "module": fn_schema_cls.__module__ if fn_schema_cls else None,
-                        "class": fn_schema_cls.__name__ if fn_schema_cls else None,
-                    },
-                }
-            else:
-                fn_schema_serialized = None
-
-            tool_dict = {
-                "tool_type": tool.metadata.tool_type.value,
-                "name": tool.metadata.name,
-                "description": tool.metadata.description,
-                "fn": (
-                    pickle.dumps(getattr(tool, "fn", None)).decode("latin-1")
-                    if getattr(tool, "fn", None)
-                    else None
-                ),
-                "async_fn": (
-                    pickle.dumps(getattr(tool, "async_fn", None)).decode("latin-1")
-                    if getattr(tool, "async_fn", None)
-                    else None
-                ),
-                "fn_schema": fn_schema_serialized,
-            }
-            tool_info.append(tool_dict)
-
-        return {
-            "agent_type": self.agent_config.agent_type.value,
-            "memory_dump": [m.model_dump() for m in self.memory.get()],
-            "memory_session_id": getattr(self.memory, "session_id", None),
-            "tools": tool_info,
-            "topic": self._topic,
-            "custom_instructions": self._custom_instructions,
-            "verbose": self.verbose,
-            "agent_config": self.agent_config.to_dict(),
-            "fallback_agent_config": (
-                self.fallback_agent_config.to_dict()
-                if self.fallback_agent_config
-                else None
-            ),
-            "workflow_cls": self.workflow_cls if self.workflow_cls else None,
-            "vectara_api_key": self.vectara_api_key,
-        }
+        return serialize_agent_to_dict(self)
 
     @classmethod
     def from_dict(
@@ -1568,117 +1106,6 @@ class Agent:
         query_logging_callback: Optional[Callable] = None,
     ) -> "Agent":
         """Create an Agent instance from a dictionary."""
-        agent_config = AgentConfig.from_dict(data["agent_config"])
-        fallback_agent_config = (
-            AgentConfig.from_dict(data["fallback_agent_config"])
-            if data.get("fallback_agent_config")
-            else None
+        return deserialize_agent_from_dict(
+            cls, data, agent_progress_callback, query_logging_callback
         )
-        tools: list[FunctionTool] = []
-
-        for tool_data in data["tools"]:
-            query_args_model = None
-            if tool_data.get("fn_schema"):
-                schema_info = tool_data["fn_schema"]
-                try:
-                    module_name = schema_info["metadata"]["module"]
-                    class_name = schema_info["metadata"]["class"]
-                    mod = importlib.import_module(module_name)
-                    candidate_cls = getattr(mod, class_name)
-                    if inspect.isclass(candidate_cls) and issubclass(
-                        candidate_cls, BaseModel
-                    ):
-                        query_args_model = candidate_cls
-                    else:
-                        # It's not the Pydantic model class we expected (e.g., it's the function itself)
-                        # Force fallback to JSON schema reconstruction by raising an error.
-                        raise ImportError(
-                            f"Retrieved '{class_name}' from '{module_name}' is not a Pydantic BaseModel class. "
-                            "Falling back to JSON schema reconstruction."
-                        )
-                except Exception:
-                    # Fallback: rebuild using the JSON schema
-                    field_definitions = {}
-                    json_schema_to_rebuild = schema_info.get("schema")
-                    if json_schema_to_rebuild and isinstance(
-                        json_schema_to_rebuild, dict
-                    ):
-                        for field, values in json_schema_to_rebuild.get(
-                            "properties", {}
-                        ).items():
-                            field_type = get_field_type(values)
-                            field_description = values.get(
-                                "description"
-                            )  # Defaults to None
-                            if "default" in values:
-                                field_definitions[field] = (
-                                    field_type,
-                                    Field(
-                                        description=field_description,
-                                        default=values["default"],
-                                    ),
-                                )
-                            else:
-                                field_definitions[field] = (
-                                    field_type,
-                                    Field(description=field_description),
-                                )
-                        query_args_model = create_model(
-                            json_schema_to_rebuild.get(
-                                "title", f"{tool_data['name']}_QueryArgs"
-                            ),
-                            **field_definitions,
-                        )
-                    else:  # If schema part is missing or not a dict, create a default empty model
-                        query_args_model = create_model(
-                            f"{tool_data['name']}_QueryArgs"
-                        )
-
-            # If fn_schema was not in tool_data or reconstruction failed badly, default to empty pydantic model
-            if query_args_model is None:
-                query_args_model = create_model(f"{tool_data['name']}_QueryArgs")
-
-            fn = (
-                pickle.loads(tool_data["fn"].encode("latin-1"))
-                if tool_data["fn"]
-                else None
-            )
-            async_fn = (
-                pickle.loads(tool_data["async_fn"].encode("latin-1"))
-                if tool_data["async_fn"]
-                else None
-            )
-
-            tool = VectaraTool.from_defaults(
-                name=tool_data["name"],
-                description=tool_data["description"],
-                fn=fn,
-                async_fn=async_fn,
-                fn_schema=query_args_model,  # Re-assign the recreated dynamic model
-                tool_type=ToolType(tool_data["tool_type"]),
-            )
-            tools.append(tool)
-
-        agent = cls(
-            tools=tools,
-            agent_config=agent_config,
-            topic=data["topic"],
-            custom_instructions=data["custom_instructions"],
-            verbose=data["verbose"],
-            fallback_agent_config=fallback_agent_config,
-            workflow_cls=data["workflow_cls"],
-            agent_progress_callback=agent_progress_callback,
-            query_logging_callback=query_logging_callback,
-            vectara_api_key=data.get("vectara_api_key"),
-        )
-
-        mem = _restore_memory_from_dict(data, token_limit=128_000)
-        agent.memory = mem
-
-        # Keep inner agent (if already built) in sync
-        if getattr(agent, "_agent", None) is not None:
-            agent._agent.memory = mem
-        if getattr(agent, "_fallback_agent", None):
-            agent._fallback_agent.memory = mem
-
-        return agent

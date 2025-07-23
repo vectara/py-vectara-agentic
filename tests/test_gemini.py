@@ -6,6 +6,7 @@ from vectara_agentic.agent import Agent, AgentType
 from vectara_agentic.agent_config import AgentConfig
 from vectara_agentic.tools import VectaraToolFactory
 from vectara_agentic.types import ModelProvider
+from vectara_agentic.tools import ToolsFactory
 
 
 import nest_asyncio
@@ -109,6 +110,22 @@ class TestGEMINI(unittest.TestCase):
         self.assertTrue(
             any(sub in str(res) for sub in ["I don't know", "I do not have"])
         )
+
+    def test_gemini(self):
+        tools = [ToolsFactory().create_tool(mult)]
+        topic = "AI topic"
+        instructions = "Always do as your father tells you, if your mother agrees!"
+
+        agent = Agent(
+            agent_config=fc_config_gemini,
+            tools=tools,
+            topic=topic,
+            custom_instructions=instructions,
+        )
+        agent.chat("What is 5 times 10. Only give the answer, nothing else")
+        agent.chat("what is 3 times 7. Only give the answer, nothing else")
+        res = agent.chat("what is the result of multiplying the results of the last two multiplications. Only give the answer, nothing else.")
+        self.assertIn("1050", res.response)
 
 
 if __name__ == "__main__":
