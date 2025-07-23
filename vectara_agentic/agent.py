@@ -11,8 +11,10 @@ import logging
 import asyncio
 import importlib
 from collections import Counter
+import uuid
 import inspect
 from inspect import Signature, Parameter, ismethod
+
 from pydantic import Field, create_model, ValidationError, BaseModel
 from pydantic_core import PydanticUndefined
 
@@ -20,14 +22,23 @@ import cloudpickle as pickle
 
 from dotenv import load_dotenv
 
-from llama_index.core.memory import ChatMemoryBuffer
+from llama_index.core.memory import Memory
 from llama_index.core.llms import ChatMessage, MessageRole
 from llama_index.core.tools import FunctionTool
 from llama_index.core.agent import (
     ReActAgent,
     StructuredPlannerAgent,
-    FunctionCallingAgent,
 )
+from llama_index.core.workflow import Workflow, Context
+from llama_index.core.agent.workflow import (
+    AgentInput,
+    AgentOutput,
+    ToolCall,
+    ToolCallResult,
+    AgentStream,
+    FunctionAgent,
+)
+
 from llama_index.core.agent.react.formatter import ReActChatFormatter
 from llama_index.agent.llm_compiler import LLMCompilerAgentWorker
 from llama_index.agent.lats import LATSAgentWorker
@@ -36,7 +47,6 @@ from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.agent.openai import OpenAIAgent
 from llama_index.core.agent.runner.base import AgentRunner
 from llama_index.core.agent.types import BaseAgent
-from llama_index.core.workflow import Workflow, Context
 
 from .types import (
     AgentType,
@@ -203,6 +213,26 @@ def get_field_type(field_schema: dict) -> Any:
 
     return Any
 
+def _restore_memory_from_dict(data: Dict[str, Any], token_limit: int = 128_000) -> Memory:
+    session_id = data.get("memory_session_id", "default")
+    mem = Memory.from_defaults(session_id=session_id, token_limit=token_limit)
+
+    # New JSON dump format
+    dump = data.get("memory_dump", [])
+    if dump:
+        mem.put_messages([ChatMessage(**m) for m in dump])
+
+    # Legacy pickle fallback
+    legacy_blob = data.get("memory")
+    if legacy_blob and not dump:
+        try:
+            legacy_mem = pickle.loads(legacy_blob.encode("latin-1"))
+            mem.put_messages(legacy_mem.get())
+        except Exception:
+            logging.debug("Legacy memory pickle could not be loaded; ignoring.")
+            pass
+
+    return mem
 
 class Agent:
     """
@@ -273,12 +303,7 @@ class Agent:
             agent_progress_callback if agent_progress_callback else update_func
         )
         
-        # Debug logging for agent initialization
-        import logging
-        logging.info(f"🆕 [AGENT_INIT] Creating {self.agent_config.agent_type} agent - model: {getattr(self.agent_config, 'model', 'Unknown')}")
-        logging.info(f"🆕 [AGENT_INIT] Progress callback set: {self.agent_progress_callback is not None}")
         self.query_logging_callback = query_logging_callback
-
         self.workflow_cls = workflow_cls
         self.workflow_timeout = workflow_timeout
         self.vectara_api_key = vectara_api_key or os.environ.get("VECTARA_API_KEY", "")
@@ -342,22 +367,14 @@ class Agent:
         self.callback_manager = CallbackManager(callbacks)  # type: ignore
         self.verbose = verbose
 
+        self.session_id = getattr(self, "session_id", None) or f"{topic}:{date.today().isoformat()}"
+        self.memory = Memory.from_defaults(session_id=self.session_id, token_limit=128_000)
         if chat_history:
-            msg_history = []
-            for text_pairs in chat_history:
-                msg_history.append(
-                    ChatMessage.from_str(content=text_pairs[0], role=MessageRole.USER)
-                )
-                msg_history.append(
-                    ChatMessage.from_str(
-                        content=text_pairs[1], role=MessageRole.ASSISTANT
-                    )
-                )
-            self.memory = ChatMemoryBuffer.from_defaults(
-                token_limit=128000, chat_history=msg_history
-            )
-        else:
-            self.memory = ChatMemoryBuffer.from_defaults(token_limit=128000)
+            msgs = []
+            for u, a in chat_history:
+                msgs.append(ChatMessage.from_str(u, role=MessageRole.USER))
+                msgs.append(ChatMessage.from_str(a, role=MessageRole.ASSISTANT))
+            self.memory.put_messages(msgs)
 
         # Set up main agent and fallback agent
         self._agent = None  # Lazy loading
@@ -485,7 +502,7 @@ class Agent:
                 self._topic,
                 self._custom_instructions,
             )
-            agent = FunctionCallingAgent.from_tools(
+            agent = FunctionAgent(
                 tools=self.tools,
                 llm=llm,
                 memory=self.memory,
@@ -600,18 +617,11 @@ class Agent:
         return agent
 
     def clear_memory(self) -> None:
-        """
-        Clear the agent's memory.
-        """
-        if self.agent_config_type == AgentConfigType.DEFAULT:
-            self.agent.memory.reset()
-        elif (
-            self.agent_config_type == AgentConfigType.FALLBACK
-            and self.fallback_agent_config
-        ):
-            self.fallback_agent.memory.reset()
-        else:
-            raise ValueError(f"Invalid agent config type {self.agent_config_type}")
+        self.memory.reset()
+        if getattr(self, "_agent", None):
+            self._agent.memory = self.memory
+        if getattr(self, "_fallback_agent", None):
+            self._fallback_agent.memory = self.memory
 
     def __eq__(self, other):
         if not isinstance(other, Agent):
@@ -660,11 +670,8 @@ class Agent:
             return False
 
         # Compare agent memory
-        if self.agent.memory.chat_store != other.agent.memory.chat_store:
-            print(
-                f"Comparison failed: agent memory differs. (self.agent: {repr(self.agent.memory.chat_store)}, "
-                f"other.agent: {repr(other.agent.memory.chat_store)})"
-            )
+        if self.memory.get() != other.memory.get():
+            print("Comparison failed: agent memory differs.")
             return False
 
         # If all comparisons pass
@@ -982,26 +989,6 @@ class Agent:
         agent = self._get_current_agent()
         agent_response.response = (await agent.llm.acomplete(llm_prompt)).text
 
-    def chat(self, prompt: str) -> AgentResponse:
-        """
-        Interact with the agent using a chat prompt.
-
-        Args:
-            prompt (str): The chat prompt.
-
-        Returns:
-            AgentResponse: The response from the agent.
-        """
-        try:
-            _ = asyncio.get_running_loop()
-        except RuntimeError:
-            return asyncio.run(self.achat(prompt))
-
-        # We are inside a running loop (Jupyter, uvicorn, etc.)
-        raise RuntimeError(
-            "Use `await agent.achat(...)` inside an event loop (e.g. Jupyter)."
-        )
-
     def _calc_fcs(self, agent_response: str) -> float | None:
         """
         Calculate the Factual consistency score for the agent response.
@@ -1040,6 +1027,26 @@ class Agent:
             logging.error(f"Failed to calculate FCS: {e}")
             return None
 
+    def chat(self, prompt: str) -> AgentResponse:
+        """
+        Interact with the agent using a chat prompt.
+
+        Args:
+            prompt (str): The chat prompt.
+
+        Returns:
+            AgentResponse: The response from the agent.
+        """
+        try:
+            _ = asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(self.achat(prompt))
+
+        # We are inside a running loop (Jupyter, uvicorn, etc.)
+        raise RuntimeError(
+            "Use `await agent.achat(...)` inside an event loop (e.g. Jupyter)."
+        )
+
     async def achat(self, prompt: str) -> AgentResponse:  # type: ignore
         """
         Interact with the agent using a chat prompt.
@@ -1057,7 +1064,62 @@ class Agent:
         while attempt < max_attempts:
             try:
                 current_agent = self._get_current_agent()
-                agent_response = await current_agent.achat(prompt)
+                if self._get_current_agent_type() == AgentType.FUNCTION_CALLING:
+                    ctx = Context(current_agent)                     # optional shared state
+                    handler = current_agent.run(user_msg=prompt, ctx=ctx, memory=self.memory)
+                    
+                    # NEW: Listen to workflow events if progress callback is set
+                    if self.agent_progress_callback:
+                        async for event in handler.stream_events():
+                            event_id = str(uuid.uuid4())
+                            
+                            # Handle different types of workflow events
+                            if hasattr(event, 'tool_call'):
+                                tool_call = event.tool_call
+                                self.agent_progress_callback(
+                                    AgentStatusType.TOOL_CALL,
+                                    {
+                                        "tool_name": tool_call.tool_name if hasattr(tool_call, 'tool_name') else getattr(tool_call, 'name', 'Unknown Tool'),
+                                        "arguments": json.dumps(tool_call.tool_input if hasattr(tool_call, 'tool_input') else getattr(tool_call, 'arguments', {}))
+                                    },
+                                    event_id
+                                )
+                            elif hasattr(event, 'tool_output'):
+                                tool_output = event.tool_output
+                                self.agent_progress_callback(
+                                    AgentStatusType.TOOL_OUTPUT,
+                                    {
+                                        "content": str(tool_output.content if hasattr(tool_output, 'content') else str(tool_output))
+                                    },
+                                    event_id
+                                )
+                            elif hasattr(event, 'msg') and 'tool' in str(event).lower():
+                                # Fallback: try to extract tool info from generic events
+                                self.agent_progress_callback(
+                                    AgentStatusType.AGENT_STEP,
+                                    str(event.msg if hasattr(event, 'msg') else str(event)),
+                                    event_id
+                                )
+                    
+                    result = await handler
+                    # Ensure we have an AgentResponse object with a string response
+                    if hasattr(result, 'response'):
+                        response_text = result.response
+                    else:
+                        response_text = str(result)
+                    
+                    # Handle case where response is a ChatMessage object
+                    if hasattr(response_text, 'content'):
+                        response_text = response_text.content
+                    elif not isinstance(response_text, str):
+                        response_text = str(response_text)
+                    
+                    agent_response = AgentResponse(
+                        response=response_text,
+                        metadata=getattr(result, 'metadata', {})
+                    ) 
+                else:
+                    agent_response = await current_agent.achat(prompt)
                 fcs = self._calc_fcs(agent_response.response)
                 if fcs is not None:
                     agent_response.metadata = agent_response.metadata or {}
@@ -1120,10 +1182,120 @@ class Agent:
         while attempt < max_attempts:
             try:
                 current_agent = self._get_current_agent()
+                user_meta: Dict[str, Any] = {}
 
+                if self._get_current_agent_type() == AgentType.FUNCTION_CALLING:
+                    ctx = Context(current_agent)
+                    handler = current_agent.run(user_msg=prompt, ctx=ctx, memory=self.memory)
+
+                    # buffer to stash final response object
+                    _final: Dict[str, Any] = {"resp": None}  # Initialize with default
+
+                    async def _stream():
+                        async for ev in handler.stream_events():
+                            if self.agent_progress_callback:
+                                event_id = str(uuid.uuid4())
+                                
+                                # Handle different types of workflow events
+                                if isinstance(ev, ToolCall):
+                                    self.agent_progress_callback(
+                                        AgentStatusType.TOOL_CALL,
+                                        {
+                                            "tool_name": ev.tool_name,
+                                            "arguments": json.dumps(ev.tool_kwargs),
+                                        },
+                                        event_id
+                                    )
+                                elif isinstance(ev, ToolCallResult):
+                                    self.agent_progress_callback(
+                                        AgentStatusType.TOOL_OUTPUT,
+                                        {
+                                            "content": str(ev.tool_output),
+                                        },
+                                        event_id
+                                    )
+                                elif isinstance(ev, AgentInput):
+                                    self.agent_progress_callback(
+                                        AgentStatusType.AGENT_UPDATE,
+                                        f"Agent input: {ev.input}",
+                                        event_id
+                                    )
+                                elif isinstance(ev, AgentOutput):
+                                    self.agent_progress_callback(
+                                        AgentStatusType.AGENT_UPDATE,
+                                        f"Agent output: {ev.response}",
+                                        event_id
+                                    )
+                            
+                            if isinstance(ev, AgentStream):
+                                if not ev.tool_calls:       # when tool_calls is empty, it's final prose
+                                    yield ev.delta
+
+                        # when stream is done, await the handler to get the final AgentResponse
+                        try:
+                            _final["resp"] = await handler
+                        except Exception as e:
+                            # Fallback: create a basic response if handler fails
+                            _final["resp"] = type('AgentResponse', (), {
+                                'response': 'Response completed',
+                                'source_nodes': [],
+                                'metadata': None
+                            })()
+
+                    # Minimal object that looks like LI's StreamingAgentChatResponse
+                    class _Base:
+                        pass
+                    base = _Base()
+                    base.async_response_gen = _stream  # what AgentStreamingResponse expects
+                    base.response = ""                  # will be filled post-stream
+                    base.metadata = {}
+
+                    async def _post_process():
+                        # wait until the generator above has finished (and _final is populated)
+                        result = _final.get("resp")
+                        if result is None:
+                            result = type('AgentResponse', (), {
+                                'response': 'Response completed',
+                                'source_nodes': [],
+                                'metadata': None
+                            })()
+                        
+                        # Ensure we have an AgentResponse object with a string response
+                        if hasattr(result, 'response'):
+                            response_text = result.response
+                        else:
+                            response_text = str(result)
+                        
+                        # Handle case where response is a ChatMessage object
+                        if hasattr(response_text, 'content'):
+                            response_text = response_text.content
+                        elif not isinstance(response_text, str):
+                            response_text = str(response_text)
+                        
+                        final = AgentResponse(
+                            response=response_text,
+                            metadata=getattr(result, 'metadata', {})
+                        )
+                        
+                        await self._aformat_for_lats(prompt, final)
+                        if self.query_logging_callback:
+                            self.query_logging_callback(prompt, final.response)
+                        fcs = self._calc_fcs(final.response)
+                        if fcs is not None:
+                            user_meta["fcs"] = fcs
+                        if self.observability_enabled:
+                            eval_fcs()
+                        base.response = final.response
+                        base.metadata = final.metadata or {}
+
+                    # kick off post-processing without blocking the stream
+                    asyncio.create_task(_post_process())
+
+                    return AgentStreamingResponse(base=base, metadata=user_meta)
+
+                # For other agent types, use the standard async chat method
                 li_stream = await current_agent.astream_chat(prompt)
                 orig_async = li_stream.async_response_gen
-                user_meta: Dict[str, Any] = {}
 
                 # Define a wrapper to preserve streaming behavior while executing post-stream logic.
                 async def _stream_response_wrapper():
@@ -1296,7 +1468,8 @@ class Agent:
 
         return {
             "agent_type": self.agent_config.agent_type.value,
-            "memory": pickle.dumps(self.agent.memory).decode("latin-1"),
+            "memory_dump": [m.model_dump() for m in self.memory.get()],
+            "memory_session_id": getattr(self.memory, "session_id", None),
             "tools": tool_info,
             "topic": self._topic,
             "custom_instructions": self._custom_instructions,
@@ -1409,12 +1582,6 @@ class Agent:
                 tool_type=ToolType(tool_data["tool_type"]),
             )
             tools.append(tool)
-
-        # Debug logging for agent deserialization
-        import logging
-        logging.info(f"🔄 [AGENT_LOADS] Creating agent from dict - type: {agent_config.agent_type}")
-        logging.info(f"🔄 [AGENT_LOADS] Model: {getattr(agent_config, 'model', 'Unknown')}")
-        logging.info(f"🔄 [AGENT_LOADS] Progress callback provided: {agent_progress_callback is not None}")
         
         agent = cls(
             tools=tools,
@@ -1429,37 +1596,13 @@ class Agent:
             vectara_api_key=data.get("vectara_api_key"),
         )
         
-        logging.info(f"✅ [AGENT_LOADS] Agent created - callback set: {agent.agent_progress_callback is not None}")
-        logging.info(f"🔍 [AGENT_LOADS] Callback manager handlers: {len(agent.callback_manager.handlers) if hasattr(agent, 'callback_manager') else 'N/A'}")
-        memory = (
-            pickle.loads(data["memory"].encode("latin-1"))
-            if data.get("memory")
-            else None
-        )
-        if memory:
-            agent.agent.memory = memory
-            agent.memory = memory
-            
-            # Refresh callback manager for FunctionCallingAgent after memory restoration
-            # This ensures the progress callback works correctly for deserialized agents
-            from vectara_agentic.types import AgentType
-            if agent_config.agent_type == AgentType.FUNCTION_CALLING:
-                logging.info(f"🔄 [AGENT_LOADS] Refreshing callback manager for FunctionCallingAgent")
-                # Recreate the callback manager with the current progress callback
-                from llama_index.core.callbacks import CallbackManager
-                from vectara_agentic.callbacks import AgentCallbackHandler
-                
-                callbacks = [AgentCallbackHandler(agent.agent_progress_callback)]
-                if agent.main_token_counter:
-                    callbacks.append(agent.main_token_counter)
-                if agent.tool_token_counter:
-                    callbacks.append(agent.tool_token_counter)
-                
-                fresh_callback_manager = CallbackManager(callbacks)
-                agent.callback_manager = fresh_callback_manager
-                # Update the underlying agent's callback manager
-                agent.agent.callback_manager = fresh_callback_manager
-                logging.info(f"✅ [AGENT_LOADS] Callback manager refreshed for FunctionCallingAgent")
-                logging.info(f"🔍 [AGENT_LOADS] Fresh callback manager handlers: {len(fresh_callback_manager.handlers)}")
-                
+        mem = _restore_memory_from_dict(data, token_limit=128_000)
+        agent.memory = mem
+
+        # Keep inner agent (if already built) in sync
+        if getattr(agent, "_agent", None) is not None:
+            agent._agent.memory = mem
+        if getattr(agent, "_fallback_agent", None):
+            agent._fallback_agent.memory = mem
+
         return agent
