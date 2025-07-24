@@ -28,7 +28,6 @@ class IgnoreUnpickleableAttributeFilter(logging.Filter):
             bool: True if record should be logged, False if it should be ignored
         """
         msgs_to_ignore = [
-            "Removing unpickleable private attribute _chunking_tokenizer_fn",
             "Removing unpickleable private attribute _split_fns",
             "Removing unpickleable private attribute _sub_sentence_split_fns",
         ]

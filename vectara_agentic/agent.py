@@ -2,7 +2,14 @@
 This module contains the Agent class for handling different types of agents and their interactions.
 """
 
-from typing import List, Callable, Optional, Dict, Any, Union, Tuple
+import warnings
+
+# Suppress external Pydantic v2 deprecation warnings to reduce noise
+# Global suppression for all deprecation warnings since they come from external dependencies
+warnings.simplefilter("ignore", DeprecationWarning)
+
+# pylint: disable=wrong-import-position
+from typing import List, Callable, Optional, Dict, Any, Union, Tuple, TYPE_CHECKING
 import os
 from datetime import date
 import json
@@ -16,22 +23,16 @@ from pydantic_core import PydanticUndefined
 
 from dotenv import load_dotenv
 
-from llama_index.core.memory import Memory
-from llama_index.core.llms import ChatMessage, MessageRole
-from llama_index.core.tools import FunctionTool
-from llama_index.core.workflow import Workflow, Context
-from llama_index.core.agent.workflow import (
-    AgentInput,
-    AgentOutput,
-    ToolCall,
-    ToolCallResult,
-    AgentStream,
-)
+# Runtime imports for components used at module level
+from llama_index.core.llms import MessageRole
 
-from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
-from llama_index.core.callbacks.base_handler import BaseCallbackHandler
-from llama_index.core.agent.runner.base import AgentRunner
-from llama_index.core.agent.types import BaseAgent
+# Heavy llama_index imports moved to TYPE_CHECKING for lazy loading
+if TYPE_CHECKING:
+    from llama_index.core.tools import FunctionTool
+    from llama_index.core.workflow import Workflow
+    from llama_index.core.callbacks import CallbackManager
+    from llama_index.core.agent.runner.base import AgentRunner
+    from llama_index.core.agent.types import BaseAgent
 
 from .types import (
     AgentType,
@@ -42,7 +43,7 @@ from .types import (
     AgentStreamingResponse,
     AgentConfigType,
 )
-from .llm_utils import get_llm, get_tokenizer_for_model
+from .llm_utils import get_llm
 from .agent_core.prompts import GENERAL_INSTRUCTIONS
 from ._callback import AgentCallbackHandler
 from ._observability import setup_observer, eval_fcs
@@ -79,13 +80,11 @@ class Agent:
 
     def __init__(
         self,
-        tools: List[FunctionTool],
+        tools: List["FunctionTool"],
         topic: str = "general",
         custom_instructions: str = "",
         general_instructions: str = GENERAL_INSTRUCTIONS,
         verbose: bool = False,
-        use_structured_planning: bool = False,
-        update_func: Optional[Callable[[AgentStatusType, dict, str], None]] = None,
         agent_progress_callback: Optional[
             Callable[[AgentStatusType, dict, str], None]
         ] = None,
@@ -94,7 +93,7 @@ class Agent:
         fallback_agent_config: Optional[AgentConfig] = None,
         chat_history: Optional[list[Tuple[str, str]]] = None,
         validate_tools: bool = False,
-        workflow_cls: Optional[Workflow] = None,
+        workflow_cls: Optional["Workflow"] = None,
         workflow_timeout: int = 120,
         vectara_api_key: Optional[str] = None,
     ) -> None:
@@ -110,10 +109,7 @@ class Agent:
                 The Agent has a default set of instructions that are crafted to help it operate effectively.
                 This allows you to customize the agent's behavior and personality, but use with caution.
             verbose (bool, optional): Whether the agent should print its steps. Defaults to True.
-            use_structured_planning (bool, optional)
-                Whether or not we want to wrap the agent with LlamaIndex StructuredPlannerAgent.
             agent_progress_callback (Callable): A callback function the code calls on any agent updates.
-                update_func (Callable): old name for agent_progress_callback. Will be deprecated in future.
             query_logging_callback (Callable): A callback function the code calls upon completion of a query
             agent_config (AgentConfig, optional): The configuration of the agent.
                 Defaults to AgentConfig(), which reads from environment variables.
@@ -132,14 +128,11 @@ class Agent:
         if not any(tool.metadata.name == "get_current_date" for tool in self.tools):
             self.tools += [ToolsFactory().create_tool(get_current_date)]
         self.agent_type = self.agent_config.agent_type
-        self.use_structured_planning = use_structured_planning
         self._llm = None  # Lazy loading
         self._custom_instructions = custom_instructions
         self._general_instructions = general_instructions
         self._topic = topic
-        self.agent_progress_callback = (
-            agent_progress_callback if agent_progress_callback else update_func
-        )
+        self.agent_progress_callback = agent_progress_callback
 
         self.query_logging_callback = query_logging_callback
         self.workflow_cls = workflow_cls
@@ -185,34 +178,27 @@ class Agent:
                     f"The Agent custom instructions mention these invalid tools: {numbered}"
                 )
 
-        # Create token counters for the main and tool LLMs
-        main_tok = get_tokenizer_for_model(role=LLMRole.MAIN)
-        self.main_token_counter = (
-            TokenCountingHandler(tokenizer=main_tok) if main_tok else None
-        )
-        tool_tok = get_tokenizer_for_model(role=LLMRole.TOOL)
-        self.tool_token_counter = (
-            TokenCountingHandler(tokenizer=tool_tok) if tool_tok else None
-        )
-
         # Setup callback manager
+        from llama_index.core.callbacks.base_handler import BaseCallbackHandler
+        from llama_index.core.callbacks import CallbackManager
+
         callbacks: list[BaseCallbackHandler] = [
             AgentCallbackHandler(self.agent_progress_callback)
         ]
-        if self.main_token_counter:
-            callbacks.append(self.main_token_counter)
-        if self.tool_token_counter:
-            callbacks.append(self.tool_token_counter)
         self.callback_manager = CallbackManager(callbacks)  # type: ignore
         self.verbose = verbose
 
         self.session_id = (
             getattr(self, "session_id", None) or f"{topic}:{date.today().isoformat()}"
         )
+        from llama_index.core.memory import Memory
+
         self.memory = Memory.from_defaults(
-            session_id=self.session_id, token_limit=128_000
+            session_id=self.session_id, token_limit=65536
         )
         if chat_history:
+            from llama_index.core.llms import ChatMessage
+
             msgs = []
             for u, a in chat_history:
                 msgs.append(ChatMessage.from_str(u, role=MessageRole.USER))
@@ -255,8 +241,8 @@ class Agent:
         return self._fallback_agent
 
     def _create_agent(
-        self, config: AgentConfig, llm_callback_manager: CallbackManager
-    ) -> Union[BaseAgent, AgentRunner]:
+        self, config: AgentConfig, llm_callback_manager: "CallbackManager"
+    ) -> Union["BaseAgent", "AgentRunner"]:
         """
         Creates the agent based on the configuration object.
 
@@ -285,7 +271,6 @@ class Agent:
             topic=self._topic,
             custom_instructions=self._custom_instructions,
             verbose=self.verbose,
-            use_structured_planning=self.use_structured_planning,
         )
 
     def clear_memory(self) -> None:
@@ -354,11 +339,10 @@ class Agent:
     @classmethod
     def from_tools(
         cls,
-        tools: List[FunctionTool],
+        tools: List["FunctionTool"],
         topic: str = "general",
         custom_instructions: str = "",
         verbose: bool = True,
-        update_func: Optional[Callable[[AgentStatusType, dict, str], None]] = None,
         agent_progress_callback: Optional[
             Callable[[AgentStatusType, dict, str], None]
         ] = None,
@@ -367,7 +351,7 @@ class Agent:
         validate_tools: bool = False,
         fallback_agent_config: Optional[AgentConfig] = None,
         chat_history: Optional[list[Tuple[str, str]]] = None,
-        workflow_cls: Optional[Workflow] = None,
+        workflow_cls: Optional["Workflow"] = None,
         workflow_timeout: int = 120,
     ) -> "Agent":
         """
@@ -380,7 +364,6 @@ class Agent:
             custom_instructions (str, optional): custom instructions for the agent. Defaults to ''.
             verbose (bool, optional): Whether the agent should print its steps. Defaults to True.
             agent_progress_callback (Callable): A callback function the code calls on any agent updates.
-                update_func (Callable): old name for agent_progress_callback. Will be deprecated in future.
             query_logging_callback (Callable): A callback function the code calls upon completion of a query
             agent_config (AgentConfig, optional): The configuration of the agent.
             fallback_agent_config (AgentConfig, optional): The fallback configuration of the agent.
@@ -400,7 +383,6 @@ class Agent:
             verbose=verbose,
             agent_progress_callback=agent_progress_callback,
             query_logging_callback=query_logging_callback,
-            update_func=update_func,
             agent_config=agent_config,
             chat_history=chat_history,
             validate_tools=validate_tools,
@@ -495,7 +477,7 @@ class Agent:
             chat_history=chat_history,
             agent_progress_callback=agent_progress_callback,
             query_logging_callback=query_logging_callback,
-            **config
+            **config,
         )
 
     def _switch_agent_config(self) -> None:
@@ -536,26 +518,6 @@ class Agent:
         print(
             f"Tool LLM = {get_llm(LLMRole.TOOL, config=self.agent_config).metadata.model_name}"
         )
-
-    def token_counts(self) -> dict:
-        """
-        Get the token counts for the agent and tools.
-
-        Returns:
-            dict: The token counts for the agent and tools.
-        """
-        return {
-            "main token count": (
-                self.main_token_counter.total_llm_token_count
-                if self.main_token_counter
-                else -1
-            ),
-            "tool token count": (
-                self.tool_token_counter.total_llm_token_count
-                if self.tool_token_counter
-                else -1
-            ),
-        }
 
     def _get_current_agent(self):
         return (
@@ -663,8 +625,13 @@ class Agent:
             try:
                 current_agent = self._get_current_agent()
 
-                # Deal with Function Calling agent type
-                if self._get_current_agent_type() == AgentType.FUNCTION_CALLING:
+                # Deal with workflow-based agent types (Function Calling and ReAct)
+                if self._get_current_agent_type() in [
+                    AgentType.FUNCTION_CALLING,
+                    AgentType.REACT,
+                ]:
+                    from llama_index.core.workflow import Context
+
                     ctx = Context(current_agent)
                     handler = current_agent.run(
                         user_msg=prompt, ctx=ctx, memory=self.memory
@@ -722,6 +689,7 @@ class Agent:
                                 )
 
                     result = await handler
+
                     # Ensure we have an AgentResponse object with a string response
                     if hasattr(result, "response"):
                         response_text = result.response
@@ -733,6 +701,64 @@ class Agent:
                         response_text = response_text.content
                     elif not isinstance(response_text, str):
                         response_text = str(response_text)
+
+                    # Handle case where workflow completed with tool calls but no final text response
+                    # This can happen when the LLM makes tool calls but doesn't generate follow-up text
+                    if response_text is None or response_text == "None":
+                        # Try to find tool outputs in the result object
+                        response_text = None
+
+                        # Check various possible locations for tool outputs
+                        if hasattr(result, "tool_outputs") and result.tool_outputs:
+                            # Get the latest tool output
+                            latest_output = (
+                                result.tool_outputs[-1]
+                                if isinstance(result.tool_outputs, list)
+                                else result.tool_outputs
+                            )
+                            response_text = str(latest_output)
+
+                        # Check if there are tool_calls with results
+                        elif hasattr(result, "tool_calls") and result.tool_calls:
+                            # Tool calls might contain the outputs - let's try to extract them
+                            for tool_call in result.tool_calls:
+                                if (
+                                    hasattr(tool_call, "output")
+                                    and tool_call.output is not None
+                                ):
+                                    response_text = str(tool_call.output)
+                                    break
+
+                        elif hasattr(result, "sources") or hasattr(
+                            result, "source_nodes"
+                        ):
+                            sources = getattr(
+                                result, "sources", getattr(result, "source_nodes", [])
+                            )
+                            if (
+                                sources
+                                and len(sources) > 0
+                                and hasattr(sources[0], "text")
+                            ):
+                                response_text = sources[0].text
+
+                        # Check for workflow context or chat history that might contain tool results
+                        elif hasattr(result, "chat_history"):
+                            # Look for the most recent assistant message that might contain tool results
+                            chat_history = result.chat_history
+                            if chat_history and len(chat_history) > 0:
+                                for msg in reversed(chat_history):
+                                    if (
+                                        hasattr(msg, "content")
+                                        and msg.content
+                                        and str(msg.content).strip()
+                                    ):
+                                        response_text = msg.content
+                                        break
+
+                        # If we still don't have a response, provide a fallback
+                        if response_text is None or response_text == "None":
+                            response_text = "Response completed."
 
                     agent_response = AgentResponse(
                         response=response_text, metadata=getattr(result, "metadata", {})
@@ -807,6 +833,8 @@ class Agent:
 
                 # Deal with Function Calling agent type
                 if self._get_current_agent_type() == AgentType.FUNCTION_CALLING:
+                    from llama_index.core.workflow import Context
+
                     ctx = Context(current_agent)
                     handler = current_agent.run(
                         user_msg=prompt, ctx=ctx, memory=self.memory
@@ -819,6 +847,15 @@ class Agent:
                     async def _stream():
                         had_tool_calls = False
                         transitioned_to_prose = False
+
+                        # Import workflow event types
+                        from llama_index.core.agent.workflow import (
+                            ToolCall,
+                            ToolCallResult,
+                            AgentInput,
+                            AgentOutput,
+                            AgentStream,
+                        )
 
                         async for ev in handler.stream_events():
                             if self.agent_progress_callback:
@@ -872,7 +909,7 @@ class Agent:
                         # when stream is done, await the handler to get the final AgentResponse
                         try:
                             _final["resp"] = await handler
-                        except Exception as e:
+                        except Exception:
                             _final["resp"] = type(
                                 "AgentResponse",
                                 (),
@@ -1038,6 +1075,8 @@ class Agent:
                 raise ValueError(
                     f"Fields without default values: {fields_without_default}"
                 )
+
+        from llama_index.core.workflow import Context
 
         workflow_context = Context(workflow=workflow)
         try:

@@ -7,89 +7,32 @@ with proper configuration, prompt formatting, and structured planning setup.
 
 import os
 import re
+import warnings
 from typing import List, Union, Optional, Dict, Any
 
 from llama_index.core.tools import FunctionTool
 from llama_index.core.memory import Memory
 from llama_index.core.callbacks import CallbackManager
-from llama_index.core.agent import ReActAgent, StructuredPlannerAgent
-from llama_index.core.agent.workflow import FunctionAgent
+from llama_index.core.agent.workflow import FunctionAgent, ReActAgent
 from llama_index.core.agent.react.formatter import ReActChatFormatter
 from llama_index.core.agent.runner.base import AgentRunner
 from llama_index.core.agent.types import BaseAgent
-from llama_index.agent.llm_compiler import LLMCompilerAgentWorker
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    from llama_index.agent.llm_compiler import LLMCompilerAgentWorker
 from llama_index.agent.lats import LATSAgentWorker
-from llama_index.agent.openai import OpenAIAgent
 from pydantic import Field, create_model
 
 from ..agent_config import AgentConfig
-from ..llm_utils import get_llm
-from ..types import AgentType, LLMRole, ModelProvider
+from ..types import AgentType
 from .prompts import (
     REACT_PROMPT_TEMPLATE,
     GENERAL_PROMPT_TEMPLATE,
     GENERAL_INSTRUCTIONS,
-    STRUCTURED_PLANNER_PLAN_REFINE_PROMPT,
-    STRUCTURED_PLANNER_INITIAL_PLAN_PROMPT,
 )
 from ..tools import VectaraToolFactory
 from .utils.prompt_formatting import format_prompt, format_llm_compiler_prompt
 from .utils.schemas import PY_TYPES
-
-
-def create_function_calling_agent(
-    tools: List[FunctionTool],
-    llm,
-    memory: Memory,
-    config: AgentConfig,
-    callback_manager: CallbackManager,
-    general_instructions: str,
-    topic: str,
-    custom_instructions: str,
-    verbose: bool = True,
-) -> FunctionAgent:
-    """
-    Create a function calling agent.
-
-    Args:
-        tools: List of tools available to the agent
-        llm: Language model instance
-        memory: Agent memory
-        config: Agent configuration
-        callback_manager: Callback manager for events
-        general_instructions: General instructions for the agent
-        topic: Topic expertise area
-        custom_instructions: Custom user instructions
-        verbose: Whether to enable verbose output
-
-    Returns:
-        FunctionAgent: Configured function calling agent
-
-    Raises:
-        ValueError: If OpenAI LLM is used with function calling agent
-    """
-    if config.tool_llm_provider == ModelProvider.OPENAI:
-        raise ValueError(
-            "Vectara-agentic: Function calling agent type is not supported with the OpenAI LLM."
-        )
-
-    prompt = format_prompt(
-        GENERAL_PROMPT_TEMPLATE,
-        general_instructions,
-        topic,
-        custom_instructions,
-    )
-
-    return FunctionAgent(
-        tools=tools,
-        llm=llm,
-        memory=memory,
-        verbose=verbose,
-        max_function_calls=config.max_reasoning_steps,
-        callback_manager=callback_manager,
-        system_prompt=prompt,
-        allow_parallel_tool_calls=True,
-    )
 
 
 def create_react_agent(
@@ -127,18 +70,17 @@ def create_react_agent(
         custom_instructions,
     )
 
-    return ReActAgent.from_tools(
+    # Create ReActAgent with correct parameters based on current LlamaIndex API
+    # Note: ReActAgent is a workflow-based agent and doesn't have from_tools method
+    return ReActAgent(
         tools=tools,
         llm=llm,
-        memory=memory,
+        system_prompt=prompt,
         verbose=verbose,
-        react_chat_formatter=ReActChatFormatter(system_header=prompt),
-        max_iterations=config.max_reasoning_steps,
-        callback_manager=callback_manager,
     )
 
 
-def create_openai_agent(
+def create_function_agent(
     tools: List[FunctionTool],
     llm,
     memory: Memory,
@@ -148,30 +90,35 @@ def create_openai_agent(
     topic: str,
     custom_instructions: str,
     verbose: bool = True,
-) -> OpenAIAgent:
+    enable_parallel_tool_calls: bool = False,
+) -> FunctionAgent:
     """
-    Create an OpenAI agent.
+    Create a unified Function Calling agent.
+
+    This replaces both the deprecated OpenAI agent and the dedicated function calling agent,
+    providing a single modern implementation with flexible capabilities.
 
     Args:
         tools: List of tools available to the agent
         llm: Language model instance
-        memory: Agent memory
+        memory: Agent memory (maintained via Context during agent execution)
         config: Agent configuration
-        callback_manager: Callback manager for events
+        callback_manager: Callback manager for events (not directly supported by FunctionAgent)
         general_instructions: General instructions for the agent
         topic: Topic expertise area
         custom_instructions: Custom user instructions
         verbose: Whether to enable verbose output
+        enable_parallel_tool_calls: Whether to enable parallel tool execution
 
     Returns:
-        OpenAIAgent: Configured OpenAI agent
+        FunctionAgent: Configured Function Calling agent
 
-    Raises:
-        ValueError: If non-OpenAI LLM is used with OpenAI agent
+    Notes:
+        - Works with any LLM provider (OpenAI, Anthropic, Together, etc.)
+        - Memory/state is managed via Context object during workflow execution
+        - Parallel tool calls depend on LLM provider support
+        - Replaces both OpenAI agent (legacy) and function calling agent implementations
     """
-    if config.tool_llm_provider != ModelProvider.OPENAI:
-        raise ValueError("Vectara-agentic: OPENAI agent type requires the OpenAI LLM.")
-
     prompt = format_prompt(
         GENERAL_PROMPT_TEMPLATE,
         general_instructions,
@@ -179,14 +126,13 @@ def create_openai_agent(
         custom_instructions,
     )
 
-    return OpenAIAgent.from_tools(
+    # Create FunctionAgent with correct parameters based on current LlamaIndex API
+    # Note: FunctionAgent is a workflow-based agent and doesn't have from_tools method
+    return FunctionAgent(
         tools=tools,
         llm=llm,
-        memory=memory,
-        verbose=verbose,
-        callback_manager=callback_manager,
-        max_function_calls=config.max_reasoning_steps,
         system_prompt=prompt,
+        verbose=verbose,
     )
 
 
@@ -312,7 +258,6 @@ def create_agent_from_config(
     topic: str,
     custom_instructions: str,
     verbose: bool = True,
-    use_structured_planning: bool = False,
     agent_type: Optional[AgentType] = None,  # For compatibility with existing interface
 ) -> Union[BaseAgent, AgentRunner]:
     """
@@ -331,7 +276,6 @@ def create_agent_from_config(
         topic: Topic expertise area
         custom_instructions: Custom user instructions
         verbose: Whether to enable verbose output
-        use_structured_planning: Whether to wrap with structured planner
         agent_type: Override agent type (for backward compatibility)
 
     Returns:
@@ -345,7 +289,7 @@ def create_agent_from_config(
 
     # Create base agent based on type
     if effective_agent_type == AgentType.FUNCTION_CALLING:
-        agent = create_function_calling_agent(
+        agent = create_function_agent(
             tools,
             llm,
             memory,
@@ -355,21 +299,10 @@ def create_agent_from_config(
             topic,
             custom_instructions,
             verbose,
+            enable_parallel_tool_calls=True,  # Enable parallel calls for FUNCTION_CALLING type
         )
     elif effective_agent_type == AgentType.REACT:
         agent = create_react_agent(
-            tools,
-            llm,
-            memory,
-            config,
-            callback_manager,
-            general_instructions,
-            topic,
-            custom_instructions,
-            verbose,
-        )
-    elif effective_agent_type == AgentType.OPENAI:
-        agent = create_openai_agent(
             tools,
             llm,
             memory,
@@ -406,22 +339,6 @@ def create_agent_from_config(
         )
     else:
         raise ValueError(f"Unknown agent type: {effective_agent_type}")
-
-    # Set up structured planner if needed
-    if use_structured_planning or effective_agent_type in [
-        AgentType.LLMCOMPILER,
-        AgentType.LATS,
-    ]:
-        planner_llm = get_llm(LLMRole.TOOL, config=config)
-        agent = StructuredPlannerAgent(
-            agent_worker=agent.agent_worker,
-            tools=tools,
-            llm=planner_llm,
-            memory=memory,
-            verbose=verbose,
-            initial_plan_prompt=STRUCTURED_PLANNER_INITIAL_PLAN_PROMPT,
-            plan_refine_prompt=STRUCTURED_PLANNER_PLAN_REFINE_PROMPT,
-        )
 
     return agent
 

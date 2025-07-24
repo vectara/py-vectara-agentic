@@ -225,7 +225,7 @@ class FunctionCallingStreamHandler:
         # When stream is done, await the handler to get the final response
         try:
             self.final_response_container["resp"] = await self.handler
-        except Exception as e:
+        except Exception:
             self.final_response_container["resp"] = type(
                 "AgentResponse",
                 (),

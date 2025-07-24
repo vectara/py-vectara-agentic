@@ -2,6 +2,11 @@
 vectara_agentic package.
 """
 
+# Simple global warning suppression for end users
+import warnings
+warnings.simplefilter("ignore", DeprecationWarning)
+
+# pylint: disable=wrong-import-position
 from .agent import Agent
 from .tools import VectaraToolFactory, VectaraTool, ToolsFactory
 from .tools_catalog import ToolsCatalog

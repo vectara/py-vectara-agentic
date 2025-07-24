@@ -47,11 +47,11 @@
 - **Rapid Tool Creation:**  
   Build Vectara RAG tools or search tools with a single line of code.
 - **Agent Flexibility:**  
-  Supports multiple agent types including `ReAct`, `OpenAIAgent`, `LATS`, and `LLMCompiler`.
+  Supports multiple agent types including `ReAct`, `Function Calling`, `LATS`, and `LLMCompiler`.
 - **Pre-Built Domain Tools:**  
   Tools tailored for finance, legal, and other verticals.
 - **Multi-LLM Integration:**  
-  Seamless integration with OpenAI, Anthropic, Gemini, GROQ, Together.AI, Cohere, Bedrock, and Fireworks.
+  Seamless integration with OpenAI, Anthropic, Gemini, GROQ, Together.AI, Cohere, and Bedrock.
 - **Observability:**  
   Built-in support with Arize Phoenix for monitoring and feedback.
 - **Workflow Support:**  
@@ -71,7 +71,7 @@ Check out our example AI assistants:
 - [Vectara account](https://console.vectara.com/signup/?utm_source=github&utm_medium=code&utm_term=DevRel&utm_content=vectara-agentic&utm_campaign=github-code-DevRel-vectara-agentic)
 - A Vectara corpus with an [API key](https://docs.vectara.com/docs/api-keys)
 - [Python 3.10 or higher](https://www.python.org/downloads/)
-- OpenAI API key (or API keys for Anthropic, TOGETHER.AI, Fireworks AI, Cohere, GEMINI or GROQ, if you choose to use them).
+- OpenAI API key (or API keys for Anthropic, TOGETHER.AI, Cohere, GEMINI or GROQ, if you choose to use them).
   To use AWS Bedrock, make sure that
   * The Bedrock models you need are enabled on your account
   * Your environment includes `AWS_PROFILE` with your AWS profile name.
@@ -642,8 +642,10 @@ agent = Agent(
 ```
 
 The `AgentConfig` object may include the following items:
-- `agent_type`: the agent type. Valid values are `REACT`, `LLMCOMPILER`, `LATS` or `OPENAI` (default: `OPENAI`).
-- `main_llm_provider` and `tool_llm_provider`: the LLM provider for main agent and for the tools. Valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI` or `FIREWORKS` (default: `OPENAI`).
+- `agent_type`: the agent type. Valid values are `REACT`, `LLMCOMPILER`, `LATS` or `FUNCTION_CALLING` (default: `FUNCTION_CALLING`).
+- `main_llm_provider` and `tool_llm_provider`: the LLM provider for main agent and for the tools. Valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI` (default: `OPENAI`).
+
+> **Note:** Fireworks AI support has been removed. If you were using Fireworks, please migrate to one of the supported providers listed above.
 - `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider).
 - `observer`: the observer type; should be `ARIZE_PHOENIX` or if undefined no observation framework will be used.
 - `endpoint_api_key`: a secret key if using the API endpoint option (defaults to `dev-api-key`)

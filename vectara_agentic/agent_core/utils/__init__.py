@@ -14,7 +14,6 @@ from .schemas import get_field_type, JSON_TYPE_TO_PYTHON, PY_TYPES
 from .tools import (
     sanitize_tools_for_gemini,
     validate_tool_consistency,
-    create_token_counters,
 )
 from .logging import IgnoreUnpickleableAttributeFilter, setup_agent_logging
 
@@ -29,7 +28,6 @@ __all__ = [
     # Tools
     "sanitize_tools_for_gemini",
     "validate_tool_consistency",
-    "create_token_counters",
     # Logging
     "IgnoreUnpickleableAttributeFilter",
     "setup_agent_logging",

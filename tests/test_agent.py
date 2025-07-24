@@ -1,3 +1,7 @@
+# Suppress external dependency warnings before any other imports
+import warnings
+warnings.simplefilter("ignore", DeprecationWarning)
+
 import unittest
 import threading
 from datetime import date
@@ -37,11 +41,11 @@ class TestAgentPackage(unittest.TestCase):
         topic = "AI"
         custom_instructions = "Always do as your mother tells you!"
         agent = Agent(tools, topic, custom_instructions)
-        self.assertEqual(agent.agent_type, AgentType.OPENAI)
+        self.assertEqual(agent.agent_type, AgentType.FUNCTION_CALLING)
         self.assertEqual(agent._topic, topic)
         self.assertEqual(agent._custom_instructions, custom_instructions)
 
-        # To run this test, you must have OPENAI_API_KEY in your environment
+        # To run this test, you must have appropriate API key in your environment
         self.assertEqual(
             agent.chat(
                 "What is 5 times 10. Only give the answer, nothing else"

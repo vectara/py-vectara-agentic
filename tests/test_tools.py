@@ -1,3 +1,8 @@
+# Suppress external dependency warnings before any other imports
+import warnings
+
+warnings.simplefilter("ignore", DeprecationWarning)
+
 import unittest
 from pydantic import Field, BaseModel
 from unittest.mock import patch, MagicMock
@@ -13,7 +18,6 @@ from vectara_agentic.tools import (
 )
 from vectara_agentic.agent import Agent
 from vectara_agentic.agent_config import AgentConfig
-from vectara_agentic.types import AgentType, ModelProvider
 
 from llama_index.core.tools import FunctionTool
 
@@ -235,80 +239,6 @@ class TestToolsPackage(unittest.TestCase):
             self.assertIsInstance(tool, FunctionTool)
             self.assertEqual(tool.metadata.tool_type, ToolType.QUERY)
 
-    def test_tool_with_many_arguments(self):
-        vec_factory = VectaraToolFactory(vectara_corpus_key, vectara_api_key)
-
-        class QueryToolArgs(BaseModel):
-            arg1: str = Field(description="the first argument", examples=["val1"])
-            arg2: str = Field(description="the second argument", examples=["val2"])
-            arg3: str = Field(description="the third argument", examples=["val3"])
-            arg4: str = Field(description="the fourth argument", examples=["val4"])
-            arg5: str = Field(description="the fifth argument", examples=["val5"])
-            arg6: str = Field(description="the sixth argument", examples=["val6"])
-            arg7: str = Field(description="the seventh argument", examples=["val7"])
-            arg8: str = Field(description="the eighth argument", examples=["val8"])
-            arg9: str = Field(description="the ninth argument", examples=["val9"])
-            arg10: str = Field(description="the tenth argument", examples=["val10"])
-            arg11: str = Field(description="the eleventh argument", examples=["val11"])
-            arg12: str = Field(description="the twelfth argument", examples=["val12"])
-            arg13: str = Field(
-                description="the thirteenth argument", examples=["val13"]
-            )
-            arg14: str = Field(
-                description="the fourteenth argument", examples=["val14"]
-            )
-            arg15: str = Field(description="the fifteenth argument", examples=["val15"])
-
-        query_tool_1 = vec_factory.create_rag_tool(
-            tool_name="rag_tool",
-            tool_description="""
-            A dummy tool that takes 15 arguments and returns a response (str) to the user query based on the data in this corpus.
-            We are using this tool to test the tool factory works and does not crash with OpenAI.
-            """,
-            tool_args_schema=QueryToolArgs,
-        )
-
-        # Test with 15 arguments to make sure no issues occur
-        config = AgentConfig(agent_type=AgentType.OPENAI)
-        agent = Agent(
-            tools=[query_tool_1],
-            topic="Sample topic",
-            custom_instructions="Call the tool with 15 arguments for OPENAI",
-            agent_config=config,
-        )
-        res = agent.chat("What is the stock price for Yahoo on 12/31/22?")
-        self.assertNotIn("maximum length of 1024 characters", str(res))
-
-        # Same test but with GROQ, should not have this limit
-        config = AgentConfig(
-            agent_type=AgentType.FUNCTION_CALLING,
-            main_llm_provider=ModelProvider.GROQ,
-            tool_llm_provider=ModelProvider.GROQ,
-        )
-        agent = Agent(
-            tools=[query_tool_1],
-            topic="Sample topic",
-            custom_instructions="Call the tool with 15 arguments for GROQ",
-            agent_config=config,
-        )
-        res = agent.chat("What is the stock price?")
-        self.assertNotIn("maximum length of 1024 characters", str(res))
-
-        # Same test but with ANTHROPIC, should not have this limit
-        config = AgentConfig(
-            agent_type=AgentType.FUNCTION_CALLING,
-            main_llm_provider=ModelProvider.ANTHROPIC,
-            tool_llm_provider=ModelProvider.ANTHROPIC,
-        )
-        agent = Agent(
-            tools=[query_tool_1],
-            topic="Sample topic",
-            custom_instructions="Call the tool with 15 arguments for ANTHROPIC",
-            agent_config=config,
-        )
-        res = agent.chat("What is the stock price?")
-        self.assertIn("stock price", str(res))
-
     @patch.object(VectaraIndex, "as_query_engine")
     def test_vectara_tool_args_type(
         self,
@@ -384,7 +314,7 @@ class TestToolsPackage(unittest.TestCase):
             def __init__(self):
                 pass
 
-            def mult(self, x, y):
+            def mult(self, x: float, y: float) -> float:
                 return x * y
 
         test_class = TestClass()

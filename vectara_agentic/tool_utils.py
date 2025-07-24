@@ -60,8 +60,11 @@ class VectaraTool(FunctionTool):
         fn: Optional[Callable[..., Any]] = None,
         async_fn: Optional[AsyncCallable] = None,
     ) -> None:
+        # Use Pydantic v2 compatible method for extracting metadata
         metadata_dict = (
-            metadata.dict() if hasattr(metadata, "dict") else metadata.__dict__
+            metadata.model_dump()
+            if hasattr(metadata, "model_dump")
+            else metadata.dict() if hasattr(metadata, "dict") else metadata.__dict__
         )
         vm = VectaraToolMetadata(tool_type=tool_type, **metadata_dict)
         super().__init__(fn, vm, async_fn)
@@ -127,7 +130,11 @@ class VectaraTool(FunctionTool):
         self, *args: Any, ctx: Optional[Context] = None, **kwargs: Any
     ) -> ToolOutput:
         try:
-            result = super().call(*args, ctx=ctx, **kwargs)
+            # Only pass ctx if it's not None to avoid passing unwanted kwargs to the function
+            if ctx is not None:
+                result = super().call(*args, ctx=ctx, **kwargs)
+            else:
+                result = super().call(*args, **kwargs)
             return self._format_tool_output(result)
         except TypeError as e:
             sig = inspect.signature(self.metadata.fn_schema)
@@ -157,7 +164,11 @@ class VectaraTool(FunctionTool):
         self, *args: Any, ctx: Optional[Context] = None, **kwargs: Any
     ) -> ToolOutput:
         try:
-            result = await super().acall(*args, ctx=ctx, **kwargs)
+            # Only pass ctx if it's not None to avoid passing unwanted kwargs to the function
+            if ctx is not None:
+                result = await super().acall(*args, ctx=ctx, **kwargs)
+            else:
+                result = await super().acall(*args, **kwargs)
             return self._format_tool_output(result)
         except TypeError as e:
             sig = inspect.signature(self.metadata.fn_schema)

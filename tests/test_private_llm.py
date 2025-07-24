@@ -1,3 +1,7 @@
+# Suppress external dependency warnings before any other imports
+import warnings
+warnings.simplefilter("ignore", DeprecationWarning)
+
 import os
 import unittest
 import subprocess
@@ -48,19 +52,24 @@ class TestPrivateLLM(unittest.TestCase):
         topic = "calculator"
         custom_instructions = "you are an agent specializing in math, assisting a user."
         config = AgentConfig(
-            agent_type=AgentType.REACT,
+            agent_type=AgentType.FUNCTION_CALLING,
             main_llm_provider=ModelProvider.PRIVATE,
             main_llm_model_name="gpt-4.1",
             private_llm_api_base=f"http://127.0.0.1:{FLASK_PORT}/v1",
             private_llm_api_key="TEST_API_KEY",
         )
         agent = Agent(agent_config=config, tools=tools, topic=topic,
-                      custom_instructions=custom_instructions)
+                      custom_instructions=custom_instructions, verbose=False)
 
         # To run this test, you must have OPENAI_API_KEY in your environment
         res = agent.chat(
             "What is 5 times 10. Only give the answer, nothing else."
         ).response
+        if res is None:
+            self.fail("Agent returned None response")
+        # Convert to string for comparison if it's a number
+        if isinstance(res, (int, float)):
+            res = str(int(res))
         self.assertEqual(res, "50")
 
 

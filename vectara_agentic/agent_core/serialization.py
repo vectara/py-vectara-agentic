@@ -24,7 +24,7 @@ from .utils.schemas import get_field_type
 
 
 def restore_memory_from_dict(
-    data: Dict[str, Any], token_limit: int = 128_000
+    data: Dict[str, Any], token_limit: int = 65536
 ) -> Memory:
     """
     Restore agent memory from serialized dictionary data.
@@ -307,7 +307,7 @@ def deserialize_agent_from_dict(
     )
 
     # Restore memory
-    mem = restore_memory_from_dict(data, token_limit=128_000)
+    mem = restore_memory_from_dict(data, token_limit=65536)
     agent.memory = mem
 
     # Keep inner agent (if already built) in sync

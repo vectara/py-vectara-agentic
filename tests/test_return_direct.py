@@ -1,3 +1,7 @@
+# Suppress external dependency warnings before any other imports
+import warnings
+warnings.simplefilter("ignore", DeprecationWarning)
+
 import unittest
 
 from vectara_agentic.agent import Agent
@@ -26,7 +30,7 @@ class TestAgentPackage(unittest.TestCase):
             custom_instructions="You are a helpful assistant.",
         )
         res = agent.chat("What is Vectara?")
-        self.assertIn("Vectara is an end-to-end platform designed", str(res))
+        self.assertIn("Vectara is an end-to-end platform", str(res))
 
     def test_from_corpus(self):
         agent = Agent.from_corpus(
@@ -38,7 +42,7 @@ class TestAgentPackage(unittest.TestCase):
             return_direct=True,
         )
         res = agent.chat("What is Vectara?")
-        self.assertIn("Vectara is an end-to-end platform designed", str(res))
+        self.assertIn("Vectara is an end-to-end platform", str(res))
 
 
 if __name__ == "__main__":

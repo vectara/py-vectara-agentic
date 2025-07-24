@@ -471,12 +471,14 @@ dictionary that provides more detailed and easier to handle information.
 The `agent_config` argument is an optional object that you can use to
 explicitly specify the configuration of your agent, including the following:
 
-- `agent_type`: the agent type. Valid values are `REACT`, `LLMCOMPILER`, `LATS`, `FUNCTION_CALLING` or `OPENAI` (default: `OPENAI`).
-- `main_llm_provider` and `tool_llm_provider`: the LLM provider for main agent and for the tools. Valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI` or `FIREWORKS` (default: `OPENAI`).
+- `agent_type`: the agent type. Valid values are `REACT`, `LLMCOMPILER`, `LATS`, or `FUNCTION_CALLING` (default: `FUNCTION_CALLING`).
+- `main_llm_provider` and `tool_llm_provider`: the LLM provider for main agent and for the tools. Valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI` (default: `OPENAI`).
+
+> **Note:** Fireworks AI support has been removed. If you were using Fireworks, please migrate to one of the supported providers listed above.
 - `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider).
 - `observer`: the observer type; should be `ARIZE_PHOENIX` or if undefined no observation framework will be used.
 - `endpoint_api_key`: a secret key if using the API endpoint option (defaults to `dev-api-key`)
-- `max_reasoning_steps`: the maximum number of reasoning steps (iterations for React and function calls for OpenAI agent, respectively). defaults to 50.
+- `max_reasoning_steps`: the maximum number of reasoning steps (iterations for React and function calls for function calling agent, respectively). defaults to 50.
 
 By default, each of these parameters will be read from your environment, but you can also
 explicitly define them with the `AgentConfig` class.
@@ -675,13 +677,10 @@ The `Agent` class defines a few helpful methods to help you understand
 the internals of your application.
 
 1.  The `report()` method prints out the agent object's type (REACT,
-    OPENAI, or LLMCOMPILER), the tools, and the LLMs used for the main
+    FUNCTION_CALLING, or LLMCOMPILER), the tools, and the LLMs used for the main
     agent and tool calling.
-2.  The `token_counts()` method tells you how many tokens you have used
-    in the current session for both the main agent and tool calling
-    LLMs. This can be helpful for users who want to track how many
-    tokens have been used, which translates to how much money they are
-    spending.
+2.  The agent provides access to session information including conversation history
+    and tool usage patterns.
 
 If you have any other information that you would like to be accessible
 to users, feel free to make a suggestion on our community

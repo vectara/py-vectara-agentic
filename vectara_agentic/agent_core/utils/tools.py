@@ -12,9 +12,7 @@ from collections import Counter
 
 from pydantic import Field, create_model
 from llama_index.core.tools import FunctionTool
-from llama_index.core.callbacks import TokenCountingHandler
-
-from ...llm_utils import get_llm, get_tokenizer_for_model
+from ...llm_utils import get_llm
 from ...types import LLMRole
 
 
@@ -126,20 +124,3 @@ def validate_tool_consistency(
             raise ValueError(
                 f"The Agent custom instructions mention these invalid tools: {numbered}"
             )
-
-
-def create_token_counters():
-    """
-    Create token counters for main and tool LLMs.
-
-    Returns:
-        tuple: (main_token_counter, tool_token_counter) - may contain None values
-    """
-    # Create token counters for the main and tool LLMs
-    main_tok = get_tokenizer_for_model(role=LLMRole.MAIN)
-    main_token_counter = TokenCountingHandler(tokenizer=main_tok) if main_tok else None
-
-    tool_tok = get_tokenizer_for_model(role=LLMRole.TOOL)
-    tool_token_counter = TokenCountingHandler(tokenizer=tool_tok) if tool_tok else None
-
-    return main_token_counter, tool_token_counter

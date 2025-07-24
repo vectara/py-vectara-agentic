@@ -17,7 +17,6 @@ class AgentType(Enum):
     """Enumeration for different types of agents."""
 
     REACT = "REACT"
-    OPENAI = "OPENAI"
     FUNCTION_CALLING = "FUNCTION_CALLING"
     LLMCOMPILER = "LLMCOMPILER"
     LATS = "LATS"
@@ -37,7 +36,6 @@ class ModelProvider(Enum):
     ANTHROPIC = "ANTHROPIC"
     TOGETHER = "TOGETHER"
     GROQ = "GROQ"
-    FIREWORKS = "FIREWORKS"
     COHERE = "COHERE"
     GEMINI = "GEMINI"
     BEDROCK = "BEDROCK"

@@ -19,7 +19,7 @@ class AgentConfig:
     # Agent type
     agent_type: AgentType = field(
         default_factory=lambda: AgentType(
-            os.getenv("VECTARA_AGENTIC_AGENT_TYPE", AgentType.OPENAI.value)
+            os.getenv("VECTARA_AGENTIC_AGENT_TYPE", AgentType.FUNCTION_CALLING.value)
         )
     )
 

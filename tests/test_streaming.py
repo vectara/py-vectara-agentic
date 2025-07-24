@@ -1,3 +1,7 @@
+# Suppress external dependency warnings before any other imports
+import warnings
+warnings.simplefilter("ignore", DeprecationWarning)
+
 import unittest
 import asyncio
 
@@ -14,8 +18,8 @@ def mult(x: float, y: float) -> float:
     return x * y
 
 
-config_openai = AgentConfig(
-    agent_type=AgentType.OPENAI,
+config_function_calling_openai = AgentConfig(
+    agent_type=AgentType.FUNCTION_CALLING,
     main_llm_provider=ModelProvider.OPENAI,
     tool_llm_provider=ModelProvider.OPENAI,
 )
