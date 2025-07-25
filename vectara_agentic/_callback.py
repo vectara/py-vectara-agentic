@@ -201,36 +201,42 @@ class AgentCallbackHandler(BaseCallbackHandler):
             )
 
     def _handle_function_call(self, payload: dict, event_id: str) -> None:
-        if EventPayload.FUNCTION_CALL in payload:
-            fcall = payload.get(EventPayload.FUNCTION_CALL)
-            tool = payload.get(EventPayload.TOOL)
-            if tool:
-                tool_name = tool.name
-                if self.fn:
+        try:
+            if EventPayload.FUNCTION_CALL in payload:
+                fcall = payload.get(EventPayload.FUNCTION_CALL)
+                tool = payload.get(EventPayload.TOOL)
+                if tool:
+                    tool_name = tool.name
+                    if self.fn:
+                        self.fn(
+                            status_type=AgentStatusType.TOOL_CALL,
+                            msg={
+                                "tool_name": tool_name,
+                                "arguments": fcall
+                            },
+                            event_id=event_id,
+                        )
+                else:
+                    print(f"⚠️ [CALLBACK] Tool object missing in FUNCTION_CALL payload: {payload}")
+            elif EventPayload.FUNCTION_OUTPUT in payload:
+                response = payload.get(EventPayload.FUNCTION_OUTPUT)
+                tool = payload.get(EventPayload.TOOL)
+                if tool and self.fn:
                     self.fn(
-                        status_type=AgentStatusType.TOOL_CALL,
+                        status_type=AgentStatusType.TOOL_OUTPUT,
                         msg={
-                            "tool_name": tool_name,
-                            "arguments": fcall
+                            "tool_name": tool.name,
+                            "content": response
                         },
                         event_id=event_id,
                     )
-        elif EventPayload.FUNCTION_OUTPUT in payload:
-            response = payload.get(EventPayload.FUNCTION_OUTPUT)
-            tool = payload.get(EventPayload.TOOL)
-            if self.fn:
-                self.fn(
-                    status_type=AgentStatusType.TOOL_OUTPUT,
-                    msg={
-                        "tool_name": tool.name,
-                        "content": response
-                    },
-                    event_id=event_id,
-                )
-        else:
-            print(
-                f"Vectara-agentic callback handler: no function call or output found in payload {payload}"
-            )
+                elif not tool:
+                    print(f"⚠️ [CALLBACK] Tool object missing in FUNCTION_OUTPUT payload: {payload}")
+            else:
+                print(f"⚠️ [CALLBACK] No function call or output found in payload: {payload}")
+        except Exception as e:
+            print(f"❌ [CALLBACK] Error handling function call event: {e}, payload: {payload}")
+            # Continue execution to prevent callback failures from breaking the agent
 
     def _handle_agent_step(self, payload: dict, event_id: str) -> None:
         if EventPayload.MESSAGES in payload:
@@ -286,11 +292,11 @@ class AgentCallbackHandler(BaseCallbackHandler):
             )
 
     async def _ahandle_function_call(self, payload: dict, event_id: str) -> None:
-        if EventPayload.FUNCTION_CALL in payload:
-            fcall = payload.get(EventPayload.FUNCTION_CALL)
-            tool = payload.get(EventPayload.TOOL)
-            if tool:
-                if self.fn:
+        try:
+            if EventPayload.FUNCTION_CALL in payload:
+                fcall = payload.get(EventPayload.FUNCTION_CALL)
+                tool = payload.get(EventPayload.TOOL)
+                if tool and self.fn:
                     if inspect.iscoroutinefunction(self.fn):
                         await self.fn(
                             status_type=AgentStatusType.TOOL_CALL,
@@ -309,30 +315,37 @@ class AgentCallbackHandler(BaseCallbackHandler):
                             },
                             event_id=event_id,
                         )
-        elif EventPayload.FUNCTION_OUTPUT in payload:
-            if self.fn:
+                elif not tool:
+                    print(f"⚠️ [ASYNC_CALLBACK] Tool object missing in FUNCTION_CALL payload: {payload}")
+            elif EventPayload.FUNCTION_OUTPUT in payload:
                 response = payload.get(EventPayload.FUNCTION_OUTPUT)
                 tool = payload.get(EventPayload.TOOL)
-                if inspect.iscoroutinefunction(self.fn):
-                    await self.fn(
-                        status_type=AgentStatusType.TOOL_OUTPUT,
-                        msg={
-                            "tool_name": tool.name,
-                            "response": response,
-                        },
-                        event_id=event_id,
-                    )
-                else:
-                    self.fn(
-                        status_type=AgentStatusType.TOOL_OUTPUT,
-                        msg={
-                            "tool_name": tool.name,
-                            "response": response,
-                        },
-                        event_id=event_id,
-                    )
-        else:
-            print(f"No function call or output found in payload {payload}")
+                if tool and self.fn:
+                    if inspect.iscoroutinefunction(self.fn):
+                        await self.fn(
+                            status_type=AgentStatusType.TOOL_OUTPUT,
+                            msg={
+                                "tool_name": tool.name,
+                                "content": response,
+                            },
+                            event_id=event_id,
+                        )
+                    else:
+                        self.fn(
+                            status_type=AgentStatusType.TOOL_OUTPUT,
+                            msg={
+                                "tool_name": tool.name,
+                                "content": response,
+                            },
+                            event_id=event_id,
+                        )
+                elif not tool:
+                    print(f"⚠️ [ASYNC_CALLBACK] Tool object missing in FUNCTION_OUTPUT payload: {payload}")
+            else:
+                print(f"⚠️ [ASYNC_CALLBACK] No function call or output found in payload: {payload}")
+        except Exception as e:
+            print(f"❌ [ASYNC_CALLBACK] Error handling function call event: {e}, payload: {payload}")
+            # Continue execution to prevent callback failures from breaking the agent
 
     async def _ahandle_agent_step(self, payload: dict, event_id: str) -> None:
         if EventPayload.MESSAGES in payload:

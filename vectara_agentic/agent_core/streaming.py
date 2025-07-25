@@ -13,6 +13,56 @@ from typing import Callable, Any, Dict, AsyncIterator
 from ..types import AgentResponse
 
 
+class ToolEventTracker:
+    """
+    Tracks event IDs for tool calls to ensure consistent pairing of tool calls and outputs.
+
+    This class maintains a mapping between tool identifiers and event IDs to ensure
+    that related tool call and tool output events share the same event_id for proper
+    frontend grouping.
+    """
+
+    def __init__(self):
+        self.event_ids = {}  # tool_call_id -> event_id mapping
+        self.fallback_counter = 0  # For events without identifiable tool_ids
+
+    def get_event_id(self, event) -> str:
+        """
+        Get a consistent event ID for a tool event.
+
+        Args:
+            event: The tool event object
+
+        Returns:
+            str: Consistent event ID for this tool execution
+        """
+        # Try to get tool_id from the event
+        tool_id = getattr(event, "tool_id", None)
+
+        # If no tool_id, try to derive one from tool_name
+        if not tool_id and hasattr(event, "tool_name"):
+            tool_id = f"{event.tool_name}_{getattr(event, 'timestamp', self.fallback_counter)}"
+            self.fallback_counter += 1
+
+        # If we still don't have a tool_id, generate a unique one
+        if not tool_id:
+            tool_id = f"unknown_tool_{self.fallback_counter}"
+            self.fallback_counter += 1
+
+        # Get or create event_id for this tool_id
+        if tool_id not in self.event_ids:
+            self.event_ids[tool_id] = str(uuid.uuid4())
+
+        return self.event_ids[tool_id]
+
+    def clear_old_entries(self, max_entries: int = 100):
+        """Clear old entries to prevent unbounded memory growth."""
+        if len(self.event_ids) > max_entries:
+            # Keep only the most recent entries (simple FIFO cleanup)
+            items = list(self.event_ids.items())
+            self.event_ids = dict(items[-max_entries // 2 :])  # Keep half
+
+
 class StreamingResponseAdapter:
     """
     Adapter class that provides a LlamaIndex-compatible streaming response interface.
@@ -182,7 +232,9 @@ def create_stream_post_processing_task(
         # Wait until the generator has finished and final response is populated
         await stream_complete_event.wait()
         result = final_response_container.get("resp")
-        return await execute_post_stream_processing(result, prompt, agent_instance, user_metadata)
+        return await execute_post_stream_processing(
+            result, prompt, agent_instance, user_metadata
+        )
 
     async def _safe_post_process():
         try:
@@ -208,6 +260,7 @@ class FunctionCallingStreamHandler:
         self.prompt = prompt
         self.final_response_container = {"resp": None}
         self.stream_complete_event = asyncio.Event()
+        self.event_tracker = ToolEventTracker()
 
     async def process_stream_events(self) -> AsyncIterator[str]:
         """
@@ -222,7 +275,8 @@ class FunctionCallingStreamHandler:
         async for ev in self.handler.stream_events():
             # Handle progress callbacks if available
             if self.agent_instance.agent_progress_callback:
-                event_id = str(uuid.uuid4())
+                # Use consistent event ID tracking to ensure tool calls and outputs are paired
+                event_id = self.event_tracker.get_event_id(ev)
                 await self._handle_progress_callback(ev, event_id)
 
             # Process streaming text events
@@ -260,6 +314,8 @@ class FunctionCallingStreamHandler:
                 },
             )()
         finally:
+            # Clean up event tracker to prevent memory leaks
+            self.event_tracker.clear_old_entries()
             # Signal that stream processing is complete
             self.stream_complete_event.set()
 
@@ -276,33 +332,33 @@ class FunctionCallingStreamHandler:
 
         if isinstance(event, ToolCall):
             self.agent_instance.agent_progress_callback(
-                status_type = AgentStatusType.TOOL_CALL,
-                msg = {
+                status_type=AgentStatusType.TOOL_CALL,
+                msg={
                     "tool_name": event.tool_name,
                     "arguments": json.dumps(event.tool_kwargs),
                 },
-                event_id = event_id,
+                event_id=event_id,
             )
         elif isinstance(event, ToolCallResult):
             self.agent_instance.agent_progress_callback(
-                status_type = AgentStatusType.TOOL_OUTPUT,
-                msg = {
+                status_type=AgentStatusType.TOOL_OUTPUT,
+                msg={
                     "tool_name": event.tool_name,
                     "content": str(event.tool_output),
                 },
-                event_id = event_id,
+                event_id=event_id,
             )
         elif isinstance(event, AgentInput):
             self.agent_instance.agent_progress_callback(
-                status_type = AgentStatusType.AGENT_UPDATE,
-                msg = {"content": f"Agent input: {event.input}"},
-                event_id = event_id,
+                status_type=AgentStatusType.AGENT_UPDATE,
+                msg={"content": f"Agent input: {event.input}"},
+                event_id=event_id,
             )
         elif isinstance(event, AgentOutput):
             self.agent_instance.agent_progress_callback(
-                status_type = AgentStatusType.AGENT_UPDATE,
-                msg = {"content": f"Agent output: {event.response}"},
-                event_id = event_id,
+                status_type=AgentStatusType.AGENT_UPDATE,
+                msg={"content": f"Agent output: {event.response}"},
+                event_id=event_id,
             )
 
     def create_streaming_response(

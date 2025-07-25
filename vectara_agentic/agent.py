@@ -16,7 +16,6 @@ import json
 import logging
 import asyncio
 from collections import Counter
-import uuid
 
 from pydantic import ValidationError
 from pydantic_core import PydanticUndefined
@@ -652,8 +651,13 @@ class Agent:
 
                     # Listen to workflow events if progress callback is set
                     if self.agent_progress_callback:
+                        # Create event tracker for consistent event ID generation
+                        from .agent_core.streaming import ToolEventTracker
+                        event_tracker = ToolEventTracker()
+
                         async for event in handler.stream_events():
-                            event_id = str(uuid.uuid4())
+                            # Use consistent event ID tracking to ensure tool calls and outputs are paired
+                            event_id = event_tracker.get_event_id(event)
 
                             # Handle different types of workflow events using same logic as FunctionCallingStreamHandler
                             from llama_index.core.agent.workflow import (
