@@ -74,20 +74,16 @@ class VectaraToolFactory:
         self,
         vectara_corpus_key: str = str(os.environ.get("VECTARA_CORPUS_KEY", "")),
         vectara_api_key: str = str(os.environ.get("VECTARA_API_KEY", "")),
-        compact_docstring: bool = False,
     ) -> None:
         """
         Initialize the VectaraToolFactory
         Args:
             vectara_corpus_key (str): The Vectara corpus key (or comma separated list of keys).
             vectara_api_key (str): The Vectara API key.
-            compact_docstring (bool): Whether to use a compact docstring format for tools
-              This is useful if OpenAI complains on the 1024 token limit.
         """
         self.vectara_corpus_key = vectara_corpus_key
         self.vectara_api_key = vectara_api_key
         self.num_corpora = len(vectara_corpus_key.split(","))
-        self.compact_docstring = compact_docstring
 
     def create_search_tool(
         self,
@@ -312,7 +308,7 @@ class VectaraToolFactory:
                 description="The search query to perform, in the form of a question.",
             )
             top_k: int = Field(
-                10, description="The number of top documents to retrieve."
+                default=10, description="The number of top documents to retrieve."
             )
 
         search_tool_extra_desc = (
@@ -331,7 +327,6 @@ class VectaraToolFactory:
                 else SearchToolBaseParamsWithoutSummarize
             ),
             tool_args_schema,
-            compact_docstring=self.compact_docstring,
             return_direct=return_direct,
         )
         return tool
@@ -603,7 +598,6 @@ class VectaraToolFactory:
             tool_description,
             RagToolBaseParams,
             tool_args_schema,
-            compact_docstring=self.compact_docstring,
             return_direct=return_direct,
         )
         return tool

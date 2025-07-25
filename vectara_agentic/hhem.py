@@ -3,7 +3,6 @@
 import requests
 from commonmark import Parser
 
-
 def markdown_to_text(md: str) -> str:
     """
     Convert a Markdown-formatted string into plain text.
@@ -26,6 +25,7 @@ def markdown_to_text(md: str) -> str:
 
     recurse(ast)
     text = "".join(out)
+
     # collapse runs of spaces but preserve newlines
     lines = [" ".join(line.split()) for line in text.splitlines()]
     return "\n".join(line if line.strip() else "" for line in lines)

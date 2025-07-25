@@ -31,6 +31,7 @@
 - [Using Tools](#using-tools)
 - [Advanced Usage: Workflows](#advanced-usage-workflows)
 - [Configuration](#️-configuration)
+- [Migrating from v0.3.x](#-migrating-from-v03x)
 - [Contributing](#-contributing)
 - [License](#-license)
 
@@ -646,7 +647,7 @@ The `AgentConfig` object may include the following items:
 - `main_llm_provider` and `tool_llm_provider`: the LLM provider for main agent and for the tools. Valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI` (default: `OPENAI`).
 
 > **Note:** Fireworks AI support has been removed. If you were using Fireworks, please migrate to one of the supported providers listed above.
-- `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider).
+- `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider: OpenAI uses gpt-4.1, Gemini uses gemini-2.5-flash-lite).
 - `observer`: the observer type; should be `ARIZE_PHOENIX` or if undefined no observation framework will be used.
 - `endpoint_api_key`: a secret key if using the API endpoint option (defaults to `dev-api-key`)
 - `max_reasoning_steps`: the maximum number of reasoning steps (iterations for React and function calls for OpenAI agent, respectively). Defaults to 50.
@@ -683,4 +684,15 @@ agent = Agent(
     custom_instructions=custom_instructions
 )
 ```
+
+## 🚀 Migrating from v0.3.x
+
+If you're upgrading from v0.3.x, please note the following breaking changes in v0.4.0:
+
+- **Fireworks LLM removed**: Migrate to OpenAI, Anthropic, Together.AI, GROQ, Cohere, Bedrock, or Gemini
+- **StructuredPlanning deprecated**: Use standard Agent workflows or create custom workflows
+- **Token counting and compact_docstring removed**: Remove these from your configuration
+- **update_func removed**: This functionality is no longer available
+
+For detailed migration instructions, see [CHANGELOG.md](CHANGELOG.md).
 

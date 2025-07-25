@@ -66,11 +66,11 @@ arguments, for example:
 
 ```python
 from pydantic import BaseModel
+from typing import Optional
 
 # define the arguments schema for the tool
 class QueryTranscriptsArgs(BaseModel):
-    year: int | str = Field(
-        default=None,
+    year: Optional[int | str] = Field(
         description=f"The year this query relates to. An integer between {min(years)} and {max(years)} or a string specifying a condition on the year",
         examples=[2020, '>2021', '<2023', '>=2021', '<=2023', '[2021, 2023]', '[2021, 2023)']
     )
@@ -475,7 +475,7 @@ explicitly specify the configuration of your agent, including the following:
 - `main_llm_provider` and `tool_llm_provider`: the LLM provider for main agent and for the tools. Valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI` (default: `OPENAI`).
 
 > **Note:** Fireworks AI support has been removed. If you were using Fireworks, please migrate to one of the supported providers listed above.
-- `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider).
+- `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider: OpenAI uses gpt-4.1, Gemini uses gemini-2.5-flash-lite).
 - `observer`: the observer type; should be `ARIZE_PHOENIX` or if undefined no observation framework will be used.
 - `endpoint_api_key`: a secret key if using the API endpoint option (defaults to `dev-api-key`)
 - `max_reasoning_steps`: the maximum number of reasoning steps (iterations for React and function calls for function calling agent, respectively). defaults to 50.

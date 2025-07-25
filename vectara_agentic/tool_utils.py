@@ -17,7 +17,7 @@ from typing import (
     get_origin,
     get_args,
 )
-from pydantic import BaseModel, create_model
+from pydantic import BaseModel, create_model, Field
 from pydantic_core import PydanticUndefined
 
 from llama_index.core.tools import FunctionTool
@@ -126,6 +126,41 @@ class VectaraTool(FunctionTool):
         )
         return is_equal
 
+    def _create_tool_error_output(
+            self,
+            error: Exception,
+            args: Any, kwargs: Any,
+            include_traceback: bool = False
+    ) -> ToolOutput:
+        """Create standardized error output for tool execution failures."""
+        if isinstance(error, TypeError):
+            # Parameter validation error handling
+            sig = inspect.signature(self.metadata.fn_schema)
+            valid_parameters = list(sig.parameters.keys())
+            params_str = ", ".join(valid_parameters)
+            return ToolOutput(
+                tool_name=self.metadata.name,
+                content=(
+                    f"Wrong argument used when calling {self.metadata.name}: {str(error)}. "
+                    f"Valid arguments: {params_str}. please call the tool again with the correct arguments."
+                ),
+                raw_input={"args": args, "kwargs": kwargs},
+                raw_output={"response": str(error)},
+            )
+        else:
+            # General execution error handling
+            content = f"Tool {self.metadata.name} Malfunction: {str(error)}"
+            if include_traceback:
+                import traceback
+                content += f", traceback: {traceback.format_exc()}"
+
+            return ToolOutput(
+                tool_name=self.metadata.name,
+                content=content,
+                raw_input={"args": args, "kwargs": kwargs},
+                raw_output={"response": str(error)},
+            )
+
     def call(
         self, *args: Any, ctx: Optional[Context] = None, **kwargs: Any
     ) -> ToolOutput:
@@ -136,29 +171,8 @@ class VectaraTool(FunctionTool):
             else:
                 result = super().call(*args, **kwargs)
             return self._format_tool_output(result)
-        except TypeError as e:
-            sig = inspect.signature(self.metadata.fn_schema)
-            valid_parameters = list(sig.parameters.keys())
-            params_str = ", ".join(valid_parameters)
-
-            err_output = ToolOutput(
-                tool_name=self.metadata.name,
-                content=(
-                    f"Wrong argument used when calling {self.metadata.name}: {str(e)}."
-                    f"Valid arguments: {params_str}. please call the tool again with the correct arguments."
-                ),
-                raw_input={"args": args, "kwargs": kwargs},
-                raw_output={"response": str(e)},
-            )
-            return err_output
         except Exception as e:
-            err_output = ToolOutput(
-                tool_name=self.metadata.name,
-                content=f"Tool {self.metadata.name} Malfunction: {str(e)}",
-                raw_input={"args": args, "kwargs": kwargs},
-                raw_output={"response": str(e)},
-            )
-            return err_output
+            return self._create_tool_error_output(e, args, kwargs)
 
     async def acall(
         self, *args: Any, ctx: Optional[Context] = None, **kwargs: Any
@@ -170,31 +184,8 @@ class VectaraTool(FunctionTool):
             else:
                 result = await super().acall(*args, **kwargs)
             return self._format_tool_output(result)
-        except TypeError as e:
-            sig = inspect.signature(self.metadata.fn_schema)
-            valid_parameters = list(sig.parameters.keys())
-            params_str = ", ".join(valid_parameters)
-
-            err_output = ToolOutput(
-                tool_name=self.metadata.name,
-                content=(
-                    f"Wrong argument used when calling {self.metadata.name}: {str(e)}. "
-                    f"Valid arguments: {params_str}. please call the tool again with the correct arguments."
-                ),
-                raw_input={"args": args, "kwargs": kwargs},
-                raw_output={"response": str(e)},
-            )
-            return err_output
         except Exception as e:
-            import traceback
-
-            err_output = ToolOutput(
-                tool_name=self.metadata.name,
-                content=f"Tool {self.metadata.name} Malfunction: {str(e)}, traceback: {traceback.format_exc()}",
-                raw_input={"args": args, "kwargs": kwargs},
-                raw_output={"response": str(e)},
-            )
-            return err_output
+            return self._create_tool_error_output(e, args, kwargs, include_traceback=True)
 
     def _format_tool_output(self, result: ToolOutput) -> ToolOutput:
         """Format tool output to use human-readable representation if available."""
@@ -223,7 +214,6 @@ class VectaraTool(FunctionTool):
                     raw_output={"error": str(e), "original_content": result.content},
                 )
         return result
-
 
 class EmptyBaseModel(BaseModel):
     """empty base model"""
@@ -268,7 +258,6 @@ def _make_docstring(
     tool_description: str,
     fn_schema: Type[BaseModel],
     all_params: List[inspect.Parameter],
-    compact_docstring: bool,
 ) -> str:
     """
     Generates a docstring for a function based on its signature, description,
@@ -280,7 +269,6 @@ def _make_docstring(
         tool_description: The main description of the tool/function.
         fn_schema: The Pydantic model representing the function's arguments schema.
         all_params: A list of inspect.Parameter objects for the function signature.
-        compact_docstring: If True, omits the signature line in the main description.
 
     Returns:
         A formatted docstring string.
@@ -293,10 +281,7 @@ def _make_docstring(
     params_str = ", ".join(params_str_parts)
     signature_line = f"{tool_name}({params_str}) -> dict[str, Any]"
 
-    if compact_docstring:
-        doc_lines = [tool_description.strip()]
-    else:
-        doc_lines = [signature_line, "", tool_description.strip()]
+    doc_lines = [signature_line, "", tool_description.strip()]
 
     full_schema = fn_schema.model_json_schema()
     props = full_schema.get("properties", {})
@@ -350,26 +335,71 @@ def _make_docstring(
     return final_docstring
 
 
+def _auto_fix_field_if_needed(
+    field_name: str, field_info, annotation
+) -> Tuple[Any, Any]:
+    """
+    Auto-fix problematic Field definitions: convert non-Optional types with any default value to Optional.
+
+    Args:
+        field_name: Name of the field
+        field_info: The Pydantic FieldInfo object
+        annotation: The type annotation for the field
+
+    Returns:
+        Tuple of (possibly_modified_annotation, possibly_modified_field_info)
+    """
+    # Check for problematic pattern: non-Optional type with any default value
+    if (
+        field_info.default is not PydanticUndefined
+        and annotation is not None
+        and get_origin(annotation) is not Union
+    ):
+
+        # Convert to Optional[OriginalType] and keep the original default value
+        new_annotation = Union[annotation, type(None)]
+        # Create new field_info preserving the original default value
+        new_field_info = Field(
+            default=field_info.default,
+            description=field_info.description,
+            examples=getattr(field_info, "examples", None),
+            title=getattr(field_info, "title", None),
+            alias=getattr(field_info, "alias", None),
+            json_schema_extra=getattr(field_info, "json_schema_extra", None),
+        )
+
+        # Optional: Log the auto-fix for debugging
+        import logging
+        logging.debug(
+            f"Auto-fixed field '{field_name}': "
+            f"converted {annotation} with default={field_info.default} to Optional[{annotation.__name__}]"
+        )
+
+        return new_annotation, new_field_info
+    else:
+        # Keep original field definition
+        return annotation, field_info
+
+
 def create_tool_from_dynamic_function(
     function: Callable[..., ToolOutput],
     tool_name: str,
     tool_description: str,
     base_params_model: Type[BaseModel],
     tool_args_schema: Type[BaseModel],
-    compact_docstring: bool = False,
     return_direct: bool = False,
 ) -> VectaraTool:
     """
-    Create a VectaraTool from a dynamic function.
+    Create a VectaraTool from a dynamic function with OpenAI compatibility.
     Args:
         function (Callable[..., ToolOutput]): The function to wrap as a tool.
         tool_name (str): The name of the tool.
         tool_description (str): The description of the tool.
         base_params_model (Type[BaseModel]): The Pydantic model for the base parameters.
         tool_args_schema (Type[BaseModel]): The Pydantic model for the tool arguments.
-        compact_docstring (bool): Whether to use a compact docstring format.
+        return_direct (bool): Whether to return the tool output directly.
     Returns:
-        VectaraTool: The created VectaraTool.
+        VectaraTool: The created VectaraTool with OpenAI-compatible schema.
     """
     if tool_args_schema is None:
         tool_args_schema = EmptyBaseModel
@@ -382,6 +412,11 @@ def create_tool_from_dynamic_function(
     fields: Dict[str, Any] = {}
     base_params = []
     for field_name, field_info in base_params_model.model_fields.items():
+        # Apply auto-conversion if needed
+        annotation, field_info = _auto_fix_field_if_needed(
+            field_name, field_info, field_info.annotation
+        )
+
         default = (
             Ellipsis if field_info.default is PydanticUndefined else field_info.default
         )
@@ -389,16 +424,21 @@ def create_tool_from_dynamic_function(
             field_name,
             inspect.Parameter.POSITIONAL_OR_KEYWORD,
             default=default if default is not Ellipsis else inspect.Parameter.empty,
-            annotation=field_info.annotation,
+            annotation=annotation,
         )
         base_params.append(param)
-        fields[field_name] = (field_info.annotation, field_info)
+        fields[field_name] = (annotation, field_info)
 
     # Add tool_args_schema fields to the fields dict if not already included.
     for field_name, field_info in tool_args_schema.model_fields.items():
         if field_name in fields:
             continue
 
+        # Apply auto-conversion if needed
+        annotation, field_info = _auto_fix_field_if_needed(
+            field_name, field_info, field_info.annotation
+        )
+
         default = (
             Ellipsis if field_info.default is PydanticUndefined else field_info.default
         )
@@ -406,12 +446,12 @@ def create_tool_from_dynamic_function(
             field_name,
             inspect.Parameter.POSITIONAL_OR_KEYWORD,
             default=default if default is not Ellipsis else inspect.Parameter.empty,
-            annotation=field_info.annotation,
+            annotation=annotation,
         )
         base_params.append(param)
-        fields[field_name] = (field_info.annotation, field_info)
+        fields[field_name] = (annotation, field_info)
 
-    # Create the dynamic schema with both base_params_model and tool_args_schema fields.
+    # Create the dynamic schema with both base_params_model and tool_args_schema fields (auto-fixed)
     fn_schema = create_model(f"{tool_name}_schema", **fields)
 
     # Combine parameters into a function signature.
@@ -425,7 +465,7 @@ def create_tool_from_dynamic_function(
     function.__name__ = re.sub(r"[^A-Za-z0-9_]", "_", tool_name)
 
     function.__doc__ = _make_docstring(
-        function, tool_name, tool_description, fn_schema, all_params, compact_docstring
+        function, tool_name, tool_description, fn_schema, all_params
     )
     tool = VectaraTool.from_defaults(
         fn=function,
@@ -448,7 +488,6 @@ _PARSE_RANGE_REGEX = re.compile(
     re.VERBOSE,
 )
 
-
 def _parse_range(val_str: str) -> Tuple[str, str, bool, bool]:
     """
     Parses '[1,10)' or '(0.5, 5]' etc.
@@ -464,7 +503,6 @@ def _parse_range(val_str: str) -> Tuple[str, str, bool, bool]:
     if float(start) > float(end):
         raise ValueError(f"Range lower bound greater than upper bound: {val_str!r}")
     return start, end, start_inc, end_inc
-
 
 def _parse_comparison(val_str: str) -> Tuple[str, Union[float, str, bool]]:
     """
@@ -597,7 +635,6 @@ def _is_human_readable_output(obj: Any) -> bool:
         and callable(getattr(obj, "to_human_readable", None))
         and callable(getattr(obj, "get_raw_output", None))
     )
-
 
 def create_human_readable_output(
     raw_output: Any, formatter: Optional[Callable[[Any], str]] = None

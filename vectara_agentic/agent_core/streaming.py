@@ -90,6 +90,73 @@ def extract_response_text_from_chat_message(response_text: Any) -> str:
     return response_text
 
 
+async def execute_post_stream_processing(
+    result: Any,
+    prompt: str,
+    agent_instance,
+    user_metadata: Dict[str, Any],
+) -> AgentResponse:
+    """
+    Execute post-stream processing on a completed result.
+
+    This function consolidates the common post-processing steps that happen
+    after streaming completes, including response extraction, formatting,
+    callbacks, and FCS calculation.
+
+    Args:
+        result: The completed result object from streaming
+        prompt: Original user prompt
+        agent_instance: Agent instance for callbacks and processing
+        user_metadata: User metadata to update with FCS scores
+
+    Returns:
+        AgentResponse: Processed final response
+    """
+    if result is None:
+        # Fallback response if something went wrong
+        result = type(
+            "AgentResponse",
+            (),
+            {
+                "response": "Response completed",
+                "source_nodes": [],
+                "metadata": None,
+            },
+        )()
+
+    # Ensure we have an AgentResponse object with a string response
+    if hasattr(result, "response"):
+        response_text = result.response
+    else:
+        response_text = str(result)
+
+    # Extract text from various response formats
+    response_text = extract_response_text_from_chat_message(response_text)
+
+    final = AgentResponse(
+        response=response_text,
+        metadata=getattr(result, "metadata", {}),
+    )
+
+    # Post-processing steps
+    # pylint: disable=protected-access
+    await agent_instance._aformat_for_lats(prompt, final)
+    if agent_instance.query_logging_callback:
+        agent_instance.query_logging_callback(prompt, final.response)
+
+    # Calculate factual consistency score
+    # pylint: disable=protected-access
+    fcs = agent_instance._calc_fcs(final.response)
+    if fcs is not None:
+        user_metadata["fcs"] = fcs
+    if agent_instance.observability_enabled:
+        from .._observability import eval_fcs
+
+        eval_fcs()
+
+    return final
+
+
 def create_stream_post_processing_task(
     stream_complete_event: asyncio.Event,
     final_response_container: Dict[str, Any],
@@ -115,50 +182,7 @@ def create_stream_post_processing_task(
         # Wait until the generator has finished and final response is populated
         await stream_complete_event.wait()
         result = final_response_container.get("resp")
-
-        if result is None:
-            # Fallback response if something went wrong
-            result = type(
-                "AgentResponse",
-                (),
-                {
-                    "response": "Response completed",
-                    "source_nodes": [],
-                    "metadata": None,
-                },
-            )()
-
-        # Ensure we have an AgentResponse object with a string response
-        if hasattr(result, "response"):
-            response_text = result.response
-        else:
-            response_text = str(result)
-
-        # Extract text from various response formats
-        response_text = extract_response_text_from_chat_message(response_text)
-
-        final = AgentResponse(
-            response=response_text,
-            metadata=getattr(result, "metadata", {}),
-        )
-
-        # Post-processing steps
-        # pylint: disable=protected-access
-        await agent_instance._aformat_for_lats(prompt, final)
-        if agent_instance.query_logging_callback:
-            agent_instance.query_logging_callback(prompt, final.response)
-
-        # Calculate factual consistency score
-        # pylint: disable=protected-access
-        fcs = agent_instance._calc_fcs(final.response)
-        if fcs is not None:
-            user_metadata["fcs"] = fcs
-        if agent_instance.observability_enabled:
-            from .._observability import eval_fcs
-
-            eval_fcs()
-
-        return final
+        return await execute_post_stream_processing(result, prompt, agent_instance, user_metadata)
 
     async def _safe_post_process():
         try:
@@ -252,32 +276,33 @@ class FunctionCallingStreamHandler:
 
         if isinstance(event, ToolCall):
             self.agent_instance.agent_progress_callback(
-                AgentStatusType.TOOL_CALL,
-                {
+                status_type = AgentStatusType.TOOL_CALL,
+                msg = {
                     "tool_name": event.tool_name,
                     "arguments": json.dumps(event.tool_kwargs),
                 },
-                event_id,
+                event_id = event_id,
             )
         elif isinstance(event, ToolCallResult):
             self.agent_instance.agent_progress_callback(
-                AgentStatusType.TOOL_OUTPUT,
-                {
+                status_type = AgentStatusType.TOOL_OUTPUT,
+                msg = {
+                    "tool_name": event.tool_name,
                     "content": str(event.tool_output),
                 },
-                event_id,
+                event_id = event_id,
             )
         elif isinstance(event, AgentInput):
             self.agent_instance.agent_progress_callback(
-                AgentStatusType.AGENT_UPDATE,
-                f"Agent input: {event.input}",
-                event_id,
+                status_type = AgentStatusType.AGENT_UPDATE,
+                msg = {"content": f"Agent input: {event.input}"},
+                event_id = event_id,
             )
         elif isinstance(event, AgentOutput):
             self.agent_instance.agent_progress_callback(
-                AgentStatusType.AGENT_UPDATE,
-                f"Agent output: {event.response}",
-                event_id,
+                status_type = AgentStatusType.AGENT_UPDATE,
+                msg = {"content": f"Agent output: {event.response}"},
+                event_id = event_id,
             )
 
     def create_streaming_response(
@@ -335,22 +360,10 @@ class StandardStreamHandler:
         async for tok in orig_async():
             yield tok
 
-        # Post-stream hooks
-        # pylint: disable=protected-access
-        await self.agent_instance._aformat_for_lats(self.prompt, self.li_stream)
-        if self.agent_instance.query_logging_callback:
-            self.agent_instance.query_logging_callback(
-                self.prompt, self.li_stream.response
-            )
-
-        # pylint: disable=protected-access
-        fcs = self.agent_instance._calc_fcs(self.li_stream.response)
-        if fcs is not None:
-            user_metadata["fcs"] = fcs
-        if self.agent_instance.observability_enabled:
-            from .._observability import eval_fcs
-
-            eval_fcs()
+        # Use shared post-processing function
+        await execute_post_stream_processing(
+            self.li_stream, self.prompt, self.agent_instance, user_metadata
+        )
 
     def wrap_stream_response(self, user_metadata: Dict[str, Any]):
         """

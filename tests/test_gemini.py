@@ -79,6 +79,20 @@ class TestGEMINI(unittest.TestCase):
         res = agent.chat("what is the result of multiplying the results of the last two multiplications. Only give the answer, nothing else.")
         self.assertIn("1050", res.response)
 
+    def test_gemini_single_prompt(self):
+        tools = [ToolsFactory().create_tool(mult)]
+        topic = "AI topic"
+        instructions = "Always do as your father tells you, if your mother agrees!"
+
+        agent = Agent(
+            agent_config=fc_config_gemini,
+            tools=tools,
+            topic=topic,
+            custom_instructions=instructions,
+        )
+        res = agent.chat("First, multiply 5 by 10. Then, multiply 3 by 7. Finally, multiply the results of the first two calculations.")
+        self.assertIn("1050", res.response)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -100,7 +100,6 @@ class TestToolsPackage(unittest.TestCase):
                 examples=["AAPL", "GOOG"],
             )
             year: Optional[int | str] = Field(
-                default=None,
                 description="The year this query relates to. An integer between 2015 and 2024 or a string specifying a condition on the year",
                 examples=[
                     2020,
@@ -158,8 +157,7 @@ class TestToolsPackage(unittest.TestCase):
                 description="The ticker symbol for the company",
                 examples=["AAPL", "GOOG"],
             )
-            year: int | str = Field(
-                default=None,
+            year: Optional[int | str] = Field(
                 description="The year this query relates to. An integer between 2015 and 2024 or a string specifying a condition on the year",
                 examples=[
                     2020,
@@ -340,7 +338,7 @@ class TestToolsPackage(unittest.TestCase):
         class DummyArgs(BaseModel):
             foo: int = Field(..., description="how many foos", examples=[1, 2, 3])
             bar: str = Field(
-                "baz",
+                default="baz",
                 description="what bar to use",
                 examples=["x", "y"],
             )
@@ -355,7 +353,7 @@ class TestToolsPackage(unittest.TestCase):
         doc = dummy_tool.metadata.description
         self.assertTrue(
             doc.startswith(
-                "dummy_tool(query: str, foo: int, bar: str) -> dict[str, Any]"
+                "dummy_tool(query: str, foo: int, bar: str | None) -> dict[str, Any]"
             )
         )
         self.assertIn("Args:", doc)
@@ -363,7 +361,7 @@ class TestToolsPackage(unittest.TestCase):
             "query (str): The search query to perform, in the form of a question", doc
         )
         self.assertIn("foo (int): how many foos (e.g., 1, 2, 3)", doc)
-        self.assertIn("bar (str, default='baz'): what bar to use (e.g., 'x', 'y')", doc)
+        self.assertIn("bar (str | None, default='baz'): what bar to use (e.g., 'x', 'y')", doc)
         self.assertIn("Returns:", doc)
         self.assertIn("dict[str, Any]: A dictionary containing the result data.", doc)
 

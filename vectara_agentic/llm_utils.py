@@ -23,7 +23,7 @@ provider_to_default_model_name = {
     ModelProvider.GROQ: "deepseek-r1-distill-llama-70b",
     ModelProvider.BEDROCK: "us.anthropic.claude-sonnet-4-20250514-v1:0",
     ModelProvider.COHERE: "command-a-03-2025",
-    ModelProvider.GEMINI: "models/gemini-2.5-flash",
+    ModelProvider.GEMINI: "models/gemini-2.5-flash-lite",
 }
 
 DEFAULT_MODEL_PROVIDER = ModelProvider.OPENAI
@@ -108,7 +108,7 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             model=model_name,
             temperature=0,
             is_function_calling_model=True,
-            strict=True,
+            strict=False,
             max_tokens=max_tokens,
             pydantic_program_mode="openai",
         )

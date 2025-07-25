@@ -217,10 +217,14 @@ class AgentCallbackHandler(BaseCallbackHandler):
                     )
         elif EventPayload.FUNCTION_OUTPUT in payload:
             response = payload.get(EventPayload.FUNCTION_OUTPUT)
+            tool = payload.get(EventPayload.TOOL)
             if self.fn:
                 self.fn(
                     status_type=AgentStatusType.TOOL_OUTPUT,
-                    msg=response,
+                    msg={
+                        "tool_name": tool.name,
+                        "content": response
+                    },
                     event_id=event_id,
                 )
         else:
@@ -308,16 +312,23 @@ class AgentCallbackHandler(BaseCallbackHandler):
         elif EventPayload.FUNCTION_OUTPUT in payload:
             if self.fn:
                 response = payload.get(EventPayload.FUNCTION_OUTPUT)
+                tool = payload.get(EventPayload.TOOL)
                 if inspect.iscoroutinefunction(self.fn):
                     await self.fn(
                         status_type=AgentStatusType.TOOL_OUTPUT,
-                        msg=response,
+                        msg={
+                            "tool_name": tool.name,
+                            "response": response,
+                        },
                         event_id=event_id,
                     )
                 else:
                     self.fn(
                         status_type=AgentStatusType.TOOL_OUTPUT,
-                        msg=response,
+                        msg={
+                            "tool_name": tool.name,
+                            "response": response,
+                        },
                         event_id=event_id,
                     )
         else:

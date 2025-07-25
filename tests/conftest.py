@@ -170,6 +170,12 @@ def is_rate_limited(response_text: str) -> bool:
         "RPM",
         "tokens per minute",
         "TPM",
+        # Anthropic-specific
+        "overloaded_error",
+        "Overloaded",
+        "APIStatusError",
+        "anthropic.APIStatusError",
+        "usage_limit_exceeded",
         # General API limit indicators
         "try again in",
         "Please wait",

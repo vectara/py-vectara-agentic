@@ -46,7 +46,7 @@ from .types import (
 from .llm_utils import get_llm
 from .agent_core.prompts import GENERAL_INSTRUCTIONS
 from ._callback import AgentCallbackHandler
-from ._observability import setup_observer, eval_fcs
+from ._observability import setup_observer
 from .tools import ToolsFactory
 from .tool_utils import _is_human_readable_output
 from .tools_catalog import get_current_date
@@ -54,7 +54,10 @@ from .agent_config import AgentConfig
 from .hhem import HHEM
 
 # Import utilities from agent core modules
-from .agent_core.streaming import StreamingResponseAdapter
+from .agent_core.streaming import (
+    FunctionCallingStreamHandler,
+    execute_post_stream_processing,
+)
 from .agent_core.factory import create_agent_from_config, create_agent_from_corpus
 from .agent_core.serialization import (
     serialize_agent_to_dict,
@@ -555,6 +558,9 @@ class Agent:
             logging.debug("FCS calculation skipped: 'vectara_api_key' is missing.")
             return None  # can't calculate FCS without Vectara API key
 
+        import time
+
+        hhem_start = time.time()
         chat_history = self.memory.get()
         context = []
         num_tool_calls = 0
@@ -582,6 +588,10 @@ class Agent:
         context_str = "\n".join(context)
         try:
             score = HHEM(self.vectara_api_key).compute(context_str, agent_response)
+            if self.verbose:
+                logging.info(
+                    f"FCS calculated: {score} (took {time.time() - hhem_start:.2f} seconds)"
+                )
             return score
         except Exception as e:
             logging.error(f"Failed to calculate FCS: {e}")
@@ -617,6 +627,9 @@ class Agent:
         Returns:
             AgentResponse: The response from the agent.
         """
+        if not prompt:
+            return AgentResponse(response="")
+
         max_attempts = 4 if self.fallback_agent_config else 2
         attempt = 0
         orig_llm = self.llm.metadata.model_name
@@ -642,50 +655,43 @@ class Agent:
                         async for event in handler.stream_events():
                             event_id = str(uuid.uuid4())
 
-                            # Handle different types of workflow events
-                            if hasattr(event, "tool_call"):
-                                tool_call = event.tool_call
+                            # Handle different types of workflow events using same logic as FunctionCallingStreamHandler
+                            from llama_index.core.agent.workflow import (
+                                ToolCall,
+                                ToolCallResult,
+                                AgentInput,
+                                AgentOutput,
+                            )
+
+                            if isinstance(event, ToolCall):
                                 self.agent_progress_callback(
-                                    AgentStatusType.TOOL_CALL,
-                                    {
-                                        "tool_name": (
-                                            tool_call.tool_name
-                                            if hasattr(tool_call, "tool_name")
-                                            else getattr(
-                                                tool_call, "name", "Unknown Tool"
-                                            )
-                                        ),
-                                        "arguments": json.dumps(
-                                            tool_call.tool_input
-                                            if hasattr(tool_call, "tool_input")
-                                            else getattr(tool_call, "arguments", {})
-                                        ),
+                                    status_type=AgentStatusType.TOOL_CALL,
+                                    msg={
+                                        "tool_name": event.tool_name,
+                                        "arguments": json.dumps(event.tool_kwargs),
                                     },
-                                    event_id,
+                                    event_id=event_id,
                                 )
-                            elif hasattr(event, "tool_output"):
-                                tool_output = event.tool_output
+                            elif isinstance(event, ToolCallResult):
                                 self.agent_progress_callback(
-                                    AgentStatusType.TOOL_OUTPUT,
-                                    {
-                                        "content": str(
-                                            tool_output.content
-                                            if hasattr(tool_output, "content")
-                                            else str(tool_output)
-                                        )
+                                    status_type=AgentStatusType.TOOL_OUTPUT,
+                                    msg={
+                                        "tool_name": event.tool_name,
+                                        "content": str(event.tool_output),
                                     },
-                                    event_id,
+                                    event_id=event_id,
                                 )
-                            elif hasattr(event, "msg") and "tool" in str(event).lower():
-                                # Fallback: try to extract tool info from generic events
+                            elif isinstance(event, AgentInput):
                                 self.agent_progress_callback(
-                                    AgentStatusType.AGENT_STEP,
-                                    str(
-                                        event.msg
-                                        if hasattr(event, "msg")
-                                        else str(event)
-                                    ),
-                                    event_id,
+                                    status_type=AgentStatusType.AGENT_UPDATE,
+                                    msg={"content": f"Agent input: {event.input}"},
+                                    event_id=event_id,
+                                )
+                            elif isinstance(event, AgentOutput):
+                                self.agent_progress_callback(
+                                    status_type=AgentStatusType.AGENT_UPDATE,
+                                    msg={"content": f"Agent output: {event.response}"},
+                                    event_id=event_id,
                                 )
 
                     result = await handler
@@ -702,8 +708,6 @@ class Agent:
                     elif not isinstance(response_text, str):
                         response_text = str(response_text)
 
-                    # Handle case where workflow completed with tool calls but no final text response
-                    # This can happen when the LLM makes tool calls but doesn't generate follow-up text
                     if response_text is None or response_text == "None":
                         # Try to find tool outputs in the result object
                         response_text = None
@@ -723,10 +727,10 @@ class Agent:
                             # Tool calls might contain the outputs - let's try to extract them
                             for tool_call in result.tool_calls:
                                 if (
-                                    hasattr(tool_call, "output")
-                                    and tool_call.output is not None
+                                    hasattr(tool_call, "tool_output")
+                                    and tool_call.tool_output is not None
                                 ):
-                                    response_text = str(tool_call.output)
+                                    response_text = str(tool_call.tool_output)
                                     break
 
                         elif hasattr(result, "sources") or hasattr(
@@ -749,6 +753,13 @@ class Agent:
                             if chat_history and len(chat_history) > 0:
                                 for msg in reversed(chat_history):
                                     if (
+                                        msg.role == MessageRole.TOOL
+                                        and msg.content
+                                        and str(msg.content).strip()
+                                    ):
+                                        response_text = msg.content
+                                        break
+                                    if (
                                         hasattr(msg, "content")
                                         and msg.content
                                         and str(msg.content).strip()
@@ -770,12 +781,10 @@ class Agent:
 
                 # Post processing after response is generated
                 agent_response.metadata = agent_response.metadata or {}
-                agent_response.metadata["fcs"] = self._calc_fcs(agent_response.response)
-                await self._aformat_for_lats(prompt, agent_response)
-                if self.observability_enabled:
-                    eval_fcs()
-                if self.query_logging_callback:
-                    self.query_logging_callback(prompt, agent_response.response)
+                user_metadata = agent_response.metadata
+                agent_response = await execute_post_stream_processing(
+                    agent_response, prompt, self, user_metadata
+                )
                 return agent_response
 
             except Exception as e:
@@ -840,159 +849,15 @@ class Agent:
                         user_msg=prompt, ctx=ctx, memory=self.memory
                     )
 
-                    # buffer to stash final response object
-                    _final: Dict[str, Any] = {"resp": None}  # Initialize with default
-                    stream_complete = asyncio.Event()  # Synchronization event
-
-                    async def _stream():
-                        had_tool_calls = False
-                        transitioned_to_prose = False
-
-                        # Import workflow event types
-                        from llama_index.core.agent.workflow import (
-                            ToolCall,
-                            ToolCallResult,
-                            AgentInput,
-                            AgentOutput,
-                            AgentStream,
-                        )
-
-                        async for ev in handler.stream_events():
-                            if self.agent_progress_callback:
-                                event_id = str(uuid.uuid4())
-
-                                # Handle different types of workflow events
-                                if isinstance(ev, ToolCall):
-                                    self.agent_progress_callback(
-                                        AgentStatusType.TOOL_CALL,
-                                        {
-                                            "tool_name": ev.tool_name,
-                                            "arguments": json.dumps(ev.tool_kwargs),
-                                        },
-                                        event_id,
-                                    )
-                                elif isinstance(ev, ToolCallResult):
-                                    self.agent_progress_callback(
-                                        AgentStatusType.TOOL_OUTPUT,
-                                        {
-                                            "content": str(ev.tool_output),
-                                        },
-                                        event_id,
-                                    )
-                                elif isinstance(ev, AgentInput):
-                                    self.agent_progress_callback(
-                                        AgentStatusType.AGENT_UPDATE,
-                                        f"Agent input: {ev.input}",
-                                        event_id,
-                                    )
-                                elif isinstance(ev, AgentOutput):
-                                    self.agent_progress_callback(
-                                        AgentStatusType.AGENT_UPDATE,
-                                        f"Agent output: {ev.response}",
-                                        event_id,
-                                    )
-
-                            if isinstance(ev, AgentStream):
-                                if ev.tool_calls:
-                                    had_tool_calls = True
-                                elif (
-                                    not ev.tool_calls
-                                    and had_tool_calls
-                                    and not transitioned_to_prose
-                                ):
-                                    yield "\n\n"
-                                    transitioned_to_prose = True
-                                    yield ev.delta
-                                elif not ev.tool_calls:
-                                    yield ev.delta
-
-                        # when stream is done, await the handler to get the final AgentResponse
-                        try:
-                            _final["resp"] = await handler
-                        except Exception:
-                            _final["resp"] = type(
-                                "AgentResponse",
-                                (),
-                                {
-                                    "response": "Response completed",
-                                    "source_nodes": [],
-                                    "metadata": None,
-                                },
-                            )()
-                        finally:
-                            # Signal that stream processing is complete
-                            stream_complete.set()
-
-                    async def _post_process():
-                        # wait until the generator above has finished (and _final is populated)
-                        await stream_complete.wait()
-                        result = _final.get("resp")
-                        if result is None:
-                            result = type(
-                                "AgentResponse",
-                                (),
-                                {
-                                    "response": "Response completed",
-                                    "source_nodes": [],
-                                    "metadata": None,
-                                },
-                            )()
-
-                        # Ensure we have an AgentResponse object with a string response
-                        if hasattr(result, "response"):
-                            response_text = result.response
-                        else:
-                            response_text = str(result)
-
-                        # Handle case where response is a ChatMessage object
-                        if hasattr(response_text, "content"):
-                            response_text = response_text.content
-                        elif hasattr(response_text, "blocks"):
-                            # Extract text from ChatMessage blocks
-                            text_parts = []
-                            for block in response_text.blocks:
-                                if hasattr(block, "text"):
-                                    text_parts.append(block.text)
-                            response_text = "".join(text_parts)
-                        elif not isinstance(response_text, str):
-                            response_text = str(response_text)
-
-                        final = AgentResponse(
-                            response=response_text,
-                            metadata=getattr(result, "metadata", {}),
-                        )
-
-                        await self._aformat_for_lats(prompt, final)
-                        if self.query_logging_callback:
-                            self.query_logging_callback(prompt, final.response)
-                        fcs = self._calc_fcs(final.response)
-                        if fcs is not None:
-                            user_meta["fcs"] = fcs
-                        if self.observability_enabled:
-                            eval_fcs()
-                        return final
-
-                    # kick off post-processing task
-                    async def _safe_post_process():
-                        try:
-                            return await _post_process()
-                        except Exception:
-                            import traceback
-
-                            traceback.print_exc()
-                            # Return empty response on error
-                            return AgentResponse(response="", metadata={})
-
-                    post_process_task = asyncio.create_task(_safe_post_process())
-
-                    base = StreamingResponseAdapter(
-                        async_response_gen=_stream,
-                        response="",  # will be filled post-stream
-                        metadata={},
-                        post_process_task=post_process_task,
+                    # Use the dedicated FunctionCallingStreamHandler
+                    stream_handler = FunctionCallingStreamHandler(self, handler, prompt)
+                    streaming_adapter = stream_handler.create_streaming_response(
+                        user_meta
                     )
 
-                    return AgentStreamingResponse(base=base, metadata=user_meta)
+                    return AgentStreamingResponse(
+                        base=streaming_adapter, metadata=user_meta
+                    )
 
                 #
                 # For other agent types, use the standard async chat method
@@ -1005,15 +870,10 @@ class Agent:
                     async for tok in orig_async():
                         yield tok
 
-                    # post-stream hooks
-                    await self._aformat_for_lats(prompt, li_stream)
-                    if self.query_logging_callback:
-                        self.query_logging_callback(prompt, li_stream.response)
-                    fcs = self._calc_fcs(li_stream.response)
-                    if fcs is not None:
-                        user_meta["fcs"] = fcs
-                    if self.observability_enabled:
-                        eval_fcs()
+                    # Use shared post-processing function
+                    await execute_post_stream_processing(
+                        li_stream, prompt, self, user_meta
+                    )
 
                 li_stream.async_response_gen = _stream_response_wrapper
                 return AgentStreamingResponse(base=li_stream, metadata=user_meta)
