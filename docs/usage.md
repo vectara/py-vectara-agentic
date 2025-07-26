@@ -125,7 +125,8 @@ ask_transcripts = vec_factory.create_rag_tool(
     summary_num_results = 10,
     vectara_summarizer = 'vectara-summary-ext-24-05-med-omni',
     include_citations = False,
-    fcs_threshold = 0.2
+    fcs_threshold = 0.2,
+    fcs_eligible = True  # RAG tools participate in FCS by default
 )
 ```
 
@@ -277,6 +278,27 @@ def earnings_per_share(
     return np.round(net_income / number_of_shares,4)
 
 my_tool = tools_factory.create_tool(earnings_per_share)
+```
+
+**FCS Eligibility for Custom Tools**
+
+When creating custom tools, consider whether they should participate in Factual Consistency Score (FCS) calculation:
+
+```python
+# Tool that provides factual data - should participate in FCS
+def get_financial_data(ticker: str) -> dict:
+    """Retrieve financial data for a company."""
+    # API call to get real financial data
+    return {"revenue": 1000000, "profit": 50000}
+
+# Tool that processes/formats data - should not participate in FCS  
+def format_financial_report(data: dict) -> str:
+    """Format financial data into a readable report."""
+    return f"Revenue: ${data['revenue']:,}, Profit: ${data['profit']:,}"
+
+# Create tools with appropriate FCS eligibility
+data_tool = tools_factory.create_tool(get_financial_data, fcs_eligible=True)
+format_tool = tools_factory.create_tool(format_financial_report, fcs_eligible=False)
 ```
 
 A few important things to note:
@@ -504,27 +526,28 @@ Here is how we will instantiate our finance assistant:
 from vectara_agentic import Agent
 
 agent = Agent(
-     tools=[tools_factory.create_tool(tool, tool_type="query") for tool in
-               [
-                   get_company_info,
-                   get_valid_years,
-                   get_income_statement
-               ]
-           ] +
-           tools_factory.standard_tools() +
-           tools_factory.financial_tools() +
-           tools_factory.guardrail_tools() +
-           [ask_transcripts],
+     tools=[
+         # Utility tools (don't provide factual context for FCS)
+         tools_factory.create_tool(get_company_info, fcs_eligible=False),
+         tools_factory.create_tool(get_valid_years, fcs_eligible=False),
+         # Data tools (provide factual context for FCS)  
+         tools_factory.create_tool(get_income_statement, fcs_eligible=True)
+     ] +
+     tools_factory.standard_tools() +      # Auto-marked as non-FCS-eligible
+     tools_factory.financial_tools() +     # Auto-marked as FCS-eligible
+     tools_factory.guardrail_tools() +     # Auto-marked as non-FCS-eligible
+     [ask_transcripts],                     # RAG tool, FCS-eligible by default
      topic="10-K annual financial reports",
      custom_instructions=financial_assistant_instructions,
      agent_progress_callback=agent_progress_callback
 )
 ```
 
-Notice that when we call the `create_tool()` method, we specified a
-`tool_type`. This can either be `"query"` (default) or `"action"`. For
-our example, all of the tools are query tools, so we can easily add all
-of them to our agent with a list comprehension, as shown above.
+Notice that when we call the `create_tool()` method, we can specify:
+- `tool_type`: Either `"query"` (default) or `"action"`
+- `fcs_eligible`: Whether the tool should participate in FCS calculation (default `True`)
+
+In our example, we explicitly set `fcs_eligible=False` for utility tools like `get_company_info` and `get_valid_years` since they provide metadata rather than factual content for responses. The `get_income_statement` tool is marked `fcs_eligible=True` since it provides actual financial data.
 
 ## Chat with your Assistant
 Once you have created your agent, using it is quite simple. All you have

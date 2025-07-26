@@ -50,7 +50,7 @@ from .tools import ToolsFactory
 from .tool_utils import _is_human_readable_output
 from .tools_catalog import get_current_date
 from .agent_config import AgentConfig
-from .hhem import HHEM
+from .agent_core.utils.hhem import HHEM
 
 # Import utilities from agent core modules
 from .agent_core.streaming import (
@@ -128,7 +128,7 @@ class Agent:
         self.agent_config_type = AgentConfigType.DEFAULT
         self.tools = tools
         if not any(tool.metadata.name == "get_current_date" for tool in self.tools):
-            self.tools += [ToolsFactory().create_tool(get_current_date)]
+            self.tools += [ToolsFactory().create_tool(get_current_date, fcs_eligible=False)]
         self.agent_type = self.agent_config.agent_type
         self._llm = None  # Lazy loading
         self._custom_instructions = custom_instructions
@@ -549,52 +549,6 @@ class Agent:
         agent = self._get_current_agent()
         agent_response.response = (await agent.llm.acomplete(llm_prompt)).text
 
-    def _calc_fcs(self, agent_response: str) -> float | None:
-        """
-        Calculate the Factual consistency score for the agent response.
-        """
-        if not self.vectara_api_key:
-            logging.debug("FCS calculation skipped: 'vectara_api_key' is missing.")
-            return None  # can't calculate FCS without Vectara API key
-
-        import time
-
-        hhem_start = time.time()
-        chat_history = self.memory.get()
-        context = []
-        num_tool_calls = 0
-        for msg in chat_history:
-            if msg.role == MessageRole.TOOL:
-                num_tool_calls += 1
-                content = msg.content
-                if _is_human_readable_output(content):
-                    try:
-                        content = content.to_human_readable()
-                    except Exception as e:
-                        logging.debug(
-                            f"Failed to get human-readable format for FCS calculation: {e}"
-                        )
-                        # Fall back to string representation of the object
-                        content = str(content)
-
-                context.append(content)
-            elif msg.role in [MessageRole.USER, MessageRole.ASSISTANT] and msg.content:
-                context.append(msg.content)
-
-        if not context or num_tool_calls == 0:
-            return None
-
-        context_str = "\n".join(context)
-        try:
-            score = HHEM(self.vectara_api_key).compute(context_str, agent_response)
-            if self.verbose:
-                logging.info(
-                    f"FCS calculated: {score} (took {time.time() - hhem_start:.2f} seconds)"
-                )
-            return score
-        except Exception as e:
-            logging.error(f"Failed to calculate FCS: {e}")
-            return None
 
     def chat(self, prompt: str) -> AgentResponse:
         """

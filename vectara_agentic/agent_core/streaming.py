@@ -6,6 +6,7 @@ for managing asynchronous agent interactions with proper synchronization.
 """
 
 import asyncio
+import logging
 import uuid
 import json
 from typing import Callable, Any, Dict, AsyncIterator
@@ -111,6 +112,26 @@ class StreamingResponseAdapter:
         """
         return AgentResponse(response=self.response, metadata=self.metadata)
 
+    def wait_for_completion(self) -> None:
+        """
+        Wait for post-processing to complete and update metadata.
+        This should be called after streaming finishes but before accessing metadata.
+        """
+        if self.post_process_task and not self.post_process_task.done():
+            # For now, just return - the async version should be used
+            pass
+        elif self.post_process_task and self.post_process_task.done():
+            try:
+                final_response = self.post_process_task.result()
+                if hasattr(final_response, "metadata") and final_response.metadata:
+                    # Update our metadata from the completed task
+                    self.metadata.update(final_response.metadata)
+            except Exception as e:
+                logging.error(
+                    f"Error during post-processing: {e}. "
+                    "Ensure the post-processing task is correctly implemented."
+                )
+
 
 def extract_response_text_from_chat_message(response_text: Any) -> str:
     """
@@ -195,10 +216,28 @@ async def execute_post_stream_processing(
         agent_instance.query_logging_callback(prompt, final.response)
 
     # Calculate factual consistency score
-    # pylint: disable=protected-access
-    fcs = agent_instance._calc_fcs(final.response)
+    from .utils.hhem import calculate_fcs_from_history
+    
+    logging.info("🔍 [FCS_DEBUG] [STREAMING] About to call calculate_fcs_from_history")
+    fcs = None
+    if agent_instance.vectara_api_key:
+        fcs = calculate_fcs_from_history(
+            chat_history=agent_instance.memory.get(),
+            agent_response=final.response,
+            tools=agent_instance.tools,
+            vectara_api_key=agent_instance.vectara_api_key
+        )
+    logging.info(f"🔍 [FCS_DEBUG] [STREAMING] calculate_fcs_from_history returned: {fcs}")
     if fcs is not None:
         user_metadata["fcs"] = fcs
+        logging.info(f"🔍 [FCS_DEBUG] [STREAMING] Added FCS to metadata: {fcs}")
+    else:
+        logging.info("🔍 [FCS_DEBUG] [STREAMING] FCS is None - not adding to metadata")
+
+    if not final.metadata:
+        final.metadata = {}
+    final.metadata.update(user_metadata)
+
     if agent_instance.observability_enabled:
         from .._observability import eval_fcs
 

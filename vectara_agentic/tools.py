@@ -112,6 +112,7 @@ class VectaraToolFactory:
         verbose: bool = False,
         vectara_base_url: str = "https://api.vectara.io",
         vectara_verify_ssl: bool = True,
+        fcs_eligible: bool = True,
     ) -> VectaraTool:
         """
         Creates a Vectara search/retrieval tool
@@ -328,6 +329,7 @@ class VectaraToolFactory:
             ),
             tool_args_schema,
             return_direct=return_direct,
+            fcs_eligible=fcs_eligible,
         )
         return tool
 
@@ -371,6 +373,7 @@ class VectaraToolFactory:
         verbose: bool = False,
         vectara_base_url: str = "https://api.vectara.io",
         vectara_verify_ssl: bool = True,
+        fcs_eligible: bool = True,
     ) -> VectaraTool:
         """
         Creates a RAG (Retrieve and Generate) tool.
@@ -470,6 +473,15 @@ class VectaraToolFactory:
                 )
                 return {"text": msg, "metadata": {"args": args, "kwargs": kwargs}}
 
+            citations_url_pattern = (
+                (
+                    citation_url_pattern
+                    if citation_url_pattern is not None
+                    else citation_pattern
+                )
+                if include_citations
+                else None
+            )
             vectara_query_engine = vectara.as_query_engine(
                 summary_enabled=True,
                 similarity_top_k=summary_num_results,
@@ -502,15 +514,7 @@ class VectaraToolFactory:
                 frequency_penalty=frequency_penalty,
                 presence_penalty=presence_penalty,
                 citations_style="markdown" if include_citations else None,
-                citations_url_pattern=(
-                    (
-                        citation_pattern
-                        if citation_pattern is not None
-                        else citation_url_pattern
-                    )
-                    if include_citations
-                    else None
-                ),
+                citations_url_pattern=citations_url_pattern,
                 citations_text_pattern=(
                     citation_text_pattern if include_citations else None
                 ),
@@ -599,6 +603,7 @@ class VectaraToolFactory:
             RagToolBaseParams,
             tool_args_schema,
             return_direct=return_direct,
+            fcs_eligible=fcs_eligible,
         )
         return tool
 
@@ -612,7 +617,7 @@ class ToolsFactory:
         self.agent_config = agent_config
 
     def create_tool(
-        self, function: Callable, tool_type: ToolType = ToolType.QUERY
+        self, function: Callable, tool_type: ToolType = ToolType.QUERY, fcs_eligible: bool = True
     ) -> VectaraTool:
         """
         Create a tool from a function.
@@ -624,7 +629,7 @@ class ToolsFactory:
         Returns:
             VectaraTool: A VectaraTool object.
         """
-        return VectaraTool.from_defaults(tool_type=tool_type, fn=function)
+        return VectaraTool.from_defaults(tool_type=tool_type, fn=function, fcs_eligible=fcs_eligible)
 
     def get_llama_index_tools(
         self,
@@ -685,7 +690,7 @@ class ToolsFactory:
         """
         tc = ToolsCatalog(self.agent_config)
         return [
-            self.create_tool(tool)
+            self.create_tool(tool, fcs_eligible=True)
             for tool in [tc.summarize_text, tc.rephrase_text, tc.critique_text]
         ]
 
@@ -693,7 +698,7 @@ class ToolsFactory:
         """
         Create a list of guardrail tools to avoid controversial topics.
         """
-        return [self.create_tool(get_bad_topics)]
+        return [self.create_tool(get_bad_topics, fcs_eligible=False)]
 
     def financial_tools(self):
         """
@@ -734,7 +739,7 @@ class ToolsFactory:
             )
 
         return [
-            self.create_tool(tool) for tool in [summarize_legal_text, critique_as_judge]
+            self.create_tool(tool, fcs_eligible=False) for tool in [summarize_legal_text, critique_as_judge]
         ]
 
     def database_tools(
@@ -809,6 +814,7 @@ class ToolsFactory:
                 fn=tool.fn,
                 async_fn=tool.async_fn,
                 metadata=tool.metadata,
+                fcs_eligible=True,
             )
             vtools.append(vtool)
         return vtools

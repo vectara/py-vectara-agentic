@@ -13,7 +13,7 @@ from llama_index.core.memory import Memory
 from llama_index.core.llms import MessageRole
 
 from ..types import AgentType, AgentResponse
-from ..hhem import HHEM
+from .utils.hhem import HHEM
 from ..tool_utils import _is_human_readable_output
 
 

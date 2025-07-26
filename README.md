@@ -124,7 +124,8 @@ ask_finance = vec_factory.create_rag_tool(
     tool_description="Query financial reports for a company and year",
     tool_args_schema=QueryFinancialReportsArgs,
     lambda_val=0.005,
-    summary_num_results=7, 
+    summary_num_results=7,
+    fcs_eligible=True,  # RAG tools participate in FCS by default
     # Additional Vectara query arguments...
 )
 ```
@@ -403,6 +404,30 @@ def mult_func(x, y):
 
 mult_tool = ToolsFactory().create_tool(mult_func)
 ```
+
+#### FCS Eligibility
+
+When creating tools, you can control whether they participate in Factual Consistency Score (FCS) calculation using the `fcs_eligible` parameter:
+
+```python
+# Tool that provides factual data - should participate in FCS
+data_tool = ToolsFactory().create_tool(get_company_data, fcs_eligible=True)
+
+# Utility tool that doesn't provide context - should not participate in FCS  
+summary_tool = ToolsFactory().create_tool(summarize_text, fcs_eligible=False)
+```
+
+**FCS-eligible tools** (default: `True`) are those that provide factual context for responses, such as:
+- Data retrieval tools
+- Search tools  
+- API calls that return factual information
+
+**Non-FCS-eligible tools** (`fcs_eligible=False`) are utility tools that don't contribute factual context:
+- Text summarization tools
+- Text rephrasing tools
+- Formatting or processing tools
+
+Built-in utility tools like `summarize_text`, `rephrase_text`, and `get_bad_topics` are automatically marked as non-FCS-eligible.
 
 #### Human-Readable Tool Output
 

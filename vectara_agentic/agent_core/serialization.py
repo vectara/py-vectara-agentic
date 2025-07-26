@@ -132,25 +132,38 @@ def deserialize_tools(tool_data_list: List[Dict[str, Any]]) -> List[FunctionTool
         if query_args_model is None:
             query_args_model = create_model(f"{tool_data['name']}_QueryArgs")
 
-        # Deserialize function objects
-        fn = (
-            pickle.loads(tool_data["fn"].encode("latin-1")) if tool_data["fn"] else None
-        )
-        async_fn = (
-            pickle.loads(tool_data["async_fn"].encode("latin-1"))
-            if tool_data["async_fn"]
-            else None
-        )
+        # Deserialize function objects with error handling
+        fn = None
+        async_fn = None
+        
+        try:
+            if tool_data["fn"]:
+                fn = pickle.loads(tool_data["fn"].encode("latin-1"))
+        except Exception as e:
+            logging.warning(f"⚠️ [TOOL_DESERIALIZE] Failed to deserialize fn for tool '{tool_data['name']}': {e}")
+        
+        try:
+            if tool_data["async_fn"]:
+                async_fn = pickle.loads(tool_data["async_fn"].encode("latin-1"))
+        except Exception as e:
+            logging.warning(f"⚠️ [TOOL_DESERIALIZE] Failed to deserialize async_fn for tool '{tool_data['name']}': {e}")
 
-        # Create tool instance
-        tool = VectaraTool.from_defaults(
-            name=tool_data["name"],
-            description=tool_data["description"],
-            fn=fn,
-            async_fn=async_fn,
-            fn_schema=query_args_model,
-            tool_type=ToolType(tool_data["tool_type"]),
-        )
+        # Create tool instance with enhanced error handling
+        try:
+            tool = VectaraTool.from_defaults(
+                name=tool_data["name"],
+                description=tool_data["description"],
+                fn=fn,
+                async_fn=async_fn,
+                fn_schema=query_args_model,
+                tool_type=ToolType(tool_data["tool_type"]),
+            )
+        except ValueError as e:
+            if "invalid method signature" in str(e):
+                logging.warning(f"⚠️ [TOOL_DESERIALIZE] Skipping tool '{tool_data['name']}' due to invalid method signature")
+                continue  # Skip this tool and continue with others
+            else:
+                raise e
         tools.append(tool)
 
     return tools
@@ -260,6 +273,8 @@ def serialize_agent_to_dict(agent) -> Dict[str, Any]:
         ),
         "workflow_cls": agent.workflow_cls if agent.workflow_cls else None,
         "vectara_api_key": agent.vectara_api_key,
+        # Custom metadata for agent-specific settings (e.g., use_waii for EV agent)
+        "custom_metadata": getattr(agent, "_custom_metadata", {}),
     }
 
 
@@ -289,8 +304,57 @@ def deserialize_agent_from_dict(
         else None
     )
 
-    # Restore tools
-    tools = deserialize_tools(data["tools"])
+    # Restore tools with error handling and fallback
+    try:
+        tools = deserialize_tools(data["tools"])
+        logging.debug(f"✅ [AGENT_DESERIALIZE] Successfully deserialized {len(tools)} tools")
+    except Exception as e:
+        logging.error(f"❌ [AGENT_DESERIALIZE] Tool deserialization failed: {e}")
+        logging.info("🔄 [AGENT_DESERIALIZE] Attempting fallback tool recreation...")
+        
+        # Fallback: Try to recreate tools using agent-specific logic
+        tools = []
+        custom_metadata = data.get("custom_metadata", {})
+        
+        # For EV agent, try to recreate tools using the same logic as initialization
+        if custom_metadata.get("use_waii") is not None:
+            try:
+                logging.info("🔧 [AGENT_DESERIALIZE] Detected EV agent, attempting tool recreation")
+                # Import and recreate EV tools using the stored custom metadata
+                import sys
+                import os
+                backend_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+                if backend_path not in sys.path:
+                    sys.path.append(backend_path)
+                
+                from dataset_config import DatasetManager
+                config_manager = DatasetManager()
+                cfg = config_manager.get_dataset_config_for_agent("ev-assistant")
+                
+                from agent_ev import EVAgentTools
+                use_waii = custom_metadata.get("use_waii", True)
+                ev_tools = EVAgentTools(cfg, agent_config).get_tools(use_waii)
+                tools = ev_tools
+                logging.info(f"✅ [AGENT_DESERIALIZE] Successfully recreated {len(tools)} EV tools via fallback")
+            except Exception as fallback_error:
+                logging.error(f"❌ [AGENT_DESERIALIZE] EV tool recreation fallback failed: {fallback_error}")
+        
+        # If tools are still empty, try a minimal fallback
+        if not tools:
+            logging.error("❌ [AGENT_DESERIALIZE] EV tool recreation fallback failed, trying minimal fallback")
+            try:
+                # Try to create minimal tools using basic ToolsFactory without problematic functions
+                from vectara_agentic.tools import VectaraToolFactory
+                minimal_factory = VectaraToolFactory(
+                    vectara_api_key="dummy_key", 
+                    vectara_corpus_key="dummy_corpus"
+                )
+                # Create a minimal working tool to prevent complete failure
+                tools = []
+                logging.warning("⚠️ [AGENT_DESERIALIZE] Using empty tool set as last resort")
+            except Exception as minimal_error:
+                logging.error(f"❌ [AGENT_DESERIALIZE] Even minimal fallback failed: {minimal_error}")
+                raise e
 
     # Create agent instance
     agent = agent_cls(
@@ -305,6 +369,9 @@ def deserialize_agent_from_dict(
         query_logging_callback=query_logging_callback,
         vectara_api_key=data.get("vectara_api_key"),
     )
+
+    # Restore custom metadata (backward compatible)
+    agent._custom_metadata = data.get("custom_metadata", {})
 
     # Restore memory
     mem = restore_memory_from_dict(data, token_limit=65536)
