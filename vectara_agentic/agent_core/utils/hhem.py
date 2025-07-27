@@ -215,6 +215,30 @@ def create_generic_sentence(headers: list, row: list) -> str:
     return ' '.join(parts) + '.'
 
 
+def remove_citations(text: str) -> str:
+    """
+    Remove citations from text in both markdown link and numeric reference formats.
+    
+    Args:
+        text: Input text potentially containing citations
+        
+    Returns:
+        str: Text with citations removed
+    """
+    import re
+    
+    # Remove markdown-style citations: [text](url) -> text
+    text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
+    
+    # Remove all remaining square bracket citations: [text], [1], etc.
+    text = re.sub(r'\[[^\]]+\]', '', text)
+    
+    # Clean up extra whitespace that may result from removal
+    text = re.sub(r'\s+', ' ', text).strip()
+    
+    return text
+
+
 def markdown_to_text(md: str) -> str:
     """
     Convert a Markdown-formatted string into plain text using HTML-first approach.
@@ -246,19 +270,14 @@ def markdown_to_text(md: str) -> str:
     try:
         # Try mistune first (fastest and most reliable)
         import mistune
-        import html2text
+        from bs4 import BeautifulSoup
         
         # Markdown → HTML (robust parsing)
         html = mistune.html(md_with_tables_converted)
         
-        # HTML → Clean Text (specialized for text conversion)
-        h = html2text.HTML2Text()
-        h.ignore_links = False  # Keep link text
-        h.ignore_images = True  # Skip images
-        h.body_width = 0  # No line wrapping
-        h.unicode_snob = True  # Better unicode handling
-        
-        clean_text = h.handle(html)
+        # HTML → Plain Text (using BeautifulSoup for proper text extraction)
+        soup = BeautifulSoup(html, 'html.parser')
+        clean_text = soup.get_text()
         
         # Clean up the output
         lines = [line.strip() for line in clean_text.split('\n')]
@@ -276,21 +295,30 @@ def markdown_to_text(md: str) -> str:
         return '\n'.join(cleaned_lines).strip()
         
     except ImportError:
-        # Fallback: Try standard markdown library
+        # Fallback: Try standard markdown library with BeautifulSoup
         try:
             import markdown
-            import html2text
+            from bs4 import BeautifulSoup
             
             md_parser = markdown.Markdown()
             html = md_parser.convert(md_with_tables_converted)
             
-            h = html2text.HTML2Text()
-            h.ignore_links = False
-            h.ignore_images = True
-            h.body_width = 0
+            soup = BeautifulSoup(html, 'html.parser')
+            clean_text = soup.get_text()
             
-            clean_text = h.handle(html)
-            return clean_text.strip()
+            # Clean up the output
+            lines = [line.strip() for line in clean_text.split('\n')]
+            cleaned_lines = []
+            prev_empty = False
+            for line in lines:
+                if line:
+                    cleaned_lines.append(line)
+                    prev_empty = False
+                elif not prev_empty:
+                    cleaned_lines.append('')
+                    prev_empty = True
+            
+            return '\n'.join(cleaned_lines).strip()
             
         except ImportError:
             # Last resort: Simple regex cleanup (basic but functional)
@@ -325,12 +353,12 @@ class HHEM:
     def __init__(self, vectara_api_key: str):
         self._vectara_api_key = vectara_api_key
 
-    def compute(self, context: str, hypothesis: str) -> float:
+    def compute(self, context: list[str], hypothesis: str) -> float:
         """
         Calls the Vectara HHEM endpoint to evaluate the factual consistency of a hypothesis against a given context.
 
         Parameters:
-            context (str): The source text against which the hypothesis will be evaluated.
+            context (list[str]): The source texs against which the hypothesis will be evaluated.
             hypothesis (str): The generated text to be evaluated for factual consistency.
 
         Returns:
@@ -340,21 +368,22 @@ class HHEM:
             requests.exceptions.RequestException: If there is a network-related error or the API call fails.
         """
 
-        # clean response from any markdown or other formatting.
+        # clean response from any markdown or other formatting, then remove citations
         try:
-            clean_hypothesis = markdown_to_text(hypothesis)
+            clean_hypothesis = remove_citations(markdown_to_text(hypothesis))
+            clean_context = [remove_citations(markdown_to_text(text)) for text in context]
         except Exception as e:
             # If markdown parsing fails, use the original text
             raise ValueError(f"Markdown parsing of hypothesis failed: {e}") from e
 
         logging.info(f"🔍 [HHEM_DEBUG] Cleaned hypothesis: {clean_hypothesis}...")
-        logging.info(f"🔍 [HHEM_DEBUG] Context: {context}")
+        logging.info(f"🔍 [HHEM_DEBUG] Context: {clean_context}")
 
         # compute HHEM with Vectara endpoint
         payload = {
             "model_parameters": {"model_name": "hhem_v2.3"},
             "generated_text": clean_hypothesis,
-            "source_texts": [context],
+            "source_texts": clean_context,
         }
         headers = {
             "Content-Type": "application/json",
@@ -386,7 +415,6 @@ def extract_tool_call_mapping(chat_history) -> Dict[str, str]:
                     if tool_call_id and tool_name:
                         tool_call_id_to_name[tool_call_id] = tool_name
     
-    logging.info(f"🔍 [FCS_DEBUG] Built tool_call_id mapping: {tool_call_id_to_name}")
     return tool_call_id_to_name
 
 
@@ -406,7 +434,6 @@ def identify_tool_name(msg, tool_call_id_to_name: Dict[str, str]) -> Optional[st
             tool_call_id = msg.additional_kwargs.get('tool_call_id')
             if tool_call_id and tool_call_id in tool_call_id_to_name:
                 tool_name = tool_call_id_to_name[tool_call_id]
-                logging.info(f"🔍 [FCS_DEBUG] Mapped tool_call_id '{tool_call_id}' to tool_name '{tool_name}'")
     
     # Third try: extract from content if it's a ToolOutput object
     if tool_name is None and hasattr(msg.content, 'tool_name'):
@@ -418,7 +445,6 @@ def identify_tool_name(msg, tool_call_id_to_name: Dict[str, str]) -> Optional[st
 def check_tool_fcs_eligibility(tool_name: Optional[str], tools: List) -> bool:
     """Check if a tool is FCS-eligible by looking up in tools list."""
     if not tool_name or not tools:
-        logging.info(f"🔍 [FCS_DEBUG] Tool message without identifiable tool_name, assuming fcs_eligible=True")
         return True
     
     # Try to find the tool and check its FCS eligibility
@@ -426,11 +452,9 @@ def check_tool_fcs_eligibility(tool_name: Optional[str], tools: List) -> bool:
         if hasattr(tool, 'metadata') and hasattr(tool.metadata, 'name') and tool.metadata.name == tool_name:
             if hasattr(tool.metadata, 'fcs_eligible'):
                 is_fcs_eligible = tool.metadata.fcs_eligible
-                logging.info(f"🔍 [FCS_DEBUG] Tool '{tool_name}' fcs_eligible: {is_fcs_eligible}")
                 return is_fcs_eligible
             break
     
-    logging.info(f"🔍 [FCS_DEBUG] Tool '{tool_name}' not found in agent tools, assuming fcs_eligible=True")
     return True
 
 
@@ -444,20 +468,15 @@ def calculate_fcs_from_history(
     if not vectara_api_key:
         logging.debug("No Vectara API key - returning None")
         return None
-    
-    logging.info(f"🔍 [FCS_DEBUG] Chat history has {len(chat_history)} messages")
-    
+        
     # Build a mapping from tool_call_id to tool_name for better tool identification
     tool_call_id_to_name = extract_tool_call_mapping(chat_history)
     
     context = []
     num_tool_calls = 0
     num_user_msgs = 0
-    num_assistant_msgs = 0
     
     for i, msg in enumerate(chat_history):
-        logging.info(f"🔍 [FCS_DEBUG] Message {i}: role={msg.role}, content={str(msg.content)}")
-        
         if msg.role == MessageRole.TOOL:
             # Check if this tool call should be included in FCS calculation
             tool_name = identify_tool_name(msg, tool_call_id_to_name)
@@ -467,50 +486,28 @@ def calculate_fcs_from_history(
             if is_fcs_eligible:
                 num_tool_calls += 1
                 content = msg.content
-                logging.info(f"🔍 [FCS_DEBUG] FCS-eligible tool message {num_tool_calls}: content='{str(content)}'")
                 
                 # Since tools with human-readable output now convert to formatted strings immediately
                 # in VectaraTool._format_tool_output(), we just use the content directly
                 content = str(content) if content is not None else ""
-                logging.info(f"🔍 [FCS_DEBUG] Tool {tool_name}: Using content directly (length: {len(content)})")
 
                 # Only add non-empty content to context
                 if content and content.strip():
                     context.append(content)
-                    logging.info(f"🔍 [FCS_DEBUG] Added FCS-eligible tool content to context")
-                else:
-                    logging.info(f"🔍 [FCS_DEBUG] Skipping empty tool content for tool '{tool_name}'")
-            else:
-                logging.info(f"🔍 [FCS_DEBUG] Skipping non-FCS-eligible tool '{tool_name}' from context")
                 
-        elif msg.role in [MessageRole.USER, MessageRole.ASSISTANT] and msg.content:
-            if msg.role == MessageRole.USER:
-                num_user_msgs += 1
-            elif msg.role == MessageRole.ASSISTANT:
-                num_assistant_msgs += 1
+        elif msg.role == MessageRole.USER and msg.content:
+            num_user_msgs += 1
             context.append(msg.content)
-            logging.info(f"🔍 [FCS_DEBUG] Added {msg.role} message to context (length: {len(msg.content)})")
 
-    logging.info(f"🔍 [FCS_DEBUG] Context summary: total_context_items={len(context)}, tool_calls={num_tool_calls}, user_msgs={num_user_msgs}, assistant_msgs={num_assistant_msgs}")
-    
     if not context or num_tool_calls == 0:
-        logging.info(f"🔍 [FCS_DEBUG] Insufficient context - context_items={len(context)}, tool_calls={num_tool_calls} - returning None")
         return None
 
-    context_str = "\n".join(context)
-    logging.info(f"🔍 [FCS_DEBUG] Context string length: {len(context_str)}")
-    logging.info(f"🔍 [FCS_DEBUG] Context preview: {context_str}...")
-    logging.info(f"🔍 [FCS_DEBUG] Agent response length: {len(agent_response)}")
-    logging.info(f"🔍 [FCS_DEBUG] Agent response preview: {agent_response}...")
-
     try:
-        logging.info("🔍 [FCS_DEBUG] Calling HHEM.compute()...")
-        score = HHEM(vectara_api_key).compute(context_str, agent_response)
-        logging.info(f"🔍 [FCS_DEBUG] HHEM returned score: {score}")
+        score = HHEM(vectara_api_key).compute(context, agent_response)
         return score
     except Exception as e:
         logging.error(
-            f"🔍 [FCS_DEBUG] HHEM computation failed: {e}. "
+            f"HHEM computation failed: {e}. "
             "Ensure you have a valid Vectara API key and the HHEM service is available."
         )
         return None

@@ -3,6 +3,7 @@ Module to handle agent callbacks
 """
 
 import inspect
+import logging
 from typing import Any, Dict, Optional, List, Callable
 from functools import wraps
 
@@ -153,10 +154,8 @@ class AgentCallbackHandler(BaseCallbackHandler):
             self._handle_function_call(payload, event_id)
         elif event_type == CBEventType.AGENT_STEP:
             self._handle_agent_step(payload, event_id)
-        elif event_type == CBEventType.EXCEPTION:
-            print(f"Exception event in handle_event: {payload.get(EventPayload.EXCEPTION)}")
         else:
-            print(f"Unknown event type: {event_type}, payload={payload}")
+            pass
 
     async def _ahandle_event(
         self, event_type: CBEventType, payload: Dict[str, Any], event_id: str
@@ -167,10 +166,8 @@ class AgentCallbackHandler(BaseCallbackHandler):
             await self._ahandle_function_call(payload, event_id)
         elif event_type == CBEventType.AGENT_STEP:
             await self._ahandle_agent_step(payload, event_id)
-        elif event_type == CBEventType.EXCEPTION:
-            print(f"Exception event in ahandle_event: {payload.get(EventPayload.EXCEPTION)}")
         else:
-            print(f"Unknown event type: {event_type}, payload={payload}")
+            pass
 
     # Synchronous handlers
     def _handle_llm(
@@ -196,15 +193,14 @@ class AgentCallbackHandler(BaseCallbackHandler):
                     event_id=event_id,
                 )
         else:
-            print(
-                f"vectara-agentic llm callback: no messages or prompt found in payload {payload}"
-            )
+            pass
 
     def _handle_function_call(self, payload: dict, event_id: str) -> None:
         try:
             if EventPayload.FUNCTION_CALL in payload:
                 fcall = payload.get(EventPayload.FUNCTION_CALL)
                 tool = payload.get(EventPayload.TOOL)
+                
                 if tool:
                     tool_name = tool.name
                     if self.fn:
@@ -216,11 +212,11 @@ class AgentCallbackHandler(BaseCallbackHandler):
                             },
                             event_id=event_id,
                         )
-                else:
-                    print(f"⚠️ [CALLBACK] Tool object missing in FUNCTION_CALL payload: {payload}")
+                    
             elif EventPayload.FUNCTION_OUTPUT in payload:
                 response = payload.get(EventPayload.FUNCTION_OUTPUT)
                 tool = payload.get(EventPayload.TOOL)
+                
                 if tool and self.fn:
                     self.fn(
                         status_type=AgentStatusType.TOOL_OUTPUT,
@@ -230,12 +226,11 @@ class AgentCallbackHandler(BaseCallbackHandler):
                         },
                         event_id=event_id,
                     )
-                elif not tool:
-                    print(f"⚠️ [CALLBACK] Tool object missing in FUNCTION_OUTPUT payload: {payload}")
-            else:
-                print(f"⚠️ [CALLBACK] No function call or output found in payload: {payload}")
+                
         except Exception as e:
-            print(f"❌ [CALLBACK] Error handling function call event: {e}, payload: {payload}")
+            import traceback
+            logging.error(f"Exception in _handle_function_call: {e}")
+            logging.error(f"Traceback: {traceback.format_exc()}")
             # Continue execution to prevent callback failures from breaking the agent
 
     def _handle_agent_step(self, payload: dict, event_id: str) -> None:
@@ -255,10 +250,6 @@ class AgentCallbackHandler(BaseCallbackHandler):
                     msg=response,
                     event_id=event_id,
                 )
-        else:
-            print(
-                f"Vectara-agentic agent_step: no messages or prompt found in payload {payload}"
-            )
 
     # Asynchronous handlers
     async def _ahandle_llm(self, payload: dict, event_id: str) -> None:
@@ -286,16 +277,13 @@ class AgentCallbackHandler(BaseCallbackHandler):
                     msg=prompt,
                     event_id=event_id,
                 )
-        else:
-            print(
-                f"vectara-agentic llm callback: no messages or prompt found in payload {payload}"
-            )
 
     async def _ahandle_function_call(self, payload: dict, event_id: str) -> None:
         try:
             if EventPayload.FUNCTION_CALL in payload:
                 fcall = payload.get(EventPayload.FUNCTION_CALL)
                 tool = payload.get(EventPayload.TOOL)
+                
                 if tool and self.fn:
                     if inspect.iscoroutinefunction(self.fn):
                         await self.fn(
@@ -315,11 +303,11 @@ class AgentCallbackHandler(BaseCallbackHandler):
                             },
                             event_id=event_id,
                         )
-                elif not tool:
-                    print(f"⚠️ [ASYNC_CALLBACK] Tool object missing in FUNCTION_CALL payload: {payload}")
+                    
             elif EventPayload.FUNCTION_OUTPUT in payload:
                 response = payload.get(EventPayload.FUNCTION_OUTPUT)
                 tool = payload.get(EventPayload.TOOL)
+                
                 if tool and self.fn:
                     if inspect.iscoroutinefunction(self.fn):
                         await self.fn(
@@ -339,12 +327,11 @@ class AgentCallbackHandler(BaseCallbackHandler):
                             },
                             event_id=event_id,
                         )
-                elif not tool:
-                    print(f"⚠️ [ASYNC_CALLBACK] Tool object missing in FUNCTION_OUTPUT payload: {payload}")
-            else:
-                print(f"⚠️ [ASYNC_CALLBACK] No function call or output found in payload: {payload}")
+                
         except Exception as e:
-            print(f"❌ [ASYNC_CALLBACK] Error handling function call event: {e}, payload: {payload}")
+            import traceback
+            logging.error(f"Exception in _ahandle_function_call: {e}")
+            logging.error(f"Traceback: {traceback.format_exc()}")
             # Continue execution to prevent callback failures from breaking the agent
 
     async def _ahandle_agent_step(self, payload: dict, event_id: str) -> None:
@@ -378,5 +365,3 @@ class AgentCallbackHandler(BaseCallbackHandler):
                         msg=response,
                         event_id=event_id,
                     )
-        else:
-            print(f"No messages or prompt found in payload {payload}")

@@ -70,7 +70,6 @@ class SubQuestionQueryWorkflow(Workflow):
 
         query = ev.inputs.query
         await ctx.set("original_query", query)
-        print(f"Query is {query}")
 
         required_attrs = ["agent", "llm", "tools"]
         for attr in required_attrs:
@@ -115,7 +114,6 @@ class SubQuestionQueryWorkflow(Workflow):
         )
 
         if await ctx.get("verbose"):
-            print(f"Sub-questions are {response}")
 
         response_str = str(response)
         if not response_str:
@@ -139,7 +137,6 @@ class SubQuestionQueryWorkflow(Workflow):
         if not sub_questions:
             # If the LLM returns an empty list, we need to handle it gracefully
             # We use the original query as a single question fallback
-            print("LLM returned empty sub-questions list")
             sub_questions = [original_query]
 
         await ctx.set("sub_question_count", len(sub_questions))
@@ -154,7 +151,6 @@ class SubQuestionQueryWorkflow(Workflow):
         Given a sub-question, return the answer to the sub-question, using the agent.
         """
         if await ctx.get("verbose"):
-            print(f"Sub-question is {ev.question}")
         agent = await ctx.get("agent")
         question = ev.question
         response = await agent.achat(question)
@@ -188,13 +184,11 @@ class SubQuestionQueryWorkflow(Workflow):
             {answers}
         """
         if await ctx.get("verbose"):
-            print(f"Final prompt is {prompt}")
 
         llm = await ctx.get("llm")
         response = llm.complete(prompt)
 
         if await ctx.get("verbose"):
-            print("Final response is", response)
 
         return StopEvent(result=self.OutputsModel(response=str(response)))
 
@@ -274,7 +268,6 @@ class SequentialSubQuestionsWorkflow(Workflow):
 
         original_query = await ctx.get("original_query")
         if ev.verbose:
-            print(f"Query is {original_query}")
 
         llm = await ctx.get("llm")
         response = llm.complete(
@@ -326,7 +319,6 @@ class SequentialSubQuestionsWorkflow(Workflow):
 
         await ctx.set("sub_questions", sub_questions)
         if await ctx.get("verbose"):
-            print(f"Sub-questions are {sub_questions}")
 
         return self.QueryEvent(question=sub_questions[0], prev_answer="", num=0)
 
@@ -338,7 +330,6 @@ class SequentialSubQuestionsWorkflow(Workflow):
         Given a sub-question, return the answer to the sub-question, using the agent.
         """
         if await ctx.get("verbose"):
-            print(f"Sub-question is {ev.question}")
         agent = await ctx.get("agent")
         sub_questions = await ctx.get("sub_questions")
         question = ev.question
@@ -353,7 +344,6 @@ class SequentialSubQuestionsWorkflow(Workflow):
             response = await agent.achat(question)
         answer = response.response
         if await ctx.get("verbose"):
-            print(f"Answer is {answer}")
 
         if ev.num + 1 < len(sub_questions):
             await ctx.set("qna", await ctx.get("qna", []) + [(question, answer)])

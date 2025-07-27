@@ -750,10 +750,6 @@ class Agent:
                 if self.verbose:
                     print(f"LLM call failed on attempt {attempt}. " f"Error: {e}.")
                 if attempt >= 2 and self.fallback_agent_config:
-                    if self.verbose:
-                        print(
-                            f"LLM call failed on attempt {attempt}. Switching agent configuration."
-                        )
                     self._switch_agent_config()
                 await asyncio.sleep(1)
                 attempt += 1
@@ -839,10 +835,6 @@ class Agent:
             except Exception as e:
                 last_error = e
                 if attempt >= 2 and self.fallback_agent_config:
-                    if self.verbose:
-                        print(
-                            f"LLM call failed on attempt {attempt}. Switching agent configuration."
-                        )
                     self._switch_agent_config()
                 await asyncio.sleep(1)
                 attempt += 1

@@ -307,7 +307,6 @@ def deserialize_agent_from_dict(
     # Restore tools with error handling and fallback
     try:
         tools = deserialize_tools(data["tools"])
-        logging.debug(f"✅ [AGENT_DESERIALIZE] Successfully deserialized {len(tools)} tools")
     except Exception as e:
         logging.error(f"❌ [AGENT_DESERIALIZE] Tool deserialization failed: {e}")
         logging.info("🔄 [AGENT_DESERIALIZE] Attempting fallback tool recreation...")
@@ -319,7 +318,6 @@ def deserialize_agent_from_dict(
         # For EV agent, try to recreate tools using the same logic as initialization
         if custom_metadata.get("use_waii") is not None:
             try:
-                logging.info("🔧 [AGENT_DESERIALIZE] Detected EV agent, attempting tool recreation")
                 # Import and recreate EV tools using the stored custom metadata
                 import sys
                 import os
@@ -335,7 +333,6 @@ def deserialize_agent_from_dict(
                 use_waii = custom_metadata.get("use_waii", True)
                 ev_tools = EVAgentTools(cfg, agent_config).get_tools(use_waii)
                 tools = ev_tools
-                logging.info(f"✅ [AGENT_DESERIALIZE] Successfully recreated {len(tools)} EV tools via fallback")
             except Exception as fallback_error:
                 logging.error(f"❌ [AGENT_DESERIALIZE] EV tool recreation fallback failed: {fallback_error}")
         

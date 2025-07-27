@@ -196,19 +196,14 @@ class VectaraTool(FunctionTool):
         """Format tool output by converting human-readable wrappers to formatted content immediately."""
         import logging
         
-        logging.info(f"🔧 [TOOL_DEBUG] {self.metadata.name}: Processing tool output")
-        
         # If the raw_output has human-readable formatting, use it for the content
         if hasattr(result, "raw_output") and _is_human_readable_output(result.raw_output):
             try:
                 formatted_content = result.raw_output.to_human_readable()
                 # Replace the content with the formatted version
                 result.content = formatted_content
-                logging.info(f"🔧 [TOOL_DEBUG] {self.metadata.name}: Converted to human-readable format (length: {len(formatted_content)})")
             except Exception as e:
-                logging.warning(f"🔧 [TOOL_DEBUG] {self.metadata.name}: Failed to convert to human-readable: {e}")
-        else:
-            logging.info(f"🔧 [TOOL_DEBUG] {self.metadata.name}: No wrapper found, using content as-is")
+                logging.warning(f"{self.metadata.name}: Failed to convert to human-readable: {e}")
         
         return result
 
