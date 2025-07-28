@@ -422,11 +422,11 @@ class Hallucination:
         headers = {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'x-api-key': os.getenv("VECTARA_API_KEY")
+            'x-api-key': self._vectara_api_key,
         }
 
         response = requests.post(
-            "https://api.vectara.io/v2/hallucination_correctors/correct_hallucination",
+            "https://api.vectara.io/v2/hallucination_correctors/correct_hallucinations",
             json=payload,
             headers=headers,
             timeout=30,
@@ -503,7 +503,7 @@ def analyze_hallucinations(
     """Calculate FCS score from chat history and agent response."""
     if not vectara_api_key:
         logging.debug("No Vectara API key - returning None")
-        return None
+        return None, None, []
 
     # Build a mapping from tool_call_id to tool_name for better tool identification
     tool_call_id_to_name = extract_tool_call_mapping(chat_history)
@@ -558,4 +558,4 @@ def analyze_hallucinations(
             f"Hallucination computation failed: {e}. "
             "Ensure you have a valid Vectara API key and the Hallucination Detection service is available."
         )
-        return None
+        return None, None, []
