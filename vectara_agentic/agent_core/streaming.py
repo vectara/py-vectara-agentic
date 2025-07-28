@@ -275,18 +275,18 @@ async def execute_post_stream_processing(
         agent_instance.query_logging_callback(prompt, final.response)
 
     # Calculate factual consistency score
-    from .utils.hhem import calculate_fcs_from_history
+    from .utils.hallucination import analyze_hallucinations
     
-    fcs = None
     if agent_instance.vectara_api_key:
-        fcs = calculate_fcs_from_history(
+        fcs_score, corrected_text, corrections = analyze_hallucinations(
             chat_history=agent_instance.memory.get(),
             agent_response=final.response,
             tools=agent_instance.tools,
             vectara_api_key=agent_instance.vectara_api_key
         )
-    if fcs is not None:
-        user_metadata["fcs"] = fcs
+        user_metadata["fcs"] = fcs_score
+        user_metadata["corrected_text"] = corrected_text
+        user_metadata["corrections"] = corrections
 
     if not final.metadata:
         final.metadata = {}

@@ -50,7 +50,7 @@ from .tools import ToolsFactory
 from .tool_utils import _is_human_readable_output
 from .tools_catalog import get_current_date
 from .agent_config import AgentConfig
-from .agent_core.utils.hhem import HHEM
+from .agent_core.utils.hallucination import Hallucination
 
 # Import utilities from agent core modules
 from .agent_core.streaming import (
@@ -73,7 +73,6 @@ logger = logging.getLogger("opentelemetry.exporter.otlp.proto.http.trace_exporte
 logger.setLevel(logging.CRITICAL)
 
 load_dotenv(override=True)
-
 
 class Agent:
     """

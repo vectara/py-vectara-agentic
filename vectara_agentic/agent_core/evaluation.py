@@ -13,7 +13,7 @@ from llama_index.core.memory import Memory
 from llama_index.core.llms import MessageRole
 
 from ..types import AgentType, AgentResponse
-from .utils.hhem import HHEM
+from .utils.hallucination import Hallucination
 from ..tool_utils import _is_human_readable_output
 
 
@@ -76,10 +76,10 @@ def calculate_factual_consistency_score(
     if not context or num_tool_calls == 0:
         return None
 
-    # Calculate FCS using HHEM
+    # Calculate FCS using Hallucination Detection
     context_str = "\n".join(context)
     try:
-        score = HHEM(vectara_api_key).compute(context_str, agent_response)
+        score = Hallucination(vectara_api_key).compute(context_str, agent_response)
         return score
     except Exception as e:
         logging.error(f"Failed to calculate FCS: {e}")

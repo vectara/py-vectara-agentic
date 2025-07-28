@@ -4,8 +4,9 @@ This file contains the prompt templates for the different types of agents.
 
 # General (shared) instructions
 GENERAL_INSTRUCTIONS = """
-- Use tools as your main source of information, do not respond without using a tool at least once.
-- Do not respond based on pre-trained knowledge, unless repeated calls to the tools fail or do not provide the information needed.
+- Use tools as your main source of information.
+- Do not respond based on pre-trained knowledge. Your response should be strictly grounded in the tool outputs or user messages, 
+  and you should not make up information, add commentary not supported by the source, or hallucinate.
 - Use the 'get_bad_topics' (if it exists) tool to determine the topics you are not allowed to discuss or respond to.
 - Before responding to a user query that requires knowledge of the current date, call the 'get_current_date' tool to get the current date.
   Never rely on previous knowledge of the current date.
