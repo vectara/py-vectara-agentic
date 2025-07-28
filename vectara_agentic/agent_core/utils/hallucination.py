@@ -3,6 +3,11 @@
 import logging
 import os
 from typing import List, Dict, Optional, Tuple
+import asyncio
+import aiohttp
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import time
 
 import requests
 from llama_index.core.llms import MessageRole
@@ -404,6 +409,41 @@ class Hallucination:
         data = response.json()
         return round(data.get("score", 0.0), 4)
 
+    async def compute_hhem_async(self, context: list[str], hypothesis: str) -> float:
+        """
+        Async version of compute_hhem for parallel processing.
+        """
+        # clean response from any markdown or other formatting, then remove citations
+        try:
+            clean_hypothesis = remove_citations(markdown_to_text(hypothesis))
+            clean_context = [remove_citations(markdown_to_text(text)) for text in context]
+        except Exception as e:
+            raise ValueError(f"Markdown parsing of hypothesis failed: {e}") from e
+
+        # compute hallucination score with Vectara endpoint
+        payload = {
+            "model_parameters": {"model_name": "hhem_v2.3"},
+            "generated_text": clean_hypothesis,
+            "source_texts": clean_context,
+        }
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "x-api-key": self._vectara_api_key,
+        }
+
+        timeout = aiohttp.ClientTimeout(total=30)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post(
+                "https://api.vectara.io/v2/evaluate_factual_consistency",
+                json=payload,
+                headers=headers,
+            ) as response:
+                response.raise_for_status()
+                data = await response.json()
+                score = round(data.get("score", 0.0), 4)
+                return score
+
     def compute_vhc(self, query: str, context: list[str], hypothesis: str) -> Tuple[str, list[str]]:
         """
         Calls the Vectara VHC (Vectara Hallucination Correction)
@@ -439,6 +479,35 @@ class Hallucination:
         logging.info(f"🔍 [HALLUCINATION_DEBUG] VHC outputs: {len(corrections)} corrections")
 
         return corrected_text, corrections
+
+    async def compute_vhc_async(self, query: str, context: list[str], hypothesis: str) -> Tuple[str, list[str]]:
+        """
+        Async version of compute_vhc for parallel processing.
+        """
+        payload = {
+            "generated_text": hypothesis,
+            "query": query,
+            "documents": [{"text": c} for c in context],
+            "model_name": "vhc-large-1.0"
+        }
+        headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'x-api-key': self._vectara_api_key,
+        }
+
+        timeout = aiohttp.ClientTimeout(total=30)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post(
+                "https://api.vectara.io/v2/hallucination_correctors/correct_hallucinations",
+                json=payload,
+                headers=headers,
+            ) as response:
+                response.raise_for_status()
+                data = await response.json()
+                corrected_text = data.get("corrected_text", "")
+                corrections = data.get("corrections", [])
+                return corrected_text, corrections
 
 
 def extract_tool_call_mapping(chat_history) -> Dict[str, str]:
@@ -549,13 +618,37 @@ def analyze_hallucinations(
 
     try:
         h = Hallucination(vectara_api_key)
-        score = h.compute_hhem(context, agent_response)
-        corrected_text, corrections = h.compute_vhc(
-            query=agent_response,
-            context=context,
-            hypothesis=agent_response
-        )
-        return score, corrected_text, corrections
+        start_time = time.time()
+        
+        # Try parallel processing using ThreadPoolExecutor
+        try:
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                # Submit both tasks
+                hhem_future = executor.submit(h.compute_hhem, context, agent_response)
+                vhc_future = executor.submit(h.compute_vhc, agent_response, context, agent_response)
+                
+                # Wait for both to complete
+                score = hhem_future.result()
+                corrected_text, corrections = vhc_future.result()
+                
+                elapsed = time.time() - start_time
+                return score, corrected_text, corrections
+                
+        except Exception as parallel_error:
+            # Fallback to sequential processing
+            logging.info(f"🔍 [HALLUCINATION_DEBUG] Starting sequential processing (fallback)")
+            start_time = time.time()
+            
+            score = h.compute_hhem(context, agent_response)
+            corrected_text, corrections = h.compute_vhc(
+                query=agent_response,
+                context=context,
+                hypothesis=agent_response
+            )
+            
+            elapsed = time.time() - start_time
+            logging.info(f"🔍 [HALLUCINATION_DEBUG] Sequential processing completed in {elapsed:.2f}s")
+            return score, corrected_text, corrections
 
     except Exception as e:
         logging.error(
