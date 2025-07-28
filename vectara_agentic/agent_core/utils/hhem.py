@@ -376,7 +376,7 @@ class HHEM:
             # If markdown parsing fails, use the original text
             raise ValueError(f"Markdown parsing of hypothesis failed: {e}") from e
 
-        logging.info(f"🔍 [HHEM_DEBUG] Cleaned hypothesis: {clean_hypothesis}...")
+        logging.info(f"🔍 [HHEM_DEBUG] Cleaned hypothesis: {clean_hypothesis}")
         logging.info(f"🔍 [HHEM_DEBUG] Context: {clean_context}")
 
         # compute HHEM with Vectara endpoint
