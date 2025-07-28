@@ -355,7 +355,7 @@ class Hallucination:
     def __init__(self, vectara_api_key: str):
         self._vectara_api_key = vectara_api_key
 
-    def compute(self, context: list[str], hypothesis: str) -> float:
+    def compute_hhem(self, context: list[str], hypothesis: str) -> float:
         """
         Calls the Vectara Hallucination Detection endpoint to evaluate the factual consistency of a hypothesis against a given context.
 
@@ -404,7 +404,7 @@ class Hallucination:
         data = response.json()
         return round(data.get("score", 0.0), 4)
 
-    def compute_with_vhc(self, query: str, context: list[str], hypothesis: str) -> Tuple[str, list[str]]:
+    def compute_vhc(self, query: str, context: list[str], hypothesis: str) -> Tuple[str, list[str]]:
         """
         Calls the Vectara VHC (Vectara Hallucination Correction)
 
@@ -435,6 +435,9 @@ class Hallucination:
         data = response.json()
         corrected_text = data.get("corrected_text", "")
         corrections = data.get("corrections", [])
+
+        logging.info(f"🔍 [HALLUCINATION_DEBUG] VHC outputs: {len(corrections)} corrections")
+
         return corrected_text, corrections
 
 
@@ -545,8 +548,9 @@ def analyze_hallucinations(
         return None, None, []
 
     try:
-        score = Hallucination(vectara_api_key).compute(context, agent_response)
-        corrected_text, corrections = Hallucination(vectara_api_key).compute_with_vhc(
+        h = Hallucination(vectara_api_key)
+        score = h.compute_hhem(context, agent_response)
+        corrected_text, corrections = h.compute_vhc(
             query=agent_response,
             context=context,
             hypothesis=agent_response
