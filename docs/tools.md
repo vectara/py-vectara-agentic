@@ -183,6 +183,7 @@ This pattern provides flexibility for tools to define their own presentation lay
 
 ## FCS Eligibility
 
+`FCS` or Factual Consistency Score refers to a specialized model from Vectara for detecting hallucinations, also known as HHEM.
 Factual Consistency Score (FCS) eligibility controls which tools contribute context to FCS calculation. This feature ensures that only tools providing factual information are considered when evaluating response accuracy.
 
 ### Understanding FCS Eligibility

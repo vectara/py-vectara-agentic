@@ -182,6 +182,8 @@ and add it to a new or existing Vectara corpus.
 `VECTARA_AGENTIC_AGENT_TYPE`: Agent type, either FUNCTION_CALLING (default),
 REACT, LATS or LLMCOMPILER.
 
+> **note:** OPENAI agent type removed, use FUNCTION_CALLING with OpenAI as main_llm_provider.
+
 `VECTARA_AGENTIC_MAIN_LLM_PROVIDER`: The LLM used for the agent, either
 OPENAI (default), ANTHROPIC, GEMINI, TOGETHER, COHERE, BEDROCK, or GROQ.
 

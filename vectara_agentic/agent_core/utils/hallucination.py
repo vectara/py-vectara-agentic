@@ -613,7 +613,7 @@ def analyze_hallucinations(
             context.append(msg.content)
 
     # If no context or no tool calls, we cannot compute FCS
-    if len(context)==0:
+    if len(context) == 0:
         return None, None, []
 
     try:

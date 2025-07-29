@@ -10,6 +10,8 @@ import logging
 import importlib
 import inspect
 from typing import Dict, Any, List, Optional, Callable
+import sys
+import os
 
 import cloudpickle as pickle
 from pydantic import Field, create_model, BaseModel
@@ -319,8 +321,6 @@ def deserialize_agent_from_dict(
         if custom_metadata.get("use_waii") is not None:
             try:
                 # Import and recreate EV tools using the stored custom metadata
-                import sys
-                import os
                 backend_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
                 if backend_path not in sys.path:
                     sys.path.append(backend_path)

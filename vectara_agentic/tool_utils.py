@@ -4,6 +4,7 @@ This module contains the ToolsFactory class for creating agent tools.
 
 import inspect
 import re
+import traceback
 
 from typing import (
     Callable,
@@ -156,7 +157,6 @@ class VectaraTool(FunctionTool):
             # General execution error handling
             content = f"Tool {self.metadata.name} Malfunction: {str(error)}"
             if include_traceback:
-                import traceback
                 content += f", traceback: {traceback.format_exc()}"
 
             return ToolOutput(

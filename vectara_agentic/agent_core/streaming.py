@@ -12,7 +12,7 @@ import json
 from typing import Callable, Any, Dict, AsyncIterator
 
 from ..types import AgentResponse
-
+from .utils.hallucination import analyze_hallucinations
 
 # Debug flag - set to False to reduce logging noise in production
 ENABLE_DETAILED_STREAMING_DEBUG = False
@@ -275,7 +275,6 @@ async def execute_post_stream_processing(
         agent_instance.query_logging_callback(prompt, final.response)
 
     # Calculate factual consistency score
-    from .utils.hallucination import analyze_hallucinations
     
     if agent_instance.vectara_api_key:
         fcs_score, corrected_text, corrections = analyze_hallucinations(
