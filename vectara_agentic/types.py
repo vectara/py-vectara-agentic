@@ -88,14 +88,20 @@ class _StreamProto(Protocol):
     response: str | None
     response_id: str | None
 
-    def get_response(self) -> LI_AgentChatResponse: ...         # pylint: disable=missing-function-docstring
+    def get_response(self) -> LI_AgentChatResponse:
+        """Get the agent chat response."""
 
-    # some LI versions expose these instead; keep them to satisfy linters:
-    def to_response(self) -> LI_AgentChatResponse: ...          # pylint: disable=missing-function-docstring
-    def get_final_response(self) -> LI_AgentChatResponse: ...   # pylint: disable=missing-function-docstring
+    def to_response(self) -> LI_AgentChatResponse:
+        """Convert to agent chat response."""
 
-    def __iter__(self): ...                                     # pylint: disable=missing-function-docstring
-    async def async_response_gen(self) -> AsyncIterator[str]: ...  # pylint: disable=missing-function-docstring
+    def get_final_response(self) -> LI_AgentChatResponse:
+        """Get the final agent chat response."""
+
+    def __iter__(self):
+        """Return an iterator over the stream."""
+
+    async def async_response_gen(self) -> AsyncIterator[str]:
+        """Async generator that yields response strings."""
 
 
 # classes for Agent responses
@@ -155,6 +161,7 @@ class AgentStreamingResponse:
     @classmethod
     def from_error(cls, msg: str) -> "AgentStreamingResponse":
         """Create an AgentStreamingResponse from an error message."""
+
         async def _empty_gen():
             if False:  # pylint: disable=using-constant-test
                 yield ""
@@ -166,7 +173,7 @@ class AgentStreamingResponse:
 
             async def async_response_gen(self):
                 """Async generator that yields an error message."""
-                if False:   # pylint: disable=using-constant-test
+                if False:  # pylint: disable=using-constant-test
                     yield ""
 
             def get_response(self) -> AgentResponse:

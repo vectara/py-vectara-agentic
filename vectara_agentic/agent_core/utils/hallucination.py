@@ -1,16 +1,14 @@
 """Vectara Hallucination Detection and Correction client."""
 
 import logging
-import os
 from typing import List, Dict, Optional, Tuple
-import asyncio
-import aiohttp
-import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import time
+from concurrent.futures import ThreadPoolExecutor
 
+import aiohttp
 import requests
+
 from llama_index.core.llms import MessageRole
+
 
 def convert_table_to_sentences(table_text: str) -> str:
     """
@@ -24,10 +22,12 @@ def convert_table_to_sentences(table_text: str) -> str:
     """
     import re
 
-    lines = table_text.strip().split('\n')
+    lines = table_text.strip().split("\n")
 
     # Skip separator lines (lines with |---|---|)
-    content_lines = [line for line in lines if not re.match(r'^\s*\|[\s\-\|:]+\|\s*$', line)]
+    content_lines = [
+        line for line in lines if not re.match(r"^\s*\|[\s\-\|:]+\|\s*$", line)
+    ]
 
     if len(content_lines) < 2:
         # Not enough content for header + data
@@ -36,8 +36,8 @@ def convert_table_to_sentences(table_text: str) -> str:
     # Parse table structure
     parsed_rows = []
     for line in content_lines:
-        if '|' in line:
-            cells = [cell.strip() for cell in line.split('|') if cell.strip()]
+        if "|" in line:
+            cells = [cell.strip() for cell in line.split("|") if cell.strip()]
             if cells:
                 parsed_rows.append(cells)
 
@@ -55,14 +55,14 @@ def convert_table_to_sentences(table_text: str) -> str:
             # Handle mismatched columns by padding or truncating
             while len(row) < len(headers):
                 row.append("N/A")
-            row = row[:len(headers)]
+            row = row[: len(headers)]
 
         # Create contextual sentences based on common patterns
         sentence = create_row_sentence(headers, row)
         if sentence:
             sentences.append(sentence)
 
-    return ' '.join(sentences) if sentences else table_text
+    return " ".join(sentences) if sentences else table_text
 
 
 def create_row_sentence(headers: list, row: list) -> str:
@@ -85,15 +85,15 @@ def create_row_sentence(headers: list, row: list) -> str:
     # Detect common table patterns and generate appropriate sentences
 
     # Vehicle comparison tables (common in automotive data)
-    if any(key in data for key in ['vehicle', 'vehicle type', 'type']):
+    if any(key in data for key in ["vehicle", "vehicle type", "type"]):
         return create_vehicle_sentence(headers, row, data)
 
     # Financial/pricing tables
-    elif any(key in data for key in ['price', 'cost', 'amount', 'value']):
+    elif any(key in data for key in ["price", "cost", "amount", "value"]):
         return create_financial_sentence(headers, row, data)
 
     # Performance/specification tables
-    elif any(key in data for key in ['range', 'speed', 'power', 'capacity']):
+    elif any(key in data for key in ["range", "speed", "power", "capacity"]):
         return create_performance_sentence(headers, row, data)
 
     # Generic fallback - create descriptive sentence
@@ -104,16 +104,17 @@ def create_row_sentence(headers: list, row: list) -> str:
 def create_vehicle_sentence(headers: list, row: list, data: dict) -> str:
     """Create sentence for vehicle comparison data."""
     # Get vehicle identifier
-    vehicle = (data.get('vehicle type') or data.get('vehicle') or
-              data.get('type') or row[0])
+    vehicle = (
+        data.get("vehicle type") or data.get("vehicle") or data.get("type") or row[0]
+    )
 
     parts = [f"{vehicle} vehicles"]
 
     # Add range information
-    if 'range' in data or 'range (miles)' in data:
-        range_val = data.get('range (miles)') or data.get('range')
-        if range_val and range_val.lower() not in ['n/a', 'na', '-', '']:
-            if 'electric' in range_val:
+    if "range" in data or "range (miles)" in data:
+        range_val = data.get("range (miles)") or data.get("range")
+        if range_val and range_val.lower() not in ["n/a", "na", "-", ""]:
+            if "electric" in range_val:
                 parts.append(f"have an electric range of {range_val}")
             else:
                 parts.append(f"have a range of {range_val} miles")
@@ -121,22 +122,36 @@ def create_vehicle_sentence(headers: list, row: list, data: dict) -> str:
             parts.append("do not have electric-only range")
 
     # Add price information
-    price_keys = ['price range', 'price', 'cost', 'cost range']
+    price_keys = ["price range", "price", "cost", "cost range"]
     for key in price_keys:
         if key in data:
             price_val = data[key]
-            if price_val and price_val.lower() not in ['n/a', 'na', '-', '']:
+            if price_val and price_val.lower() not in ["n/a", "na", "-", ""]:
                 parts.append(f"and cost {price_val}")
             break
 
     # Add other specifications
     for i, header in enumerate(headers):
         header_lower = header.lower()
-        if (header_lower not in ['vehicle type', 'vehicle', 'type', 'range', 'range (miles)', 'price range', 'price', 'cost'] and
-            i < len(row) and row[i] and row[i].lower() not in ['n/a', 'na', '-', '']):
+        if (
+            header_lower
+            not in [
+                "vehicle type",
+                "vehicle",
+                "type",
+                "range",
+                "range (miles)",
+                "price range",
+                "price",
+                "cost",
+            ]
+            and i < len(row)
+            and row[i]
+            and row[i].lower() not in ["n/a", "na", "-", ""]
+        ):
             parts.append(f"with {header.lower()} of {row[i]}")
 
-    return ' '.join(parts) + '.'
+    return " ".join(parts) + "."
 
 
 def create_financial_sentence(headers: list, row: list, data: dict) -> str:
@@ -147,12 +162,12 @@ def create_financial_sentence(headers: list, row: list, data: dict) -> str:
     parts = [f"{identifier}"]
 
     # Add price/cost information
-    price_keys = ['price', 'cost', 'amount', 'value', 'price range', 'cost range']
+    price_keys = ["price", "cost", "amount", "value", "price range", "cost range"]
     for key in price_keys:
         if key in data:
             price_val = data[key]
-            if price_val and price_val.lower() not in ['n/a', 'na', '-', '']:
-                if 'range' in key:
+            if price_val and price_val.lower() not in ["n/a", "na", "-", ""]:
+                if "range" in key:
                     parts.append(f"costs {price_val}")
                 else:
                     parts.append(f"has a {key} of {price_val}")
@@ -161,11 +176,15 @@ def create_financial_sentence(headers: list, row: list, data: dict) -> str:
     # Add other financial attributes
     for i, header in enumerate(headers[1:], 1):  # Skip first column (identifier)
         header_lower = header.lower()
-        if (header_lower not in price_keys and i < len(row) and
-            row[i] and row[i].lower() not in ['n/a', 'na', '-', '']):
+        if (
+            header_lower not in price_keys
+            and i < len(row)
+            and row[i]
+            and row[i].lower() not in ["n/a", "na", "-", ""]
+        ):
             parts.append(f"and {header.lower()} of {row[i]}")
 
-    return ' '.join(parts) + '.'
+    return " ".join(parts) + "."
 
 
 def create_performance_sentence(headers: list, row: list, data: dict) -> str:
@@ -177,16 +196,18 @@ def create_performance_sentence(headers: list, row: list, data: dict) -> str:
     # Add performance metrics
     perf_attributes = []
     for i, header in enumerate(headers[1:], 1):  # Skip identifier
-        if i < len(row) and row[i] and row[i].lower() not in ['n/a', 'na', '-', '']:
+        if i < len(row) and row[i] and row[i].lower() not in ["n/a", "na", "-", ""]:
             perf_attributes.append(f"{header.lower()} of {row[i]}")
 
     if perf_attributes:
         if len(perf_attributes) == 1:
             parts.append(f"has {perf_attributes[0]}")
         else:
-            parts.append(f"has {', '.join(perf_attributes[:-1])} and {perf_attributes[-1]}")
+            parts.append(
+                f"has {', '.join(perf_attributes[:-1])} and {perf_attributes[-1]}"
+            )
 
-    return ' '.join(parts) + '.'
+    return " ".join(parts) + "."
 
 
 def create_generic_sentence(headers: list, row: list) -> str:
@@ -200,15 +221,20 @@ def create_generic_sentence(headers: list, row: list) -> str:
     # Add attributes from remaining columns
     attributes = []
     for i, header in enumerate(headers[1:], 1):
-        if i < len(row) and row[i] and row[i].lower() not in ['n/a', 'na', '-', '']:
+        if i < len(row) and row[i] and row[i].lower() not in ["n/a", "na", "-", ""]:
             # Improve grammar by using "of" instead of "is" for most attributes
             attr_value = row[i]
             header_lower = header.lower()
 
             # Use more natural phrasing
-            if any(word in header_lower for word in ['speed', 'size', 'capacity', 'memory', 'storage']):
+            if any(
+                word in header_lower
+                for word in ["speed", "size", "capacity", "memory", "storage"]
+            ):
                 attributes.append(f"{header_lower} of {attr_value}")
-            elif any(word in header_lower for word in ['level', 'type', 'status', 'category']):
+            elif any(
+                word in header_lower for word in ["level", "type", "status", "category"]
+            ):
                 attributes.append(f"{header_lower} of {attr_value}")
             else:
                 attributes.append(f"{header_lower} of {attr_value}")
@@ -219,7 +245,7 @@ def create_generic_sentence(headers: list, row: list) -> str:
         else:
             parts.append(f"has {', '.join(attributes[:-1])} and {attributes[-1]}")
 
-    return ' '.join(parts) + '.'
+    return " ".join(parts) + "."
 
 
 def remove_citations(text: str) -> str:
@@ -235,13 +261,13 @@ def remove_citations(text: str) -> str:
     import re
 
     # Remove markdown-style citations: [text](url) -> text
-    text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
+    text = re.sub(r"\[([^\]]+)\]\([^\)]+\)", r"\1", text)
 
     # Remove all remaining square bracket citations: [text], [1], etc.
-    text = re.sub(r'\[[^\]]+\]', '', text)
+    text = re.sub(r"\[[^\]]+\]", "", text)
 
     # Clean up extra whitespace that may result from removal
-    text = re.sub(r'\s+', ' ', text).strip()
+    text = re.sub(r"\s+", " ", text).strip()
 
     return text
 
@@ -256,7 +282,7 @@ def markdown_to_text(md: str) -> str:
     import re
 
     # Check if the input is purely a table (common case for FCS)
-    table_pattern = r'^\s*(\|[^\n]*\|(?:\n\|[^\n]*\|)*)\s*$'
+    table_pattern = r"^\s*(\|[^\n]*\|(?:\n\|[^\n]*\|)*)\s*$"
     table_match = re.match(table_pattern, md.strip(), flags=re.MULTILINE | re.DOTALL)
 
     if table_match:
@@ -270,8 +296,10 @@ def markdown_to_text(md: str) -> str:
         table_text = match.group(0)
         return convert_table_to_sentences(table_text)
 
-    mixed_table_pattern = r'(\|[^\n]*\|(?:\n\|[^\n]*\|)+)'
-    md_with_tables_converted = re.sub(mixed_table_pattern, convert_table, md, flags=re.MULTILINE)
+    mixed_table_pattern = r"(\|[^\n]*\|(?:\n\|[^\n]*\|)+)"
+    md_with_tables_converted = re.sub(
+        mixed_table_pattern, convert_table, md, flags=re.MULTILINE
+    )
 
     # Step 2: Use HTML-first approach for reliable mixed content processing
     try:
@@ -283,11 +311,11 @@ def markdown_to_text(md: str) -> str:
         html = mistune.html(md_with_tables_converted)
 
         # HTML → Plain Text (using BeautifulSoup for proper text extraction)
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, "html.parser")
         clean_text = soup.get_text()
 
         # Clean up the output
-        lines = [line.strip() for line in clean_text.split('\n')]
+        lines = [line.strip() for line in clean_text.split("\n")]
         # Remove excessive empty lines but preserve paragraph breaks
         cleaned_lines = []
         prev_empty = False
@@ -296,10 +324,10 @@ def markdown_to_text(md: str) -> str:
                 cleaned_lines.append(line)
                 prev_empty = False
             elif not prev_empty:
-                cleaned_lines.append('')
+                cleaned_lines.append("")
                 prev_empty = True
 
-        return '\n'.join(cleaned_lines).strip()
+        return "\n".join(cleaned_lines).strip()
 
     except ImportError:
         # Fallback: Try standard markdown library with BeautifulSoup
@@ -310,11 +338,11 @@ def markdown_to_text(md: str) -> str:
             md_parser = markdown.Markdown()
             html = md_parser.convert(md_with_tables_converted)
 
-            soup = BeautifulSoup(html, 'html.parser')
+            soup = BeautifulSoup(html, "html.parser")
             clean_text = soup.get_text()
 
             # Clean up the output
-            lines = [line.strip() for line in clean_text.split('\n')]
+            lines = [line.strip() for line in clean_text.split("\n")]
             cleaned_lines = []
             prev_empty = False
             for line in lines:
@@ -322,25 +350,29 @@ def markdown_to_text(md: str) -> str:
                     cleaned_lines.append(line)
                     prev_empty = False
                 elif not prev_empty:
-                    cleaned_lines.append('')
+                    cleaned_lines.append("")
                     prev_empty = True
 
-            return '\n'.join(cleaned_lines).strip()
+            return "\n".join(cleaned_lines).strip()
 
         except ImportError:
             # Last resort: Simple regex cleanup (basic but functional)
-            logging.warning("Neither mistune nor markdown libraries available, using basic text processing")
+            logging.warning(
+                "Neither mistune nor markdown libraries available, using basic text processing"
+            )
 
             # Remove markdown formatting
             result = md_with_tables_converted
-            result = re.sub(r'^#+\s*(.+)$', r'\1', result, flags=re.MULTILINE)  # Headers
-            result = re.sub(r'\*\*(.+?)\*\*', r'\1', result)  # Bold
-            result = re.sub(r'\*(.+?)\*', r'\1', result)  # Italic
-            result = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', result)  # Links
-            result = re.sub(r'`([^`]+)`', r'\1', result)  # Inline code
+            result = re.sub(
+                r"^#+\s*(.+)$", r"\1", result, flags=re.MULTILINE
+            )  # Headers
+            result = re.sub(r"\*\*(.+?)\*\*", r"\1", result)  # Bold
+            result = re.sub(r"\*(.+?)\*", r"\1", result)  # Italic
+            result = re.sub(r"\[([^\]]+)\]\([^\)]+\)", r"\1", result)  # Links
+            result = re.sub(r"`([^`]+)`", r"\1", result)  # Inline code
 
             # Clean up whitespace
-            lines = [line.strip() for line in result.split('\n')]
+            lines = [line.strip() for line in result.split("\n")]
             cleaned_lines = []
             prev_empty = False
             for line in lines:
@@ -348,10 +380,10 @@ def markdown_to_text(md: str) -> str:
                     cleaned_lines.append(line)
                     prev_empty = False
                 elif not prev_empty:
-                    cleaned_lines.append('')
+                    cleaned_lines.append("")
                     prev_empty = True
 
-            return '\n'.join(cleaned_lines).strip()
+            return "\n".join(cleaned_lines).strip()
 
 
 class Hallucination:
@@ -362,10 +394,11 @@ class Hallucination:
 
     def compute_hhem(self, context: list[str], hypothesis: str) -> float:
         """
-        Calls the Vectara Hallucination Detection endpoint to evaluate the factual consistency of a hypothesis against a given context.
+        Calls the Vectara Hallucination Detection endpoint to evaluate the factual consistency
+        of a hypothesis against a given context.
 
         Parameters:
-            context (list[str]): The source texs against which the hypothesis will be evaluated.
+            context (list[str]): The source text strings against which the hypothesis will be evaluated.
             hypothesis (str): The generated text to be evaluated for factual consistency.
 
         Returns:
@@ -378,13 +411,17 @@ class Hallucination:
         # clean response from any markdown or other formatting, then remove citations
         try:
             clean_hypothesis = remove_citations(markdown_to_text(hypothesis))
-            clean_context = [remove_citations(markdown_to_text(text)) for text in context]
+            clean_context = [
+                remove_citations(markdown_to_text(text)) for text in context
+            ]
         except Exception as e:
             raise ValueError(f"Markdown parsing of hypothesis failed: {e}") from e
 
-        logging.info(f"🔍 [HALLUCINATION_DEBUG] Cleaned hypothesis: {clean_hypothesis}\n\n")
+        logging.info(
+            f"🔍 [HALLUCINATION_DEBUG] Cleaned hypothesis: {clean_hypothesis}\n\n"
+        )
         logging.info("🔍 [HALLUCINATION_DEBUG] Context:")
-        for i,ctx in enumerate(clean_context):
+        for i, ctx in enumerate(clean_context):
             logging.info(f"🔍 [HALLUCINATION_DEBUG] context {i}: {ctx}\n\n")
 
         # compute hallucination score with Vectara endpoint
@@ -416,7 +453,9 @@ class Hallucination:
         # clean response from any markdown or other formatting, then remove citations
         try:
             clean_hypothesis = remove_citations(markdown_to_text(hypothesis))
-            clean_context = [remove_citations(markdown_to_text(text)) for text in context]
+            clean_context = [
+                remove_citations(markdown_to_text(text)) for text in context
+            ]
         except Exception as e:
             raise ValueError(f"Markdown parsing of hypothesis failed: {e}") from e
 
@@ -444,7 +483,9 @@ class Hallucination:
                 score = round(data.get("score", 0.0), 4)
                 return score
 
-    def compute_vhc(self, query: str, context: list[str], hypothesis: str) -> Tuple[str, list[str]]:
+    def compute_vhc(
+        self, query: str, context: list[str], hypothesis: str
+    ) -> Tuple[str, list[str]]:
         """
         Calls the Vectara VHC (Vectara Hallucination Correction)
 
@@ -457,12 +498,12 @@ class Hallucination:
             "generated_text": hypothesis,
             "query": query,
             "documents": [{"text": c} for c in context],
-            "model_name": "vhc-large-1.0"
+            "model_name": "vhc-large-1.0",
         }
         headers = {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'x-api-key': self._vectara_api_key,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "x-api-key": self._vectara_api_key,
         }
 
         response = requests.post(
@@ -476,11 +517,15 @@ class Hallucination:
         corrected_text = data.get("corrected_text", "")
         corrections = data.get("corrections", [])
 
-        logging.info(f"🔍 [HALLUCINATION_DEBUG] VHC outputs: {len(corrections)} corrections")
+        logging.info(
+            f"🔍 [HALLUCINATION_DEBUG] VHC outputs: {len(corrections)} corrections"
+        )
 
         return corrected_text, corrections
 
-    async def compute_vhc_async(self, query: str, context: list[str], hypothesis: str) -> Tuple[str, list[str]]:
+    async def compute_vhc_async(
+        self, query: str, context: list[str], hypothesis: str
+    ) -> Tuple[str, list[str]]:
         """
         Async version of compute_vhc for parallel processing.
         """
@@ -488,12 +533,12 @@ class Hallucination:
             "generated_text": hypothesis,
             "query": query,
             "documents": [{"text": c} for c in context],
-            "model_name": "vhc-large-1.0"
+            "model_name": "vhc-large-1.0",
         }
         headers = {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'x-api-key': self._vectara_api_key,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "x-api-key": self._vectara_api_key,
         }
 
         timeout = aiohttp.ClientTimeout(total=30)
@@ -514,12 +559,20 @@ def extract_tool_call_mapping(chat_history) -> Dict[str, str]:
     """Extract tool_call_id to tool_name mapping from chat history."""
     tool_call_id_to_name = {}
     for msg in chat_history:
-        if msg.role == MessageRole.ASSISTANT and hasattr(msg, 'additional_kwargs') and msg.additional_kwargs:
-            tool_calls = msg.additional_kwargs.get('tool_calls', [])
+        if (
+            msg.role == MessageRole.ASSISTANT
+            and hasattr(msg, "additional_kwargs")
+            and msg.additional_kwargs
+        ):
+            tool_calls = msg.additional_kwargs.get("tool_calls", [])
             for tool_call in tool_calls:
-                if isinstance(tool_call, dict) and 'id' in tool_call and 'function' in tool_call:
-                    tool_call_id = tool_call['id']
-                    tool_name = tool_call['function'].get('name')
+                if (
+                    isinstance(tool_call, dict)
+                    and "id" in tool_call
+                    and "function" in tool_call
+                ):
+                    tool_call_id = tool_call["id"]
+                    tool_name = tool_call["function"].get("name")
                     if tool_call_id and tool_name:
                         tool_call_id_to_name[tool_call_id] = tool_name
 
@@ -531,20 +584,26 @@ def identify_tool_name(msg, tool_call_id_to_name: Dict[str, str]) -> Optional[st
     tool_name = None
 
     # First try: standard tool_name attribute (for backwards compatibility)
-    tool_name = getattr(msg, 'tool_name', None)
+    tool_name = getattr(msg, "tool_name", None)
 
     # Second try: additional_kwargs (LlamaIndex standard location)
-    if tool_name is None and hasattr(msg, 'additional_kwargs') and msg.additional_kwargs:
-        tool_name = msg.additional_kwargs.get('name') or msg.additional_kwargs.get('tool_name')
+    if (
+        tool_name is None
+        and hasattr(msg, "additional_kwargs")
+        and msg.additional_kwargs
+    ):
+        tool_name = msg.additional_kwargs.get("name") or msg.additional_kwargs.get(
+            "tool_name"
+        )
 
         # If no direct tool name, try to map from tool_call_id
         if tool_name is None:
-            tool_call_id = msg.additional_kwargs.get('tool_call_id')
+            tool_call_id = msg.additional_kwargs.get("tool_call_id")
             if tool_call_id and tool_call_id in tool_call_id_to_name:
                 tool_name = tool_call_id_to_name[tool_call_id]
 
     # Third try: extract from content if it's a ToolOutput object
-    if tool_name is None and hasattr(msg.content, 'tool_name'):
+    if tool_name is None and hasattr(msg.content, "tool_name"):
         tool_name = msg.content.tool_name
 
     return tool_name
@@ -557,8 +616,12 @@ def check_tool_fcs_eligibility(tool_name: Optional[str], tools: List) -> bool:
 
     # Try to find the tool and check its FCS eligibility
     for tool in tools:
-        if hasattr(tool, 'metadata') and hasattr(tool.metadata, 'name') and tool.metadata.name == tool_name:
-            if hasattr(tool.metadata, 'fcs_eligible'):
+        if (
+            hasattr(tool, "metadata")
+            and hasattr(tool.metadata, "name")
+            and tool.metadata.name == tool_name
+        ):
+            if hasattr(tool.metadata, "fcs_eligible"):
                 is_fcs_eligible = tool.metadata.fcs_eligible
                 return is_fcs_eligible
             break
@@ -567,10 +630,7 @@ def check_tool_fcs_eligibility(tool_name: Optional[str], tools: List) -> bool:
 
 
 def analyze_hallucinations(
-    chat_history,
-    agent_response: str,
-    tools: List,
-    vectara_api_key: str
+    chat_history, agent_response: str, tools: List, vectara_api_key: str
 ) -> Tuple[float, str, List[str]]:
     """Calculate FCS score from chat history and agent response."""
     if not vectara_api_key:
@@ -608,7 +668,7 @@ def analyze_hallucinations(
             context.append(msg.content)
 
         elif msg.role == MessageRole.ASSISTANT and msg.content:
-            if i == last_assistant_index:   # do not include the last assistant message
+            if i == last_assistant_index:  # do not include the last assistant message
                 continue
             context.append(msg.content)
 
@@ -618,36 +678,29 @@ def analyze_hallucinations(
 
     try:
         h = Hallucination(vectara_api_key)
-        start_time = time.time()
-        
+
         # Try parallel processing using ThreadPoolExecutor
         try:
             with ThreadPoolExecutor(max_workers=2) as executor:
-                # Submit both tasks
                 hhem_future = executor.submit(h.compute_hhem, context, agent_response)
-                vhc_future = executor.submit(h.compute_vhc, agent_response, context, agent_response)
-                
+                vhc_future = executor.submit(
+                    h.compute_vhc, agent_response, context, agent_response
+                )
+
                 # Wait for both to complete
                 score = hhem_future.result()
                 corrected_text, corrections = vhc_future.result()
-                
-                elapsed = time.time() - start_time
                 return score, corrected_text, corrections
-                
+
         except Exception as parallel_error:
             # Fallback to sequential processing
-            logging.info(f"🔍 [HALLUCINATION_DEBUG] Starting sequential processing (fallback)")
-            start_time = time.time()
-            
+            logging.warning(
+                f"HHEM/VHC using sequential processing (fallback), error: {parallel_error}"
+            )
             score = h.compute_hhem(context, agent_response)
             corrected_text, corrections = h.compute_vhc(
-                query=agent_response,
-                context=context,
-                hypothesis=agent_response
+                query=agent_response, context=context, hypothesis=agent_response
             )
-            
-            elapsed = time.time() - start_time
-            logging.info(f"🔍 [HALLUCINATION_DEBUG] Sequential processing completed in {elapsed:.2f}s")
             return score, corrected_text, corrections
 
     except Exception as e:

@@ -617,7 +617,10 @@ class ToolsFactory:
         self.agent_config = agent_config
 
     def create_tool(
-        self, function: Callable, tool_type: ToolType = ToolType.QUERY, fcs_eligible: bool = True
+        self,
+        function: Callable,
+        tool_type: ToolType = ToolType.QUERY,
+        fcs_eligible: bool = True,
     ) -> VectaraTool:
         """
         Create a tool from a function.
@@ -629,7 +632,9 @@ class ToolsFactory:
         Returns:
             VectaraTool: A VectaraTool object.
         """
-        return VectaraTool.from_defaults(tool_type=tool_type, fn=function, fcs_eligible=fcs_eligible)
+        return VectaraTool.from_defaults(
+            tool_type=tool_type, fn=function, fcs_eligible=fcs_eligible
+        )
 
     def get_llama_index_tools(
         self,
@@ -739,7 +744,8 @@ class ToolsFactory:
             )
 
         return [
-            self.create_tool(tool, fcs_eligible=False) for tool in [summarize_legal_text, critique_as_judge]
+            self.create_tool(tool, fcs_eligible=False)
+            for tool in [summarize_legal_text, critique_as_judge]
         ]
 
     def database_tools(

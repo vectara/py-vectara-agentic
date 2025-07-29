@@ -6,6 +6,7 @@ It makes the following adjustments:
 * Makes sure the load_data method returns a list of text values from the database (and not Document[] objects).
 * Limits the returned rows to self.max_rows.
 """
+
 from typing import Any, Optional, List, Awaitable, Callable
 import asyncio
 from inspect import signature
@@ -24,15 +25,20 @@ from llama_index.core.tools.utils import create_schema_from_function
 
 AsyncCallable = Callable[..., Awaitable[Any]]
 
+
 class DatabaseTools:
     """Database tools for vectara-agentic
     This class provides a set of tools to interact with a database.
     It allows you to load data, list tables, describe tables, and load unique values.
     It also provides a method to load sample data from a specified table.
     """
+
     spec_functions = [
-        "load_data", "load_sample_data", "list_tables",
-        "describe_tables", "load_unique_values",
+        "load_data",
+        "load_sample_data",
+        "list_tables",
+        "describe_tables",
+        "load_unique_values",
     ]
 
     def __init__(
@@ -61,7 +67,7 @@ class DatabaseTools:
         elif uri:
             self.uri = uri
             self.sql_database = SQLDatabase.from_uri(uri, *args, **kwargs)
-        elif (scheme and host and port and user and password and dbname):
+        elif scheme and host and port and user and password and dbname:
             uri = f"{scheme}://{user}:{password}@{host}:{port}/{dbname}"
             self.uri = uri
             self.sql_database = SQLDatabase.from_uri(uri, *args, **kwargs)
@@ -76,7 +82,8 @@ class DatabaseTools:
         self._metadata.reflect(bind=self.sql_database.engine)
 
     def _get_metadata_from_fn_name(
-        self, fn_name: Callable,
+        self,
+        fn_name: Callable,
     ) -> Optional[ToolMetadata]:
         """Return map from function name.
 
@@ -87,7 +94,9 @@ class DatabaseTools:
             func = getattr(self, fn_name)
         except AttributeError:
             return None
-        name = self.tool_name_prefix + "_" + fn_name if self.tool_name_prefix else fn_name
+        name = (
+            self.tool_name_prefix + "_" + fn_name if self.tool_name_prefix else fn_name
+        )
         docstring = func.__doc__ or ""
         description = f"{name}{signature(func)}\n{docstring}"
         fn_schema = create_schema_from_function(fn_name, getattr(self, fn_name))
@@ -118,7 +127,9 @@ class DatabaseTools:
         try:
             count_rows = self._load_data(count_query)
         except Exception as e:
-            return [f"Error ({str(e)}) occurred while counting number of rows, check your query."]
+            return [
+                f"Error ({str(e)}) occurred while counting number of rows, check your query."
+            ]
         num_rows = int(count_rows[0].text)
         if num_rows > self.max_rows:
             return [
@@ -128,7 +139,9 @@ class DatabaseTools:
         try:
             res = self._load_data(sql_query)
         except Exception as e:
-            return [f"Error ({str(e)}) occurred while executing the query {sql_query}, check your query."]
+            return [
+                f"Error ({str(e)}) occurred while executing the query {sql_query}, check your query."
+            ]
         return [d.text for d in res]
 
     def load_sample_data(self, table_name: str, num_rows: int = 25) -> Any:
@@ -149,7 +162,9 @@ class DatabaseTools:
         try:
             res = self._load_data(f"SELECT * FROM {table_name} LIMIT {num_rows}")
         except Exception as e:
-            return [f"Error ({str(e)}) occurred while loading sample data for table {table_name}"]
+            return [
+                f"Error ({str(e)}) occurred while loading sample data for table {table_name}"
+            ]
         return [d.text for d in res]
 
     def list_tables(self) -> List[str]:
@@ -179,7 +194,11 @@ class DatabaseTools:
         table_schemas = []
         for table_name in table_names:
             table = next(
-                (table for table in self._metadata.sorted_tables if table.name == table_name),
+                (
+                    table
+                    for table in self._metadata.sorted_tables
+                    if table.name == table_name
+                ),
                 None,
             )
             if table is None:
@@ -188,7 +207,9 @@ class DatabaseTools:
             table_schemas.append(f"{schema}\n")
         return "\n".join(table_schemas)
 
-    def load_unique_values(self, table_name: str, columns: list[str], num_vals: int = 200) -> Any:
+    def load_unique_values(
+        self, table_name: str, columns: list[str], num_vals: int = 200
+    ) -> Any:
         """
         Fetches the first num_vals unique values from the specified columns of the database table.
 
@@ -209,10 +230,14 @@ class DatabaseTools:
         res = {}
         try:
             for column in columns:
-                unique_vals = self._load_data(f'SELECT DISTINCT "{column}" FROM {table_name} LIMIT {num_vals}')
+                unique_vals = self._load_data(
+                    f'SELECT DISTINCT "{column}" FROM {table_name} LIMIT {num_vals}'
+                )
                 res[column] = [d.text for d in unique_vals]
         except Exception as e:
-            return {f"Error ({str(e)}) occurred while loading unique values for table {table_name}"}
+            return {
+                f"Error ({str(e)}) occurred while loading unique values for table {table_name}"
+            }
         return res
 
     def to_tool_list(self) -> List[FunctionTool]:

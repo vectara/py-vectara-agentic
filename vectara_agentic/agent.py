@@ -47,10 +47,8 @@ from .agent_core.prompts import GENERAL_INSTRUCTIONS
 from ._callback import AgentCallbackHandler
 from ._observability import setup_observer
 from .tools import ToolsFactory
-from .tool_utils import _is_human_readable_output
 from .tools_catalog import get_current_date
 from .agent_config import AgentConfig
-from .agent_core.utils.hallucination import Hallucination
 
 # Import utilities from agent core modules
 from .agent_core.streaming import (
@@ -73,6 +71,7 @@ logger = logging.getLogger("opentelemetry.exporter.otlp.proto.http.trace_exporte
 logger.setLevel(logging.CRITICAL)
 
 load_dotenv(override=True)
+
 
 class Agent:
     """
@@ -127,7 +126,9 @@ class Agent:
         self.agent_config_type = AgentConfigType.DEFAULT
         self.tools = tools
         if not any(tool.metadata.name == "get_current_date" for tool in self.tools):
-            self.tools += [ToolsFactory().create_tool(get_current_date, fcs_eligible=False)]
+            self.tools += [
+                ToolsFactory().create_tool(get_current_date, fcs_eligible=False)
+            ]
         self.agent_type = self.agent_config.agent_type
         self._llm = None  # Lazy loading
         self._custom_instructions = custom_instructions
@@ -548,7 +549,6 @@ class Agent:
         agent = self._get_current_agent()
         agent_response.response = (await agent.llm.acomplete(llm_prompt)).text
 
-
     def chat(self, prompt: str) -> AgentResponse:
         """
         Interact with the agent using a chat prompt.
@@ -606,6 +606,7 @@ class Agent:
                     if self.agent_progress_callback:
                         # Create event tracker for consistent event ID generation
                         from .agent_core.streaming import ToolEventTracker
+
                         event_tracker = ToolEventTracker()
 
                         async for event in handler.stream_events():

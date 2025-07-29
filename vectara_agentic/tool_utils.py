@@ -45,10 +45,13 @@ class VectaraToolMetadata(ToolMetadata):
 
     def __repr__(self) -> str:
         """
-        Returns a string representation of the VectaraToolMetadata object, including the tool_type and fcs_eligible attributes.
+        Returns a string representation of the VectaraToolMetadata object,
+        including the tool_type and fcs_eligible attributes.
         """
         base_repr = super().__repr__()
-        return f"{base_repr}, tool_type={self.tool_type}, fcs_eligible={self.fcs_eligible}"
+        return (
+            f"{base_repr}, tool_type={self.tool_type}, fcs_eligible={self.fcs_eligible}"
+        )
 
 
 class VectaraTool(FunctionTool):
@@ -70,7 +73,9 @@ class VectaraTool(FunctionTool):
             if hasattr(metadata, "model_dump")
             else metadata.dict() if hasattr(metadata, "dict") else metadata.__dict__
         )
-        vm = VectaraToolMetadata(tool_type=tool_type, fcs_eligible=fcs_eligible, **metadata_dict)
+        vm = VectaraToolMetadata(
+            tool_type=tool_type, fcs_eligible=fcs_eligible, **metadata_dict
+        )
         super().__init__(fn, vm, async_fn)
 
     @classmethod
@@ -133,10 +138,7 @@ class VectaraTool(FunctionTool):
         return is_equal
 
     def _create_tool_error_output(
-            self,
-            error: Exception,
-            args: Any, kwargs: Any,
-            include_traceback: bool = False
+        self, error: Exception, args: Any, kwargs: Any, include_traceback: bool = False
     ) -> ToolOutput:
         """Create standardized error output for tool execution failures."""
         if isinstance(error, TypeError):
@@ -190,22 +192,29 @@ class VectaraTool(FunctionTool):
                 result = await super().acall(*args, **kwargs)
             return self._format_tool_output(result)
         except Exception as e:
-            return self._create_tool_error_output(e, args, kwargs, include_traceback=True)
+            return self._create_tool_error_output(
+                e, args, kwargs, include_traceback=True
+            )
 
     def _format_tool_output(self, result: ToolOutput) -> ToolOutput:
         """Format tool output by converting human-readable wrappers to formatted content immediately."""
         import logging
-        
+
         # If the raw_output has human-readable formatting, use it for the content
-        if hasattr(result, "raw_output") and _is_human_readable_output(result.raw_output):
+        if hasattr(result, "raw_output") and _is_human_readable_output(
+            result.raw_output
+        ):
             try:
                 formatted_content = result.raw_output.to_human_readable()
                 # Replace the content with the formatted version
                 result.content = formatted_content
             except Exception as e:
-                logging.warning(f"{self.metadata.name}: Failed to convert to human-readable: {e}")
-        
+                logging.warning(
+                    f"{self.metadata.name}: Failed to convert to human-readable: {e}"
+                )
+
         return result
+
 
 class EmptyBaseModel(BaseModel):
     """empty base model"""
@@ -362,6 +371,7 @@ def _auto_fix_field_if_needed(
 
         # Optional: Log the auto-fix for debugging
         import logging
+
         logging.debug(
             f"Auto-fixed field '{field_name}': "
             f"converted {annotation} with default={field_info.default} to Optional[{annotation.__name__}]"
@@ -482,6 +492,7 @@ _PARSE_RANGE_REGEX = re.compile(
     re.VERBOSE,
 )
 
+
 def _parse_range(val_str: str) -> Tuple[str, str, bool, bool]:
     """
     Parses '[1,10)' or '(0.5, 5]' etc.
@@ -497,6 +508,7 @@ def _parse_range(val_str: str) -> Tuple[str, str, bool, bool]:
     if float(start) > float(end):
         raise ValueError(f"Range lower bound greater than upper bound: {val_str!r}")
     return start, end, start_inc, end_inc
+
 
 def _parse_comparison(val_str: str) -> Tuple[str, Union[float, str, bool]]:
     """
@@ -629,6 +641,7 @@ def _is_human_readable_output(obj: Any) -> bool:
         and callable(getattr(obj, "to_human_readable", None))
         and callable(getattr(obj, "get_raw_output", None))
     )
+
 
 def create_human_readable_output(
     raw_output: Any, formatter: Optional[Callable[[Any], str]] = None

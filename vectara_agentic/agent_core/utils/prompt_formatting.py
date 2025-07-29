@@ -4,6 +4,7 @@ Prompt formatting and templating utilities.
 This module handles prompt template processing, placeholder replacement,
 and LLM-specific prompt formatting for different agent types.
 """
+
 # pylint: disable=duplicate-code
 
 from datetime import date

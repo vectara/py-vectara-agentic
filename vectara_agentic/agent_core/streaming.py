@@ -14,51 +14,6 @@ from typing import Callable, Any, Dict, AsyncIterator
 from ..types import AgentResponse
 from .utils.hallucination import analyze_hallucinations
 
-# Debug flag - set to False to reduce logging noise in production
-ENABLE_DETAILED_STREAMING_DEBUG = False
-
-
-def analyze_content_for_thinking(content: str) -> Dict[str, Any]:
-    """
-    Analyze content to detect various forms of thinking blocks.
-    
-    Args:
-        content: The content to analyze
-        
-    Returns:
-        Dict with analysis results
-    """
-    if not content:
-        return {"has_thinking": False}
-        
-    content_lower = content.lower().strip()
-    
-    # Various patterns that might indicate thinking
-    thinking_patterns = [
-        "<thinking>",
-        "</thinking>", 
-        "thinking:",
-        "let me think",
-        "i need to think",
-        "let me consider",
-        "i should consider",
-        "my reasoning is",
-        "my thoughts are",
-        "here's my thinking",
-    ]
-    
-    analysis = {
-        "has_thinking": any(pattern in content_lower for pattern in thinking_patterns),
-        "patterns_found": [pattern for pattern in thinking_patterns if pattern in content_lower],
-        "content_length": len(content),
-        "starts_with_thinking": content_lower.startswith(("<thinking>", "thinking:")),
-        "ends_with_thinking": content_lower.endswith("</thinking>"),
-        "is_xml_thinking_block": "<thinking>" in content_lower and "</thinking>" in content_lower,
-    }
-    
-    return analysis
-
-
 class ToolEventTracker:
     """
     Tracks event IDs for tool calls to ensure consistent pairing of tool calls and outputs.
@@ -82,16 +37,6 @@ class ToolEventTracker:
         Returns:
             str: Consistent event ID for this tool execution
         """
-        # Log event details for debugging
-        event_info = {
-            "event_class": str(event.__class__) if hasattr(event, "__class__") else "Unknown",
-            "tool_id": getattr(event, "tool_id", None),
-            "tool_name": getattr(event, "tool_name", None),
-            "timestamp": getattr(event, "timestamp", None),
-            "has_delta": hasattr(event, "delta"),
-            "delta_preview": str(getattr(event, "delta", ""))[:50] if hasattr(event, "delta") else None,
-        }
-        
         # Try to get tool_id from the event first
         tool_id = getattr(event, "tool_id", None)
 
@@ -116,7 +61,6 @@ class ToolEventTracker:
 
     def clear_old_entries(self, max_entries: int = 100):
         """Clear old entries to prevent unbounded memory growth."""
-        initial_count = len(self.event_ids)
         if len(self.event_ids) > max_entries:
             # Keep only the most recent entries (simple FIFO cleanup)
             items = list(self.event_ids.items())
@@ -275,13 +219,13 @@ async def execute_post_stream_processing(
         agent_instance.query_logging_callback(prompt, final.response)
 
     # Calculate factual consistency score
-    
+
     if agent_instance.vectara_api_key:
         fcs_score, corrected_text, corrections = analyze_hallucinations(
             chat_history=agent_instance.memory.get(),
             agent_response=final.response,
             tools=agent_instance.tools,
-            vectara_api_key=agent_instance.vectara_api_key
+            vectara_api_key=agent_instance.vectara_api_key,
         )
         user_metadata["fcs"] = fcs_score
         user_metadata["corrected_text"] = corrected_text
@@ -365,15 +309,9 @@ class FunctionCallingStreamHandler:
         transitioned_to_prose = False
         event_count = 0
 
-
         async for ev in self.handler.stream_events():
             event_count += 1
-            
-            
-            # Check for thinking content
-            if hasattr(ev, "delta") and ev.delta:
-                thinking_analysis = analyze_content_for_thinking(str(ev.delta))
-                    
+
             # Handle progress callbacks if available
             if self.agent_instance.agent_progress_callback:
                 # Only track events that are actual tool-related events
@@ -406,11 +344,12 @@ class FunctionCallingStreamHandler:
         try:
             self.final_response_container["resp"] = await self.handler
         except Exception as e:
+            logging.error(f"Error processing stream events: {e}")
             self.final_response_container["resp"] = type(
                 "AgentResponse",
                 (),
                 {
-                    "response": "Response completed",
+                    "response": "Response completion Error",
                     "source_nodes": [],
                     "metadata": None,
                 },
@@ -424,13 +363,13 @@ class FunctionCallingStreamHandler:
     def _is_tool_related_event(self, event) -> bool:
         """
         Determine if an event is actually tool-related and should be tracked.
-        
+
         This should only return True for events that represent actual tool calls or tool outputs,
         not for streaming text deltas or other LLM response events.
-        
+
         Args:
             event: The stream event to check
-            
+
         Returns:
             bool: True if this event should be tracked for tool purposes
         """
@@ -438,26 +377,24 @@ class FunctionCallingStreamHandler:
             ToolCall,
             ToolCallResult,
         )
-        
+
         # Track explicit tool events from LlamaIndex workflow
         if isinstance(event, (ToolCall, ToolCallResult)):
             return True
-        
+
         # For debugging: log all event types we see
-        event_type = type(event).__name__
         has_tool_id = hasattr(event, "tool_id") and event.tool_id
         has_delta = hasattr(event, "delta") and event.delta
         has_tool_name = hasattr(event, "tool_name") and event.tool_name
-        
-        
+
         # We're not seeing ToolCall/ToolCallResult events in the stream, so let's be more liberal
         # but still avoid streaming deltas
         if has_tool_id and not has_delta:
             return True
         elif has_tool_name and not has_delta:
             return True
-                
-        # Everything else (streaming deltas, agent outputs, workflow events, etc.) 
+
+        # Everything else (streaming deltas, agent outputs, workflow events, etc.)
         # should NOT be tracked as tool events
         return False
 
@@ -471,13 +408,13 @@ class FunctionCallingStreamHandler:
             AgentInput,
             AgentOutput,
         )
-        
-        event_type = type(event).__name__
 
         try:
             if isinstance(event, ToolCall):
                 # Check if callback is async or sync
-                if asyncio.iscoroutinefunction(self.agent_instance.agent_progress_callback):
+                if asyncio.iscoroutinefunction(
+                    self.agent_instance.agent_progress_callback
+                ):
                     await self.agent_instance.agent_progress_callback(
                         status_type=AgentStatusType.TOOL_CALL,
                         msg={
@@ -496,10 +433,12 @@ class FunctionCallingStreamHandler:
                         },
                         event_id=event_id,
                     )
-                
+
             elif isinstance(event, ToolCallResult):
                 # Check if callback is async or sync
-                if asyncio.iscoroutinefunction(self.agent_instance.agent_progress_callback):
+                if asyncio.iscoroutinefunction(
+                    self.agent_instance.agent_progress_callback
+                ):
                     await self.agent_instance.agent_progress_callback(
                         status_type=AgentStatusType.TOOL_OUTPUT,
                         msg={
@@ -517,23 +456,24 @@ class FunctionCallingStreamHandler:
                         },
                         event_id=event_id,
                     )
-                
+
             elif isinstance(event, AgentInput):
                 self.agent_instance.agent_progress_callback(
                     status_type=AgentStatusType.AGENT_UPDATE,
                     msg={"content": f"Agent input: {event.input}"},
                     event_id=event_id,
                 )
-                
+
             elif isinstance(event, AgentOutput):
                 self.agent_instance.agent_progress_callback(
                     status_type=AgentStatusType.AGENT_UPDATE,
                     msg={"content": f"Agent output: {event.response}"},
                     event_id=event_id,
                 )
-                
+
         except Exception as e:
             import traceback
+
             logging.error(f"Exception in progress callback: {e}")
             logging.error(f"Traceback: {traceback.format_exc()}")
             # Continue execution despite callback errors

@@ -12,6 +12,7 @@ from llama_index.core.callbacks.schema import CBEventType, EventPayload
 
 from .types import AgentStatusType
 
+
 def wrap_callback_fn(callback):
     """
     Wrap a callback function to ensure it only receives the parameters it can accept.
@@ -34,6 +35,7 @@ def wrap_callback_fn(callback):
         return callback(*args, **filtered_kwargs)
 
     return new_callback
+
 
 class AgentCallbackHandler(BaseCallbackHandler):
     """
@@ -200,35 +202,30 @@ class AgentCallbackHandler(BaseCallbackHandler):
             if EventPayload.FUNCTION_CALL in payload:
                 fcall = payload.get(EventPayload.FUNCTION_CALL)
                 tool = payload.get(EventPayload.TOOL)
-                
+
                 if tool:
                     tool_name = tool.name
                     if self.fn:
                         self.fn(
                             status_type=AgentStatusType.TOOL_CALL,
-                            msg={
-                                "tool_name": tool_name,
-                                "arguments": fcall
-                            },
+                            msg={"tool_name": tool_name, "arguments": fcall},
                             event_id=event_id,
                         )
-                    
+
             elif EventPayload.FUNCTION_OUTPUT in payload:
                 response = payload.get(EventPayload.FUNCTION_OUTPUT)
                 tool = payload.get(EventPayload.TOOL)
-                
+
                 if tool and self.fn:
                     self.fn(
                         status_type=AgentStatusType.TOOL_OUTPUT,
-                        msg={
-                            "tool_name": tool.name,
-                            "content": response
-                        },
+                        msg={"tool_name": tool.name, "content": response},
                         event_id=event_id,
                     )
-                
+
         except Exception as e:
             import traceback
+
             logging.error(f"Exception in _handle_function_call: {e}")
             logging.error(f"Traceback: {traceback.format_exc()}")
             # Continue execution to prevent callback failures from breaking the agent
@@ -283,31 +280,25 @@ class AgentCallbackHandler(BaseCallbackHandler):
             if EventPayload.FUNCTION_CALL in payload:
                 fcall = payload.get(EventPayload.FUNCTION_CALL)
                 tool = payload.get(EventPayload.TOOL)
-                
+
                 if tool and self.fn:
                     if inspect.iscoroutinefunction(self.fn):
                         await self.fn(
                             status_type=AgentStatusType.TOOL_CALL,
-                            msg={
-                                "tool_name": tool.name,
-                                "arguments": fcall
-                            },
+                            msg={"tool_name": tool.name, "arguments": fcall},
                             event_id=event_id,
                         )
                     else:
                         self.fn(
                             status_type=AgentStatusType.TOOL_CALL,
-                            msg={
-                                "tool_name": tool.name,
-                                "arguments": fcall
-                            },
+                            msg={"tool_name": tool.name, "arguments": fcall},
                             event_id=event_id,
                         )
-                    
+
             elif EventPayload.FUNCTION_OUTPUT in payload:
                 response = payload.get(EventPayload.FUNCTION_OUTPUT)
                 tool = payload.get(EventPayload.TOOL)
-                
+
                 if tool and self.fn:
                     if inspect.iscoroutinefunction(self.fn):
                         await self.fn(
@@ -327,9 +318,10 @@ class AgentCallbackHandler(BaseCallbackHandler):
                             },
                             event_id=event_id,
                         )
-                
+
         except Exception as e:
             import traceback
+
             logging.error(f"Exception in _ahandle_function_call: {e}")
             logging.error(f"Traceback: {traceback.format_exc()}")
             # Continue execution to prevent callback failures from breaking the agent
