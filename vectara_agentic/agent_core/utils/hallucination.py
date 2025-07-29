@@ -446,43 +446,6 @@ class Hallucination:
         data = response.json()
         return round(data.get("score", 0.0), 4)
 
-    async def compute_hhem_async(self, context: list[str], hypothesis: str) -> float:
-        """
-        Async version of compute_hhem for parallel processing.
-        """
-        # clean response from any markdown or other formatting, then remove citations
-        try:
-            clean_hypothesis = remove_citations(markdown_to_text(hypothesis))
-            clean_context = [
-                remove_citations(markdown_to_text(text)) for text in context
-            ]
-        except Exception as e:
-            raise ValueError(f"Markdown parsing of hypothesis failed: {e}") from e
-
-        # compute hallucination score with Vectara endpoint
-        payload = {
-            "model_parameters": {"model_name": "hhem_v2.3"},
-            "generated_text": clean_hypothesis,
-            "source_texts": clean_context,
-        }
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "x-api-key": self._vectara_api_key,
-        }
-
-        timeout = aiohttp.ClientTimeout(total=30)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.post(
-                "https://api.vectara.io/v2/evaluate_factual_consistency",
-                json=payload,
-                headers=headers,
-            ) as response:
-                response.raise_for_status()
-                data = await response.json()
-                score = round(data.get("score", 0.0), 4)
-                return score
-
     def compute_vhc(
         self, query: str, context: list[str], hypothesis: str
     ) -> Tuple[str, list[str]]:
@@ -518,7 +481,17 @@ class Hallucination:
         corrections = data.get("corrections", [])
 
         logging.info(
-            f"🔍 [HALLUCINATION_DEBUG] VHC outputs: {len(corrections)} corrections"
+            f"🔍 [VHC_DEBUG] query: {query}\n"
+        )
+        logging.info(
+            f"🔍 [VHC_DEBUG] response: {hypothesis}\n"
+        )
+        logging.info("🔍 [VHC_DEBUG] Context:")
+        for i, ctx in enumerate(context):
+            logging.info(f"🔍 [VHC_DEBUG] context {i}: {ctx}\n\n")
+
+        logging.info(
+            f"🔍 [VHC_DEBUG] outputs: {len(corrections)} corrections"
         )
 
         return corrected_text, corrections
