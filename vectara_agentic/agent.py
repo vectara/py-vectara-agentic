@@ -23,16 +23,16 @@ from dotenv import load_dotenv
 
 # Runtime imports for components used at module level
 from llama_index.core.llms import MessageRole
+from llama_index.core.callbacks import CallbackManager
+from llama_index.core.memory import Memory
 
 # Heavy llama_index imports moved to TYPE_CHECKING for lazy loading
 if TYPE_CHECKING:
     from llama_index.core.tools import FunctionTool
     from llama_index.core.workflow import Workflow
-    from llama_index.core.callbacks import CallbackManager
     from llama_index.core.agent.runner.base import AgentRunner
     from llama_index.core.agent.types import BaseAgent
     from llama_index.core.callbacks.base_handler import BaseCallbackHandler
-    from llama_index.core.memory import Memory
 
 
 from .types import (
