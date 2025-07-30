@@ -32,25 +32,25 @@ from .utils import is_float
 
 class VectaraToolMetadata(ToolMetadata):
     """
-    A subclass of ToolMetadata adding the tool_type and fcs_eligible attributes.
+    A subclass of ToolMetadata adding the tool_type and vhc_eligible attributes.
     """
 
     tool_type: ToolType
-    fcs_eligible: bool
+    vhc_eligible: bool
 
-    def __init__(self, tool_type: ToolType, fcs_eligible: bool = True, **kwargs):
+    def __init__(self, tool_type: ToolType, vhc_eligible: bool = True, **kwargs):
         super().__init__(**kwargs)
         self.tool_type = tool_type
-        self.fcs_eligible = fcs_eligible
+        self.vhc_eligible = vhc_eligible
 
     def __repr__(self) -> str:
         """
         Returns a string representation of the VectaraToolMetadata object,
-        including the tool_type and fcs_eligible attributes.
+        including the tool_type and vhc_eligible attributes.
         """
         base_repr = super().__repr__()
         return (
-            f"{base_repr}, tool_type={self.tool_type}, fcs_eligible={self.fcs_eligible}"
+            f"{base_repr}, tool_type={self.tool_type}, vhc_eligible={self.vhc_eligible}"
         )
 
 
@@ -65,7 +65,7 @@ class VectaraTool(FunctionTool):
         metadata: ToolMetadata,
         fn: Optional[Callable[..., Any]] = None,
         async_fn: Optional[AsyncCallable] = None,
-        fcs_eligible: bool = True,
+        vhc_eligible: bool = True,
     ) -> None:
         # Use Pydantic v2 compatible method for extracting metadata
         metadata_dict = (
@@ -74,7 +74,7 @@ class VectaraTool(FunctionTool):
             else metadata.dict() if hasattr(metadata, "dict") else metadata.__dict__
         )
         vm = VectaraToolMetadata(
-            tool_type=tool_type, fcs_eligible=fcs_eligible, **metadata_dict
+            tool_type=tool_type, vhc_eligible=vhc_eligible, **metadata_dict
         )
         super().__init__(fn, vm, async_fn)
 
@@ -92,7 +92,7 @@ class VectaraTool(FunctionTool):
         async_callback: Optional[AsyncCallable] = None,
         partial_params: Optional[Dict[str, Any]] = None,
         tool_type: ToolType = ToolType.QUERY,
-        fcs_eligible: bool = True,
+        vhc_eligible: bool = True,
     ) -> "VectaraTool":
         tool = FunctionTool.from_defaults(
             fn,
@@ -111,7 +111,7 @@ class VectaraTool(FunctionTool):
             fn=tool.fn,
             metadata=tool.metadata,
             async_fn=tool.async_fn,
-            fcs_eligible=fcs_eligible,
+            vhc_eligible=vhc_eligible,
         )
         return vectara_tool
 
@@ -390,7 +390,7 @@ def create_tool_from_dynamic_function(
     base_params_model: Type[BaseModel],
     tool_args_schema: Type[BaseModel],
     return_direct: bool = False,
-    fcs_eligible: bool = True,
+    vhc_eligible: bool = True,
 ) -> VectaraTool:
     """
     Create a VectaraTool from a dynamic function with OpenAI compatibility.
@@ -477,7 +477,7 @@ def create_tool_from_dynamic_function(
         fn_schema=fn_schema,
         tool_type=ToolType.QUERY,
         return_direct=return_direct,
-        fcs_eligible=fcs_eligible,
+        vhc_eligible=vhc_eligible,
     )
     return tool
 

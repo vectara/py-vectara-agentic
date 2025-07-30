@@ -221,13 +221,12 @@ async def execute_post_stream_processing(
     # Calculate factual consistency score
 
     if agent_instance.vectara_api_key:
-        fcs_score, corrected_text, corrections = analyze_hallucinations(
+        corrected_text, corrections = analyze_hallucinations(
             chat_history=agent_instance.memory.get(),
             agent_response=final.response,
             tools=agent_instance.tools,
             vectara_api_key=agent_instance.vectara_api_key,
         )
-        user_metadata["fcs"] = fcs_score
         user_metadata["corrected_text"] = corrected_text
         user_metadata["corrections"] = corrections
 
@@ -504,48 +503,3 @@ class FunctionCallingStreamHandler:
             metadata={},
             post_process_task=post_process_task,
         )
-
-
-class StandardStreamHandler:
-    """
-    Handles streaming for standard LlamaIndex agents.
-    """
-
-    def __init__(self, agent_instance, li_stream, prompt: str):
-        self.agent_instance = agent_instance
-        self.li_stream = li_stream
-        self.prompt = prompt
-
-    async def create_wrapped_stream_generator(
-        self, user_metadata: Dict[str, Any]
-    ) -> AsyncIterator[str]:
-        """
-        Create wrapped stream generator with post-processing.
-
-        Args:
-            user_metadata: User metadata dictionary to update
-
-        Yields:
-            str: Text tokens from the original stream
-        """
-        orig_async = self.li_stream.async_response_gen
-
-        async for tok in orig_async():
-            yield tok
-
-        # Use shared post-processing function
-        await execute_post_stream_processing(
-            self.li_stream, self.prompt, self.agent_instance, user_metadata
-        )
-
-    def wrap_stream_response(self, user_metadata: Dict[str, Any]):
-        """
-        Wrap the LlamaIndex stream response with post-processing.
-
-        Args:
-            user_metadata: User metadata dictionary to update
-        """
-        self.li_stream.async_response_gen = (
-            lambda: self.create_wrapped_stream_generator(user_metadata)
-        )
-        return self.li_stream

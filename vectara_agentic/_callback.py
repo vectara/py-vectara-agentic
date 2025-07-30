@@ -6,6 +6,7 @@ import inspect
 import logging
 from typing import Any, Dict, Optional, List, Callable
 from functools import wraps
+import traceback
 
 from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 from llama_index.core.callbacks.schema import CBEventType, EventPayload
@@ -224,8 +225,6 @@ class AgentCallbackHandler(BaseCallbackHandler):
                     )
 
         except Exception as e:
-            import traceback
-
             logging.error(f"Exception in _handle_function_call: {e}")
             logging.error(f"Traceback: {traceback.format_exc()}")
             # Continue execution to prevent callback failures from breaking the agent
@@ -320,8 +319,6 @@ class AgentCallbackHandler(BaseCallbackHandler):
                         )
 
         except Exception as e:
-            import traceback
-
             logging.error(f"Exception in _ahandle_function_call: {e}")
             logging.error(f"Traceback: {traceback.format_exc()}")
             # Continue execution to prevent callback failures from breaking the agent

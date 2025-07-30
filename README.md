@@ -125,7 +125,7 @@ ask_finance = vec_factory.create_rag_tool(
     tool_args_schema=QueryFinancialReportsArgs,
     lambda_val=0.005,
     summary_num_results=7,
-    fcs_eligible=True,  # RAG tools participate in FCS by default
+    vhc_eligible=True,  # RAG tools participate in VHC by default
     # Additional Vectara query arguments...
 )
 ```
@@ -405,29 +405,29 @@ def mult_func(x, y):
 mult_tool = ToolsFactory().create_tool(mult_func)
 ```
 
-#### FCS Eligibility
+#### VHC Eligibility
 
-When creating tools, you can control whether they participate in Factual Consistency Score (FCS) calculation using the `fcs_eligible` parameter:
+When creating tools, you can control whether they participate in Vectara Hallucination Correction, by using the `vhc_eligible` parameter:
 
 ```python
-# Tool that provides factual data - should participate in FCS
-data_tool = ToolsFactory().create_tool(get_company_data, fcs_eligible=True)
+# Tool that provides factual data - should participate in VHC
+data_tool = ToolsFactory().create_tool(get_company_data, vhc_eligible=True)
 
-# Utility tool that doesn't provide context - should not participate in FCS  
-summary_tool = ToolsFactory().create_tool(summarize_text, fcs_eligible=False)
+# Utility tool that doesn't provide context - should not participate in VHC  
+summary_tool = ToolsFactory().create_tool(summarize_text, vhc_eligible=False)
 ```
 
-**FCS-eligible tools** (default: `True`) are those that provide factual context for responses, such as:
+**VHC-eligible tools** (default: `True`) are those that provide factual context for responses, such as:
 - Data retrieval tools
 - Search tools  
 - API calls that return factual information
 
-**Non-FCS-eligible tools** (`fcs_eligible=False`) are utility tools that don't contribute factual context:
+**Non-VHC-eligible tools** (`vhc_eligible=False`) are utility tools that don't contribute factual context:
 - Text summarization tools
 - Text rephrasing tools
 - Formatting or processing tools
 
-Built-in utility tools like `summarize_text`, `rephrase_text`, and `get_bad_topics` are automatically marked as non-FCS-eligible.
+Built-in utility tools like `summarize_text`, `rephrase_text`, and `get_bad_topics` are automatically marked as non-VHC-eligible.
 
 #### Human-Readable Tool Output
 
@@ -675,7 +675,6 @@ The `AgentConfig` object may include the following items:
 - `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider: OpenAI uses gpt-4.1, Gemini uses gemini-2.5-flash).
 - `observer`: the observer type; should be `ARIZE_PHOENIX` or if undefined no observation framework will be used.
 - `endpoint_api_key`: a secret key if using the API endpoint option (defaults to `dev-api-key`)
-- `max_reasoning_steps`: the maximum number of reasoning steps (iterations for React and function calls for OpenAI agent, respectively). Defaults to 50.
 
 If any of these are not provided, `AgentConfig` first tries to read the values from the OS environment.
 

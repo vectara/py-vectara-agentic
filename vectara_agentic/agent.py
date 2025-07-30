@@ -15,7 +15,6 @@ from datetime import date
 import json
 import logging
 import asyncio
-from collections import Counter
 
 from pydantic import ValidationError
 from pydantic_core import PydanticUndefined
@@ -32,6 +31,9 @@ if TYPE_CHECKING:
     from llama_index.core.callbacks import CallbackManager
     from llama_index.core.agent.runner.base import AgentRunner
     from llama_index.core.agent.types import BaseAgent
+    from llama_index.core.callbacks.base_handler import BaseCallbackHandler
+    from llama_index.core.memory import Memory
+
 
 from .types import (
     AgentType,
@@ -64,6 +66,7 @@ from .agent_core.utils import (
     sanitize_tools_for_gemini,
     setup_agent_logging,
 )
+from .agent_core.utils.tools import validate_tool_consistency
 
 setup_agent_logging()
 
@@ -127,7 +130,7 @@ class Agent:
         self.tools = tools
         if not any(tool.metadata.name == "get_current_date" for tool in self.tools):
             self.tools += [
-                ToolsFactory().create_tool(get_current_date, fcs_eligible=False)
+                ToolsFactory().create_tool(get_current_date, vhc_eligible=False)
             ]
         self.agent_type = self.agent_config.agent_type
         self._llm = None  # Lazy loading
@@ -146,44 +149,10 @@ class Agent:
             self.tools = sanitize_tools_for_gemini(self.tools)
 
         # Validate tools
-        # Check for:
-        # 1. multiple copies of the same tool
-        # 2. Instructions for using tools that do not exist
-        tool_names = [tool.metadata.name for tool in self.tools]
-        duplicates = [tool for tool, count in Counter(tool_names).items() if count > 1]
-        if duplicates:
-            raise ValueError(f"Duplicate tools detected: {', '.join(duplicates)}")
-
         if validate_tools:
-            # pylint: disable=duplicate-code
-            prompt = f"""
-            You are provided these tools:
-            <tools>{','.join(tool_names)}</tools>
-            And these instructions:
-            <instructions>
-            {self._custom_instructions}
-            </instructions>
-            Your task is to identify invalid tools.
-            A tool is invalid if it is mentioned in the instructions but not in the tools list.
-            A tool's name must have at least two characters.
-            Your response should be a comma-separated list of the invalid tools.
-            If no invalid tools exist, respond with "<OKAY>" (and nothing else).
-            """
-            llm = get_llm(LLMRole.MAIN, config=self.agent_config)
-            bad_tools_str = llm.complete(prompt).text.strip("\n")
-            if bad_tools_str and bad_tools_str != "<OKAY>":
-                bad_tools = [tool.strip() for tool in bad_tools_str.split(",")]
-                numbered = ", ".join(
-                    f"({i}) {tool}" for i, tool in enumerate(bad_tools, 1)
-                )
-                raise ValueError(
-                    f"The Agent custom instructions mention these invalid tools: {numbered}"
-                )
+            validate_tool_consistency(self.tools, self._custom_instructions, self.agent_config)
 
         # Setup callback manager
-        from llama_index.core.callbacks.base_handler import BaseCallbackHandler
-        from llama_index.core.callbacks import CallbackManager
-
         callbacks: list[BaseCallbackHandler] = [
             AgentCallbackHandler(self.agent_progress_callback)
         ]
@@ -193,7 +162,6 @@ class Agent:
         self.session_id = (
             getattr(self, "session_id", None) or f"{topic}:{date.today().isoformat()}"
         )
-        from llama_index.core.memory import Memory
 
         self.memory = Memory.from_defaults(
             session_id=self.session_id, token_limit=65536
@@ -216,7 +184,7 @@ class Agent:
         try:
             self.observability_enabled = setup_observer(self.agent_config, self.verbose)
         except Exception as e:
-            print(f"Failed to set up observer ({e}), ignoring")
+            logger.warning(f"Failed to set up observer ({e}), ignoring")
             self.observability_enabled = False
 
     @property
@@ -285,14 +253,14 @@ class Agent:
 
     def __eq__(self, other):
         if not isinstance(other, Agent):
-            print(
+            logger.debug(
                 f"Comparison failed: other is not an instance of Agent. (self: {type(self)}, other: {type(other)})"
             )
             return False
 
         # Compare agent_type
         if self.agent_config.agent_type != other.agent_config.agent_type:
-            print(
+            logger.debug(
                 f"Comparison failed: agent_type differs. (self.agent_config.agent_type: {self.agent_config.agent_type},"
                 f" other.agent_config.agent_type: {other.agent_config.agent_type})"
             )
@@ -300,7 +268,7 @@ class Agent:
 
         # Compare tools
         if self.tools != other.tools:
-            print(
+            logger.debug(
                 "Comparison failed: tools differ."
                 f"(self.tools: {[t.metadata.name for t in self.tools]}, "
                 f"other.tools: {[t.metadata.name for t in other.tools]})"
@@ -309,14 +277,14 @@ class Agent:
 
         # Compare topic
         if self._topic != other._topic:
-            print(
+            logger.debug(
                 f"Comparison failed: topic differs. (self.topic: {self._topic}, other.topic: {other._topic})"
             )
             return False
 
         # Compare custom_instructions
         if self._custom_instructions != other._custom_instructions:
-            print(
+            logger.debug(
                 "Comparison failed: custom_instructions differ. (self.custom_instructions: "
                 f"{self._custom_instructions}, other.custom_instructions: {other._custom_instructions})"
             )
@@ -324,18 +292,18 @@ class Agent:
 
         # Compare verbose
         if self.verbose != other.verbose:
-            print(
+            logger.debug(
                 f"Comparison failed: verbose differs. (self.verbose: {self.verbose}, other.verbose: {other.verbose})"
             )
             return False
 
         # Compare agent memory
         if self.memory.get() != other.memory.get():
-            print("Comparison failed: agent memory differs.")
+            logger.debug("Comparison failed: agent memory differs.")
             return False
 
         # If all comparisons pass
-        print("All comparisons passed. Objects are equal.")
+        logger.debug("All comparisons passed. Objects are equal.")
         return True
 
     @classmethod
@@ -502,22 +470,22 @@ class Agent:
         Returns:
             str: The report from the agent.
         """
-        print("Vectara agentic Report:")
-        print(f"Agent Type = {self.agent_config.agent_type}")
-        print(f"Topic = {self._topic}")
-        print("Tools:")
+        logger.info("Vectara agentic Report:")
+        logger.info(f"Agent Type = {self.agent_config.agent_type}")
+        logger.info(f"Topic = {self._topic}")
+        logger.info("Tools:")
         for tool in self.tools:
             if hasattr(tool, "metadata"):
                 if detailed:
-                    print(f"- {tool.metadata.description}")
+                    logger.info(f"- {tool.metadata.description}")
                 else:
-                    print(f"- {tool.metadata.name}")
+                    logger.info(f"- {tool.metadata.name}")
             else:
-                print("- tool without metadata")
-        print(
+                logger.info("- tool without metadata")
+        logger.info(
             f"Agent LLM = {get_llm(LLMRole.MAIN, config=self.agent_config).metadata.model_name}"
         )
-        print(
+        logger.info(
             f"Tool LLM = {get_llm(LLMRole.TOOL, config=self.agent_config).metadata.model_name}"
         )
 

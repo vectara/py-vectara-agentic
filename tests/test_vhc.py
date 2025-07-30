@@ -54,9 +54,9 @@ fc_config = AgentConfig(
 )
 
 
-class TestFCS(unittest.TestCase):
+class TestVHC(unittest.TestCase):
 
-    def test_fcs(self):
+    def test_vhc(self):
         tools = [ToolsFactory().create_tool(get_statement)]
         topic = "statements"
         instructions = (
@@ -73,11 +73,9 @@ class TestFCS(unittest.TestCase):
         )
 
         res = agent.chat("Are cats better than dogs?")
-        fcs = res.metadata.get("fcs", None)
-        self.assertIsNotNone(fcs, "FCS score should not be None")
-        self.assertIsInstance(fcs, float, "FCS score should be a float")
-        self.assertGreater(
-            fcs, 0.5, "FCS score should be higher than 0.5 for this question"
+        vhc_corrections = res.metadata.get("corrections", None)
+        self.assertEquals(
+            len(vhc_corrections), 0, "Should have no corrections"
         )
 
     def test_vectara_corpus(self):
@@ -95,9 +93,9 @@ class TestFCS(unittest.TestCase):
         )
 
         res = agent.chat(query)
-        fcs = res.metadata.get("fcs", None)
+        vhc_corrections = res.metadata.get("corrections", None)
         self.assertIn("Vectara", res.response)
-        self.assertGreater(fcs, 0.5, "FCS score should be higher than 0.5 for this question")
+        self.assertGreater(len(vhc_corrections), 0, "FCS score should be higher than 0.5 for this question")
 
 
 if __name__ == "__main__":

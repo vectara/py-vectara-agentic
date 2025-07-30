@@ -181,40 +181,36 @@ def data_tool():
 
 This pattern provides flexibility for tools to define their own presentation layer while maintaining access to the underlying data structure.
 
-## FCS Eligibility
+## VHC Eligibility
 
-`FCS` or Factual Consistency Score refers to a specialized model from Vectara for detecting hallucinations, also known as HHEM.
-Factual Consistency Score (FCS) eligibility controls which tools contribute context to FCS calculation. This feature ensures that only tools providing factual information are considered when evaluating response accuracy.
+`VHC` or Vectara Hallucination Corrector refers to a specialized model from Vectara for correcting hallucinations.
+VHC eligibility controls which tools contribute context to VHC processing. This feature ensures that only tools providing factual information are considered when evaluating response accuracy.
 
-### Understanding FCS Eligibility
+### Understanding VHC Eligibility
 
-**FCS-eligible tools** (`fcs_eligible=True`, default) are those that provide factual context:
+**VHC-eligible tools** (`vhc_eligible=True`, default) are those that provide factual context:
 - RAG tools (`create_rag_tool`)
 - Search tools (`create_search_tool`) 
 - Data retrieval tools (API calls, database queries)
 - Information lookup tools
 
-**Non-FCS-eligible tools** (`fcs_eligible=False`) are utility tools that process or transform content:
+**Non-VHC-eligible tools** (`vhc_eligible=False`) are utility tools that process or transform content:
 - Text summarization tools
 - Text rephrasing tools
 - Content formatting tools
 - Validation tools
 - Navigation tools (URL generation)
 
-### Built-in Tool FCS Eligibility
+### Built-in Tool VHC Eligibility
 
-| Tool Category | FCS Eligible | Examples |
+| Tool Category | VHC Eligible | Examples |
 |---------------|--------------|----------|
 | **Standard Tools** | ❌ No | `summarize_text`, `rephrase_text`, `critique_text` |
 | **Guardrail Tools** | ❌ No | `get_bad_topics` |
-| **Legal Utility Tools** | ❌ No | `get_case_document_pdf`, `get_case_document_page`, `validate_url` |
-| **Legal Content Tools** | ✅ Yes | `get_opinion_text`, `get_cited_cases`, `get_case_name` |
-| **Finance Tools** | ✅ Yes | `fmp_income_statement`, `balance_sheet`, `stock_news` |
-| **Finance Utility Tools** | ❌ No | `get_company_info`, `get_valid_years` |
 | **Database Tools** | ✅ Yes | All database tools (provide factual data) |
 | **Vectara RAG/Search** | ✅ Yes | All RAG and search tools |
 
-### Setting FCS Eligibility
+### Setting VHC Eligibility
 
 #### For Vectara Tools
 ```python
@@ -222,18 +218,18 @@ from vectara_agentic.tools import VectaraToolFactory
 
 vec_factory = VectaraToolFactory()
 
-# RAG tool (FCS-eligible by default)
+# RAG tool (VHC-eligible by default)
 rag_tool = vec_factory.create_rag_tool(
     tool_name="ask_documents",
     tool_description="Query documents for information",
-    fcs_eligible=True  # Explicit, but this is the default
+    vhc_eligible=True  # Explicit, but this is the default
 )
 
-# Search tool marked as non-FCS-eligible (uncommon)
+# Search tool marked as non-VHC-eligible (uncommon)
 search_tool = vec_factory.create_search_tool(
     tool_name="list_documents", 
     tool_description="List matching documents",
-    fcs_eligible=False  # Override default for special cases
+    vhc_eligible=False  # Override default for special cases
 )
 ```
 
@@ -243,35 +239,35 @@ from vectara_agentic.tools import ToolsFactory
 
 factory = ToolsFactory()
 
-# Data retrieval tool - should participate in FCS
+# Data retrieval tool - should participate in VHC
 def get_stock_price(ticker: str) -> float:
     """Get current stock price for a ticker."""
     # API call to get real data
     return 150.25
 
-stock_tool = factory.create_tool(get_stock_price, fcs_eligible=True)
+stock_tool = factory.create_tool(get_stock_price, vhc_eligible=True)
 
-# Utility tool - should not participate in FCS  
+# Utility tool - should not participate in VHC  
 def format_currency(amount: float) -> str:
     """Format amount as currency string."""
     return f"${amount:,.2f}"
 
-format_tool = factory.create_tool(format_currency, fcs_eligible=False)
+format_tool = factory.create_tool(format_currency, vhc_eligible=False)
 ```
 
 ### Best Practices
 
-1. **Default Behavior**: Most tools should use the default `fcs_eligible=True` unless they're pure utility functions
+1. **Default Behavior**: Most tools should use the default `vhc_eligible=True` unless they're pure utility functions
 
-2. **Utility Tools**: Mark tools as `fcs_eligible=False` if they:
+2. **Utility Tools**: Mark tools as `vhc_eligible=False` if they:
    - Transform or reformat existing data
    - Perform validation or checks
    - Generate URLs or links
    - Provide metadata about other tools
 
-3. **Content Tools**: Keep `fcs_eligible=True` (default) for tools that:
+3. **Content Tools**: Keep `vhc_eligible=True` (default) for tools that:
    - Retrieve data from APIs or databases
    - Search or query information sources
    - Return factual content
 
-4. **Consistency**: Use consistent FCS eligibility within tool categories to ensure predictable FCS behavior
+4. **Consistency**: Use consistent VHC eligibility within tool categories to ensure predictable VHC behavior

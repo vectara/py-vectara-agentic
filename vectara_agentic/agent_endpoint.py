@@ -16,12 +16,6 @@ from .agent import Agent
 from .agent_config import AgentConfig
 
 
-class ChatRequest(BaseModel):
-    """Request schema for the /chat endpoint."""
-
-    message: str
-
-
 class CompletionRequest(BaseModel):
     """Request schema for the /v1/completions endpoint."""
 

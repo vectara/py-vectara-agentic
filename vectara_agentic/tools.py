@@ -112,7 +112,7 @@ class VectaraToolFactory:
         verbose: bool = False,
         vectara_base_url: str = "https://api.vectara.io",
         vectara_verify_ssl: bool = True,
-        fcs_eligible: bool = True,
+        vhc_eligible: bool = True,
     ) -> VectaraTool:
         """
         Creates a Vectara search/retrieval tool
@@ -329,7 +329,7 @@ class VectaraToolFactory:
             ),
             tool_args_schema,
             return_direct=return_direct,
-            fcs_eligible=fcs_eligible,
+            vhc_eligible=vhc_eligible,
         )
         return tool
 
@@ -373,7 +373,7 @@ class VectaraToolFactory:
         verbose: bool = False,
         vectara_base_url: str = "https://api.vectara.io",
         vectara_verify_ssl: bool = True,
-        fcs_eligible: bool = True,
+        vhc_eligible: bool = True,
     ) -> VectaraTool:
         """
         Creates a RAG (Retrieve and Generate) tool.
@@ -603,7 +603,7 @@ class VectaraToolFactory:
             RagToolBaseParams,
             tool_args_schema,
             return_direct=return_direct,
-            fcs_eligible=fcs_eligible,
+            vhc_eligible=vhc_eligible,
         )
         return tool
 
@@ -620,7 +620,7 @@ class ToolsFactory:
         self,
         function: Callable,
         tool_type: ToolType = ToolType.QUERY,
-        fcs_eligible: bool = True,
+        vhc_eligible: bool = True,
     ) -> VectaraTool:
         """
         Create a tool from a function.
@@ -633,7 +633,7 @@ class ToolsFactory:
             VectaraTool: A VectaraTool object.
         """
         return VectaraTool.from_defaults(
-            tool_type=tool_type, fn=function, fcs_eligible=fcs_eligible
+            tool_type=tool_type, fn=function, vhc_eligible=vhc_eligible
         )
 
     def get_llama_index_tools(
@@ -695,7 +695,7 @@ class ToolsFactory:
         """
         tc = ToolsCatalog(self.agent_config)
         return [
-            self.create_tool(tool, fcs_eligible=True)
+            self.create_tool(tool, vhc_eligible=True)
             for tool in [tc.summarize_text, tc.rephrase_text, tc.critique_text]
         ]
 
@@ -703,7 +703,7 @@ class ToolsFactory:
         """
         Create a list of guardrail tools to avoid controversial topics.
         """
-        return [self.create_tool(get_bad_topics, fcs_eligible=False)]
+        return [self.create_tool(get_bad_topics, vhc_eligible=False)]
 
     def financial_tools(self):
         """
@@ -744,7 +744,7 @@ class ToolsFactory:
             )
 
         return [
-            self.create_tool(tool, fcs_eligible=False)
+            self.create_tool(tool, vhc_eligible=False)
             for tool in [summarize_legal_text, critique_as_judge]
         ]
 
@@ -820,7 +820,7 @@ class ToolsFactory:
                 fn=tool.fn,
                 async_fn=tool.async_fn,
                 metadata=tool.metadata,
-                fcs_eligible=True,
+                vhc_eligible=True,
             )
             vtools.append(vtool)
         return vtools

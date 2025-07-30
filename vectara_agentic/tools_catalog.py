@@ -5,25 +5,12 @@ This module contains the tools catalog for the Vectara Agentic.
 from typing import List
 from datetime import date
 
-import requests
-
 from pydantic import Field
 
 from .types import LLMRole
 from .agent_config import AgentConfig
 from .llm_utils import get_llm
 from .utils import remove_self_from_signature
-
-req_session = requests.Session()
-
-get_headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:98.0) Gecko/20100101 Firefox/98.0",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.5",
-    "Accept-Encoding": "gzip, deflate",
-    "Connection": "keep-alive",
-}
-
 
 def get_current_date() -> str:
     """

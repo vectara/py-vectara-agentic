@@ -126,7 +126,7 @@ ask_transcripts = vec_factory.create_rag_tool(
     vectara_summarizer = 'vectara-summary-ext-24-05-med-omni',
     include_citations = False,
     fcs_threshold = 0.2,
-    fcs_eligible = True  # RAG tools participate in FCS by default
+    vhc_eligible = True  # RAG tools participate in VHC by default
 )
 ```
 
@@ -280,25 +280,25 @@ def earnings_per_share(
 my_tool = tools_factory.create_tool(earnings_per_share)
 ```
 
-**FCS Eligibility for Custom Tools**
+**VHC Eligibility for Custom Tools**
 
-When creating custom tools, consider whether they should participate in Factual Consistency Score (FCS) calculation:
+When creating custom tools, consider whether they should participate in VHC (Vectara Hallucination Correction) analysis:
 
 ```python
-# Tool that provides factual data - should participate in FCS
+# Tool that provides factual data - should participate in VHC
 def get_financial_data(ticker: str) -> dict:
     """Retrieve financial data for a company."""
     # API call to get real financial data
     return {"revenue": 1000000, "profit": 50000}
 
-# Tool that processes/formats data - should not participate in FCS  
+# Tool that processes/formats data - should not participate in VHC  
 def format_financial_report(data: dict) -> str:
     """Format financial data into a readable report."""
     return f"Revenue: ${data['revenue']:,}, Profit: ${data['profit']:,}"
 
-# Create tools with appropriate FCS eligibility
-data_tool = tools_factory.create_tool(get_financial_data, fcs_eligible=True)
-format_tool = tools_factory.create_tool(format_financial_report, fcs_eligible=False)
+# Create tools with appropriate VHC eligibility
+data_tool = tools_factory.create_tool(get_financial_data, vhc_eligible=True)
+format_tool = tools_factory.create_tool(format_financial_report, vhc_eligible=False)
 ```
 
 A few important things to note:
@@ -500,7 +500,6 @@ explicitly specify the configuration of your agent, including the following:
 - `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider: OpenAI uses gpt-4.1, Gemini uses gemini-2.5-flash-lite).
 - `observer`: the observer type; should be `ARIZE_PHOENIX` or if undefined no observation framework will be used.
 - `endpoint_api_key`: a secret key if using the API endpoint option (defaults to `dev-api-key`)
-- `max_reasoning_steps`: the maximum number of reasoning steps (iterations for React and function calls for function calling agent, respectively). defaults to 50.
 
 By default, each of these parameters will be read from your environment, but you can also
 explicitly define them with the `AgentConfig` class.
@@ -527,16 +526,16 @@ from vectara_agentic import Agent
 
 agent = Agent(
      tools=[
-         # Utility tools (don't provide factual context for FCS)
-         tools_factory.create_tool(get_company_info, fcs_eligible=False),
-         tools_factory.create_tool(get_valid_years, fcs_eligible=False),
-         # Data tools (provide factual context for FCS)  
-         tools_factory.create_tool(get_income_statement, fcs_eligible=True)
+         # Utility tools (don't provide factual context for VHC)
+         tools_factory.create_tool(get_company_info, vhc_eligible=False),
+         tools_factory.create_tool(get_valid_years, vhc_eligible=False),
+         # Data tools (provide factual context for VHC)  
+         tools_factory.create_tool(get_income_statement, vhc_eligible=True)
      ] +
-     tools_factory.standard_tools() +      # Auto-marked as non-FCS-eligible
-     tools_factory.financial_tools() +     # Auto-marked as FCS-eligible
-     tools_factory.guardrail_tools() +     # Auto-marked as non-FCS-eligible
-     [ask_transcripts],                     # RAG tool, FCS-eligible by default
+     tools_factory.standard_tools() +      # Auto-marked as non-VHC-eligible
+     tools_factory.financial_tools() +     # Auto-marked as VHC-eligible
+     tools_factory.guardrail_tools() +     # Auto-marked as non-VHC-eligible
+     [ask_transcripts],                     # RAG tool, VHC-eligible by default
      topic="10-K annual financial reports",
      custom_instructions=financial_assistant_instructions,
      agent_progress_callback=agent_progress_callback
@@ -545,9 +544,9 @@ agent = Agent(
 
 Notice that when we call the `create_tool()` method, we can specify:
 - `tool_type`: Either `"query"` (default) or `"action"`
-- `fcs_eligible`: Whether the tool should participate in FCS calculation (default `True`)
+- `vhc_eligible`: Whether the tool should participate in VHC analysis (default `True`)
 
-In our example, we explicitly set `fcs_eligible=False` for utility tools like `get_company_info` and `get_valid_years` since they provide metadata rather than factual content for responses. The `get_income_statement` tool is marked `fcs_eligible=True` since it provides actual financial data.
+In our example, we explicitly set `vhc_eligible=False` for utility tools like `get_company_info` and `get_valid_years` since they provide metadata rather than factual content for responses. The `get_income_statement` tool is marked `vhc_eligible=True` since it provides actual financial data.
 
 ## Chat with your Assistant
 Once you have created your agent, using it is quite simple. All you have
@@ -714,7 +713,7 @@ You can also setup full observability for your vectara-agentic assistant
 or agent using [Arize Phoenix](https://phoenix.arize.com/). This allows
 you to view LLM prompt inputs and outputs, the latency of each task and
 subtask, and many of the individual function calls performed by the LLM,
-as well as FCS scores for each response.
+as well as VHC corrections for each response.
 
 To set up observability for your app, follow these steps:
 
@@ -737,8 +736,8 @@ To set up observability for your app, follow these steps:
     3.  To view the traces go to <https://app.phoenix.arize.com>.
 
 In addition to the raw traces, vectara-agentic also records `FCS` values
-into Arize for every Vectara RAG call. You can see those results in the
-`Feedback` column of the arize UI.
+into Arize for every Vectara RAG call (note: RAG tools still use FCS internally).
+You can see those results in the `Feedback` column of the arize UI.
 
 **Query Callback**
 You can define a callback function to log query/response pairs in your
