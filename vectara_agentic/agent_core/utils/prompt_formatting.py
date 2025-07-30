@@ -5,10 +5,7 @@ This module handles prompt template processing, placeholder replacement,
 and LLM-specific prompt formatting for different agent types.
 """
 
-# pylint: disable=duplicate-code
-
 from datetime import date
-
 
 def format_prompt(
     prompt_template: str,

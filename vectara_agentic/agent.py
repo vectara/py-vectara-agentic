@@ -111,7 +111,7 @@ class Agent:
             general_instructions (str, optional): General instructions for the agent.
                 The Agent has a default set of instructions that are crafted to help it operate effectively.
                 This allows you to customize the agent's behavior and personality, but use with caution.
-            verbose (bool, optional): Whether the agent should print its steps. Defaults to True.
+            verbose (bool, optional): Whether the agent should print its steps. Defaults to False.
             agent_progress_callback (Callable): A callback function the code calls on any agent updates.
             query_logging_callback (Callable): A callback function the code calls upon completion of a query
             agent_config (AgentConfig, optional): The configuration of the agent.
@@ -716,7 +716,7 @@ class Agent:
             except Exception as e:
                 last_error = e
                 if self.verbose:
-                    print(f"LLM call failed on attempt {attempt}. " f"Error: {e}.")
+                    logger.warning(f"LLM call failed on attempt {attempt}. " f"Error: {e}.")
                 if attempt >= 2 and self.fallback_agent_config:
                     self._switch_agent_config()
                 await asyncio.sleep(1)
@@ -885,7 +885,7 @@ class Agent:
                         input_dict[key] = value
                 output = outputs_model_on_fail_cls.model_validate(input_dict)
             else:
-                print(f"Vectara Agentic: Workflow failed with unexpected error: {e}")
+                logger.warning(f"Vectara Agentic: Workflow failed with unexpected error: {e}")
                 raise type(e)(str(e)).with_traceback(e.__traceback__)
 
         return output

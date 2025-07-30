@@ -102,7 +102,6 @@ def validate_tool_consistency(
 
     # Validate tools mentioned in instructions exist
     if custom_instructions:
-        # pylint: disable=duplicate-code
         prompt = f"""
         You are provided these tools:
         <tools>{','.join(tool_names)}</tools>

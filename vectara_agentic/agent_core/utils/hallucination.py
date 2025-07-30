@@ -136,7 +136,8 @@ def check_tool_eligibility(tool_name: Optional[str], tools: List) -> bool:
     return True
 
 def analyze_hallucinations(
-    chat_history, agent_response: str, tools: List, vectara_api_key: str
+    query: str, chat_history: List,
+    agent_response: str, tools: List, vectara_api_key: str
 ) -> Tuple[str, List[str]]:
     """Use VHC to compute corrected_text and corrections."""
     if not vectara_api_key:
@@ -184,7 +185,7 @@ def analyze_hallucinations(
     try:
         h = Hallucination(vectara_api_key)
         corrected_text, corrections = h.compute(
-            query=agent_response, context=context, hypothesis=agent_response
+            query=query, context=context, hypothesis=agent_response
         )
         return corrected_text, corrections
 

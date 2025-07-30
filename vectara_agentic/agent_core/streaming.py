@@ -10,6 +10,7 @@ import logging
 import uuid
 import json
 from typing import Callable, Any, Dict, AsyncIterator
+from collections import OrderedDict
 
 from ..types import AgentResponse
 from .utils.hallucination import analyze_hallucinations
@@ -24,8 +25,8 @@ class ToolEventTracker:
     """
 
     def __init__(self):
-        self.event_ids = {}  # tool_call_id -> event_id mapping
-        self.fallback_counter = 0  # For events without identifiable tool_ids
+        self.event_ids = OrderedDict()  # tool_call_id -> event_id mapping
+        self.fallback_counter = 0       # For events without identifiable tool_ids
 
     def get_event_id(self, event) -> str:
         """
@@ -61,10 +62,8 @@ class ToolEventTracker:
 
     def clear_old_entries(self, max_entries: int = 100):
         """Clear old entries to prevent unbounded memory growth."""
-        if len(self.event_ids) > max_entries:
-            # Keep only the most recent entries (simple FIFO cleanup)
-            items = list(self.event_ids.items())
-            self.event_ids = dict(items[-max_entries // 2 :])  # Keep half
+        while len(self.event_ids) > max_entries // 2:
+            self.event_ids.popitem(last=False)  # Remove oldest entry
 
 
 class StreamingResponseAdapter:
@@ -121,9 +120,8 @@ class StreamingResponseAdapter:
         This should be called after streaming finishes but before accessing metadata.
         """
         if self.post_process_task and not self.post_process_task.done():
-            # For now, just return - the async version should be used
-            pass
-        elif self.post_process_task and self.post_process_task.done():
+            return
+        if self.post_process_task and self.post_process_task.done():
             try:
                 final_response = self.post_process_task.result()
                 if hasattr(final_response, "metadata") and final_response.metadata:
@@ -187,16 +185,11 @@ async def execute_post_stream_processing(
         AgentResponse: Processed final response
     """
     if result is None:
-        # Fallback response if something went wrong
-        result = type(
-            "AgentResponse",
-            (),
-            {
-                "response": "Response completed",
-                "source_nodes": [],
-                "metadata": None,
-            },
-        )()
+        logging.warning("Received None result from streaming, returning empty response.")
+        return AgentResponse(
+            response="No response generated",
+            metadata=getattr(result, "metadata", {}),
+        )
 
     # Ensure we have an AgentResponse object with a string response
     if hasattr(result, "response"):
@@ -222,6 +215,7 @@ async def execute_post_stream_processing(
 
     if agent_instance.vectara_api_key:
         corrected_text, corrections = analyze_hallucinations(
+            query=prompt,
             chat_history=agent_instance.memory.get(),
             agent_response=final.response,
             tools=agent_instance.tools,
@@ -236,7 +230,6 @@ async def execute_post_stream_processing(
 
     if agent_instance.observability_enabled:
         from .._observability import eval_fcs
-
         eval_fcs()
 
     return final
@@ -381,16 +374,13 @@ class FunctionCallingStreamHandler:
         if isinstance(event, (ToolCall, ToolCallResult)):
             return True
 
-        # For debugging: log all event types we see
         has_tool_id = hasattr(event, "tool_id") and event.tool_id
         has_delta = hasattr(event, "delta") and event.delta
         has_tool_name = hasattr(event, "tool_name") and event.tool_name
 
         # We're not seeing ToolCall/ToolCallResult events in the stream, so let's be more liberal
         # but still avoid streaming deltas
-        if has_tool_id and not has_delta:
-            return True
-        elif has_tool_name and not has_delta:
+        if (has_tool_id or has_tool_name) and not has_delta:
             return True
 
         # Everything else (streaming deltas, agent outputs, workflow events, etc.)
