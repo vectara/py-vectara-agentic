@@ -176,19 +176,19 @@ def data_tool():
 
 ### Examples in the Codebase
 
-- **RAG Tool**: Formats citations and factual consistency scores
+- **RAG Tool**: Formats citations.
 - **Search Tool**: Displays results in sequential format with summaries and sample matches
 
 This pattern provides flexibility for tools to define their own presentation layer while maintaining access to the underlying data structure.
 
 ## VHC Eligibility
 
-`VHC` or Vectara Hallucination Corrector refers to a specialized model from Vectara for correcting hallucinations.
-VHC eligibility controls which tools contribute context to VHC processing. This feature ensures that only tools providing factual information are considered when evaluating response accuracy.
+`VHC` or Vectara Hallucination Corrector refers to a specialized model from Vectara for detecting and correcting hallucinations.
+VHC eligibility controls which tools contribute context to VHC processing. This feature ensures that only tools that output factual information that is used as context to generate a response are considered when evaluating whether a response is hallucinated.
 
 ### Understanding VHC Eligibility
 
-**VHC-eligible tools** (`vhc_eligible=True`, default) are those that provide factual context:
+**VHC-eligible tools** (`vhc_eligible=True`, default) are those that provide factual information:
 - RAG tools (`create_rag_tool`)
 - Search tools (`create_search_tool`) 
 - Data retrieval tools (API calls, database queries)

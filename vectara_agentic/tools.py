@@ -424,7 +424,7 @@ class VectaraToolFactory:
             citation_url_pattern (str, optional): The pattern for the citations in the response.
                 Default is "{doc.url}" which uses the document URL.
                 If include_citations is False, this parameter is ignored.
-                citation_pattern (str, optional): old name for citation_url_pattern. Will be deprecated in future.
+                citation_pattern (str, optional): old name for citation_url_pattern. Deprecated.
             citation_text_pattern (str, optional): The text pattern for citations in the response.
                 Default is "{doc.title}" which uses the title of the document.
                 If include_citations is False, this parameter is ignored.

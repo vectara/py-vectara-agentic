@@ -453,7 +453,7 @@ Built-in formatters include `format_as_table`, `format_as_json`, and `format_as_
 > and not as nested functions. Nested functions are not supported if you use serialization 
 > (dumps/loads or from_dict/to_dict).
 
-The human-readable format, if available, is used when computing the factual consistency score.
+The human-readable format, if available, is used when using Vectara Hallucination Correction.
 
 ### Tool Validation
 

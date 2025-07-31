@@ -129,7 +129,6 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             model=model_name,
             temperature=0,
             is_function_calling_model=True,
-            allow_parallel_tool_calls=True,
             max_tokens=max_tokens,
         )
     elif model_provider == ModelProvider.TOGETHER:
@@ -190,6 +189,10 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             raise ImportError(
                 "openai_like not available. Install with: pip install llama-index-llms-openai-like"
             ) from e
+        if not config or not config.private_llm_api_base or not config.private_llm_api_key:
+            raise ValueError(
+                "Private LLM requires both private_llm_api_base and private_llm_api_key to be set in AgentConfig."
+            )
         llm = OpenAILike(
             model=model_name,
             temperature=0,

@@ -150,7 +150,7 @@ class VectaraTool(FunctionTool):
                 tool_name=self.metadata.name,
                 content=(
                     f"Wrong argument used when calling {self.metadata.name}: {str(error)}. "
-                    f"Valid arguments: {params_str}. please call the tool again with the correct arguments."
+                    f"Valid arguments: {params_str}. Please call the tool again with the correct arguments."
                 ),
                 raw_input={"args": args, "kwargs": kwargs},
                 raw_output={"response": str(error)},
@@ -393,7 +393,7 @@ def create_tool_from_dynamic_function(
     vhc_eligible: bool = True,
 ) -> VectaraTool:
     """
-    Create a VectaraTool from a dynamic function with OpenAI compatibility.
+    Create a VectaraTool from a dynamic function.
     Args:
         function (Callable[..., ToolOutput]): The function to wrap as a tool.
         tool_name (str): The name of the tool.
@@ -402,7 +402,7 @@ def create_tool_from_dynamic_function(
         tool_args_schema (Type[BaseModel]): The Pydantic model for the tool arguments.
         return_direct (bool): Whether to return the tool output directly.
     Returns:
-        VectaraTool: The created VectaraTool with OpenAI-compatible schema.
+        VectaraTool: The created VectaraTool.
     """
     if tool_args_schema is None:
         tool_args_schema = EmptyBaseModel

@@ -59,6 +59,11 @@ class Hallucination:
         logging.debug(
             f"VHC: outputs: {len(corrections)} corrections"
         )
+        logging.debug(
+            f"VHC: corrected_text: {corrected_text}\n"
+        )
+        for correction in corrections:
+            logging.debug(f"VHC: correction: {correction}\n")
 
         return corrected_text, corrections
 
@@ -119,7 +124,7 @@ def identify_tool_name(msg, tool_call_id_to_name: Dict[str, str]) -> Optional[st
 def check_tool_eligibility(tool_name: Optional[str], tools: List) -> bool:
     """Check if a tool output is eligible to be included in VHC, by looking up in tools list."""
     if not tool_name or not tools:
-        return True
+        return False
 
     # Try to find the tool and check its VHC eligibility
     for tool in tools:
@@ -138,7 +143,7 @@ def check_tool_eligibility(tool_name: Optional[str], tools: List) -> bool:
 def analyze_hallucinations(
     query: str, chat_history: List,
     agent_response: str, tools: List, vectara_api_key: str
-) -> Tuple[str, List[str]]:
+) -> Tuple[Optional[str], List[str]]:
     """Use VHC to compute corrected_text and corrections."""
     if not vectara_api_key:
         logging.debug("No Vectara API key - returning None")

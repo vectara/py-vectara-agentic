@@ -24,6 +24,7 @@ If you are upgrading from v0.3.x:
 3. **Fireworks users**: Migrate to one of the supported providers: OpenAI, Anthropic, Together.AI, GROQ, Cohere, Bedrock, or Gemini
 4. **Token counting users**: This functionality has been removed with no direct replacement
 5. **Compact_docstring users**: Remove this option from your configuration
+6. **OpenAI agent type**: use FUNCTION_CALLING instead.
 
 ### Added
 

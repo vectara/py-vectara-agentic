@@ -3,9 +3,6 @@ This module contains the Agent class for handling different types of agents and 
 """
 
 import warnings
-
-# Suppress external Pydantic v2 deprecation warnings to reduce noise
-# Global suppression for all deprecation warnings since they come from external dependencies
 warnings.simplefilter("ignore", DeprecationWarning)
 
 # pylint: disable=wrong-import-position

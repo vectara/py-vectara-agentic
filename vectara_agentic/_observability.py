@@ -75,10 +75,8 @@ def _extract_fcs_value(output: Union[str, dict]) -> Optional[float]:
         output_json = json.loads(output)
         if "metadata" in output_json and "fcs" in output_json["metadata"]:
             return output_json["metadata"]["fcs"]
-    except json.JSONDecodeError:
-        pass
-    except KeyError:
-        pass
+    except Exception as e:
+        print(f"Error extracting FCS value: {e}")
     return None
 
 
