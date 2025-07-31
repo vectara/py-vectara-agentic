@@ -529,9 +529,11 @@ class VectaraToolFactory:
                     "Tool failed to generate a response since no matches were found. "
                     "Please check the arguments and try again."
                 )
+                kwargs["query"] = query
                 return {"text": msg, "metadata": {"args": args, "kwargs": kwargs}}
             if str(response) == "None":
                 msg = "Tool failed to generate a response."
+                kwargs["query"] = query
                 return {"text": msg, "metadata": {"args": args, "kwargs": kwargs}}
 
             # Extract citation metadata

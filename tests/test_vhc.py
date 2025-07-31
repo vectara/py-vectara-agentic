@@ -6,7 +6,7 @@ import unittest
 
 from vectara_agentic.agent import Agent, AgentType
 from vectara_agentic.agent_config import AgentConfig
-from vectara_agentic.tools import ToolsFactory, VectaraToolFactory
+from vectara_agentic.tools import ToolsFactory
 from vectara_agentic.types import ModelProvider
 
 import nest_asyncio
@@ -26,6 +26,7 @@ def get_statement() -> str:
     st = statements[st_inx]
     st_inx += 1
     return st
+
 
 fc_config = AgentConfig(
     agent_type=AgentType.FUNCTION_CALLING,
