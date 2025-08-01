@@ -1,6 +1,6 @@
 # API Endpoint
 
-It\'s super easy to host your vectara-agentic assistant or agent behind
+It's super easy to host your vectara-agentic assistant or agent behind
 an API endpoint:
 
 `vectara-agentic` can be easily hosted locally or on a remote machine

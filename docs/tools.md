@@ -86,7 +86,7 @@ This creates five tools:
 
 Together, these 5 tools provide a comprehensive set of capabilities for an agent to interact with a database. 
 
-For example, an agent can use the `ev_list_tables` tool to get a list of tables in the database, and then use the `ev_describe_tables` tool to get the schema of a specific table. It will use the `ev_load_sample_data` to get a sample of the data in the table, or the `ev_load_unique_values` to explore the type of values valid for a column. Finally, the agent can use the `ev_load_data` tool to load the data into the agent\'s memory.
+For example, an agent can use the `ev_list_tables` tool to get a list of tables in the database, and then use the `ev_describe_tables` tool to get the schema of a specific table. It will use the `ev_load_sample_data` to get a sample of the data in the table, or the `ev_load_unique_values` to explore the type of values valid for a column. Finally, the agent can use the `ev_load_data` tool to load the data into the agent's memory.
 
 **Multiple databases**
 
