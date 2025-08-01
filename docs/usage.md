@@ -144,7 +144,7 @@ In the code above, we did the following:
     [Authorization](https://console.vectara.com/console/apiAccess/apiKeys)
     page and give it to access to all the corpora you want for this
     query tool. When specifying your environment variables, set
-    `VECTARA_CORPUS_KEY` to a list of corpus IDs separated by commas
+    `VECTARA_CORPUS_KEY` to a list of corpus keys separated by commas
     (e.g. `corpus_key1,corpus_key2,corpus_key3`).
 -   Then we called `create_rag_tool()`, specifying the tool name,
     description and schema for the tool, followed by various optional
