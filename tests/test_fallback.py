@@ -1,3 +1,7 @@
+# Suppress external dependency warnings before any other imports
+import warnings
+warnings.simplefilter("ignore", DeprecationWarning)
+
 import os
 import unittest
 import subprocess

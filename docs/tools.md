@@ -176,7 +176,98 @@ def data_tool():
 
 ### Examples in the Codebase
 
-- **RAG Tool**: Formats citations and factual consistency scores
+- **RAG Tool**: Formats citations.
 - **Search Tool**: Displays results in sequential format with summaries and sample matches
 
 This pattern provides flexibility for tools to define their own presentation layer while maintaining access to the underlying data structure.
+
+## VHC Eligibility
+
+`VHC` or Vectara Hallucination Corrector refers to a specialized model from Vectara for detecting and correcting hallucinations.
+VHC eligibility controls which tools contribute context to VHC processing. This feature ensures that only tools that output factual information that is used as context to generate a response are considered when evaluating whether a response is hallucinated.
+
+### Understanding VHC Eligibility
+
+**VHC-eligible tools** (`vhc_eligible=True`, default) are those that provide factual information:
+- RAG tools (`create_rag_tool`)
+- Search tools (`create_search_tool`) 
+- Data retrieval tools (API calls, database queries)
+- Information lookup tools
+
+**Non-VHC-eligible tools** (`vhc_eligible=False`) are utility tools that process or transform content:
+- Text summarization tools
+- Text rephrasing tools
+- Content formatting tools
+- Validation tools
+- Navigation tools (URL generation)
+
+### Built-in Tool VHC Eligibility
+
+| Tool Category | VHC Eligible | Examples |
+|---------------|--------------|----------|
+| **Standard Tools** | ❌ No | `summarize_text`, `rephrase_text`, `critique_text` |
+| **Guardrail Tools** | ❌ No | `get_bad_topics` |
+| **Database Tools** | ✅ Yes | All database tools (provide factual data) |
+| **Vectara RAG/Search** | ✅ Yes | All RAG and search tools |
+
+### Setting VHC Eligibility
+
+#### For Vectara Tools
+```python
+from vectara_agentic.tools import VectaraToolFactory
+
+vec_factory = VectaraToolFactory()
+
+# RAG tool (VHC-eligible by default)
+rag_tool = vec_factory.create_rag_tool(
+    tool_name="ask_documents",
+    tool_description="Query documents for information",
+    vhc_eligible=True  # Explicit, but this is the default
+)
+
+# Search tool marked as non-VHC-eligible (uncommon)
+search_tool = vec_factory.create_search_tool(
+    tool_name="list_documents", 
+    tool_description="List matching documents",
+    vhc_eligible=False  # Override default for special cases
+)
+```
+
+#### For Custom Tools
+```python
+from vectara_agentic.tools import ToolsFactory
+
+factory = ToolsFactory()
+
+# Data retrieval tool - should participate in VHC
+def get_stock_price(ticker: str) -> float:
+    """Get current stock price for a ticker."""
+    # API call to get real data
+    return 150.25
+
+stock_tool = factory.create_tool(get_stock_price, vhc_eligible=True)
+
+# Utility tool - should not participate in VHC  
+def format_currency(amount: float) -> str:
+    """Format amount as currency string."""
+    return f"${amount:,.2f}"
+
+format_tool = factory.create_tool(format_currency, vhc_eligible=False)
+```
+
+### Best Practices
+
+1. **Default Behavior**: Most tools should use the default `vhc_eligible=True` unless they're pure utility functions
+
+2. **Utility Tools**: Mark tools as `vhc_eligible=False` if they:
+   - Transform or reformat existing data
+   - Perform validation or checks
+   - Generate URLs or links
+   - Provide metadata about other tools
+
+3. **Content Tools**: Keep `vhc_eligible=True` (default) for tools that:
+   - Retrieve data from APIs or databases
+   - Search or query information sources
+   - Return factual content
+
+4. **Consistency**: Use consistent VHC eligibility within tool categories to ensure predictable VHC behavior

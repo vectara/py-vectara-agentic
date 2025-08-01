@@ -31,6 +31,7 @@
 - [Using Tools](#using-tools)
 - [Advanced Usage: Workflows](#advanced-usage-workflows)
 - [Configuration](#️-configuration)
+- [Migrating from v0.3.x](#-migrating-from-v03x)
 - [Contributing](#-contributing)
 - [License](#-license)
 
@@ -47,11 +48,11 @@
 - **Rapid Tool Creation:**  
   Build Vectara RAG tools or search tools with a single line of code.
 - **Agent Flexibility:**  
-  Supports multiple agent types including `ReAct`, `OpenAIAgent`, `LATS`, and `LLMCompiler`.
+  Supports multiple agent types including `ReAct`, `Function Calling`, `LATS`, and `LLMCompiler`.
 - **Pre-Built Domain Tools:**  
   Tools tailored for finance, legal, and other verticals.
 - **Multi-LLM Integration:**  
-  Seamless integration with OpenAI, Anthropic, Gemini, GROQ, Together.AI, Cohere, Bedrock, and Fireworks.
+  Seamless integration with OpenAI, Anthropic, Gemini, GROQ, Together.AI, Cohere, and Bedrock.
 - **Observability:**  
   Built-in support with Arize Phoenix for monitoring and feedback.
 - **Workflow Support:**  
@@ -71,7 +72,7 @@ Check out our example AI assistants:
 - [Vectara account](https://console.vectara.com/signup/?utm_source=github&utm_medium=code&utm_term=DevRel&utm_content=vectara-agentic&utm_campaign=github-code-DevRel-vectara-agentic)
 - A Vectara corpus with an [API key](https://docs.vectara.com/docs/api-keys)
 - [Python 3.10 or higher](https://www.python.org/downloads/)
-- OpenAI API key (or API keys for Anthropic, TOGETHER.AI, Fireworks AI, Cohere, GEMINI or GROQ, if you choose to use them).
+- OpenAI API key (or API keys for Anthropic, TOGETHER.AI, Cohere, GEMINI or GROQ, if you choose to use them).
   To use AWS Bedrock, make sure that
   * The Bedrock models you need are enabled on your account
   * Your environment includes `AWS_PROFILE` with your AWS profile name.
@@ -123,7 +124,8 @@ ask_finance = vec_factory.create_rag_tool(
     tool_description="Query financial reports for a company and year",
     tool_args_schema=QueryFinancialReportsArgs,
     lambda_val=0.005,
-    summary_num_results=7, 
+    summary_num_results=7,
+    vhc_eligible=True,  # RAG tools participate in VHC by default
     # Additional Vectara query arguments...
 )
 ```
@@ -403,6 +405,30 @@ def mult_func(x, y):
 mult_tool = ToolsFactory().create_tool(mult_func)
 ```
 
+#### VHC Eligibility
+
+When creating tools, you can control whether they participate in Vectara Hallucination Correction, by using the `vhc_eligible` parameter:
+
+```python
+# Tool that provides factual data - should participate in VHC
+data_tool = ToolsFactory().create_tool(get_company_data, vhc_eligible=True)
+
+# Utility tool that doesn't provide context - should not participate in VHC  
+summary_tool = ToolsFactory().create_tool(summarize_text, vhc_eligible=False)
+```
+
+**VHC-eligible tools** (default: `True`) are those that provide factual context for responses, such as:
+- Data retrieval tools
+- Search tools  
+- API calls that return factual information
+
+**Non-VHC-eligible tools** (`vhc_eligible=False`) are utility tools that don't contribute factual context:
+- Text summarization tools
+- Text rephrasing tools
+- Formatting or processing tools
+
+Built-in utility tools like `summarize_text`, `rephrase_text`, and `get_bad_topics` are automatically marked as non-VHC-eligible.
+
 #### Human-Readable Tool Output
 
 Tools can provide both raw data and human-readable formatted output using the `create_human_readable_output` utility:
@@ -427,7 +453,7 @@ Built-in formatters include `format_as_table`, `format_as_json`, and `format_as_
 > and not as nested functions. Nested functions are not supported if you use serialization 
 > (dumps/loads or from_dict/to_dict).
 
-The human-readable format, if available, is used when computing the factual consistency score.
+The human-readable format, if available, is used when using Vectara Hallucination Correction.
 
 ### Tool Validation
 
@@ -642,12 +668,13 @@ agent = Agent(
 ```
 
 The `AgentConfig` object may include the following items:
-- `agent_type`: the agent type. Valid values are `REACT`, `LLMCOMPILER`, `LATS` or `OPENAI` (default: `OPENAI`).
-- `main_llm_provider` and `tool_llm_provider`: the LLM provider for main agent and for the tools. Valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI` or `FIREWORKS` (default: `OPENAI`).
-- `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider).
+- `agent_type`: the agent type. Valid values are `REACT`, `LLMCOMPILER`, `LATS` or `FUNCTION_CALLING` (default: `FUNCTION_CALLING`).
+- `main_llm_provider` and `tool_llm_provider`: the LLM provider for main agent and for the tools. Valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI` (default: `OPENAI`).
+
+> **Note:** Fireworks AI support has been removed. If you were using Fireworks, please migrate to one of the supported providers listed above.
+- `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider: OpenAI uses gpt-4.1, Gemini uses gemini-2.5-flash).
 - `observer`: the observer type; should be `ARIZE_PHOENIX` or if undefined no observation framework will be used.
 - `endpoint_api_key`: a secret key if using the API endpoint option (defaults to `dev-api-key`)
-- `max_reasoning_steps`: the maximum number of reasoning steps (iterations for React and function calls for OpenAI agent, respectively). Defaults to 50.
 
 If any of these are not provided, `AgentConfig` first tries to read the values from the OS environment.
 
@@ -681,4 +708,16 @@ agent = Agent(
     custom_instructions=custom_instructions
 )
 ```
+
+## 🚀 Migrating from v0.3.x
+
+If you're upgrading from v0.3.x, please note the following breaking changes in v0.4.0:
+
+- **Fireworks LLM removed**: Migrate to OpenAI, Anthropic, Together.AI, GROQ, Cohere, Bedrock, or Gemini
+- **OPENAI AgentType removed**: Use the FUNCTION_CALLING AgentType instead, when using OpenAI for main_llm_provider
+- **StructuredPlanning deprecated**: Use standard Agent workflows or create custom workflows
+- **Token counting and compact_docstring removed**: Remove these from your configuration
+- **update_func removed**: This functionality is no longer available
+
+For detailed migration instructions, see [CHANGELOG.md](CHANGELOG.md).
 

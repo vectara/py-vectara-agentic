@@ -74,20 +74,16 @@ class VectaraToolFactory:
         self,
         vectara_corpus_key: str = str(os.environ.get("VECTARA_CORPUS_KEY", "")),
         vectara_api_key: str = str(os.environ.get("VECTARA_API_KEY", "")),
-        compact_docstring: bool = False,
     ) -> None:
         """
         Initialize the VectaraToolFactory
         Args:
             vectara_corpus_key (str): The Vectara corpus key (or comma separated list of keys).
             vectara_api_key (str): The Vectara API key.
-            compact_docstring (bool): Whether to use a compact docstring format for tools
-              This is useful if OpenAI complains on the 1024 token limit.
         """
         self.vectara_corpus_key = vectara_corpus_key
         self.vectara_api_key = vectara_api_key
         self.num_corpora = len(vectara_corpus_key.split(","))
-        self.compact_docstring = compact_docstring
 
     def create_search_tool(
         self,
@@ -116,6 +112,7 @@ class VectaraToolFactory:
         verbose: bool = False,
         vectara_base_url: str = "https://api.vectara.io",
         vectara_verify_ssl: bool = True,
+        vhc_eligible: bool = True,
     ) -> VectaraTool:
         """
         Creates a Vectara search/retrieval tool
@@ -280,7 +277,7 @@ class VectaraToolFactory:
                     # Add all matching text if available
                     matches = result["metadata"]["matching_text"]
                     if matches:
-                        result_str += ''.join(
+                        result_str += "".join(
                             f"Match #{inx} Text: {match}\n"
                             for inx, match in enumerate(matches, 1)
                         )
@@ -312,7 +309,7 @@ class VectaraToolFactory:
                 description="The search query to perform, in the form of a question.",
             )
             top_k: int = Field(
-                10, description="The number of top documents to retrieve."
+                default=10, description="The number of top documents to retrieve."
             )
 
         search_tool_extra_desc = (
@@ -331,8 +328,8 @@ class VectaraToolFactory:
                 else SearchToolBaseParamsWithoutSummarize
             ),
             tool_args_schema,
-            compact_docstring=self.compact_docstring,
             return_direct=return_direct,
+            vhc_eligible=vhc_eligible,
         )
         return tool
 
@@ -376,6 +373,7 @@ class VectaraToolFactory:
         verbose: bool = False,
         vectara_base_url: str = "https://api.vectara.io",
         vectara_verify_ssl: bool = True,
+        vhc_eligible: bool = True,
     ) -> VectaraTool:
         """
         Creates a RAG (Retrieve and Generate) tool.
@@ -426,7 +424,7 @@ class VectaraToolFactory:
             citation_url_pattern (str, optional): The pattern for the citations in the response.
                 Default is "{doc.url}" which uses the document URL.
                 If include_citations is False, this parameter is ignored.
-                citation_pattern (str, optional): old name for citation_url_pattern. Will be deprecated in future.
+                citation_pattern (str, optional): old name for citation_url_pattern. Deprecated.
             citation_text_pattern (str, optional): The text pattern for citations in the response.
                 Default is "{doc.title}" which uses the title of the document.
                 If include_citations is False, this parameter is ignored.
@@ -475,6 +473,15 @@ class VectaraToolFactory:
                 )
                 return {"text": msg, "metadata": {"args": args, "kwargs": kwargs}}
 
+            citations_url_pattern = (
+                (
+                    citation_url_pattern
+                    if citation_url_pattern is not None
+                    else citation_pattern
+                )
+                if include_citations
+                else None
+            )
             vectara_query_engine = vectara.as_query_engine(
                 summary_enabled=True,
                 similarity_top_k=summary_num_results,
@@ -507,8 +514,10 @@ class VectaraToolFactory:
                 frequency_penalty=frequency_penalty,
                 presence_penalty=presence_penalty,
                 citations_style="markdown" if include_citations else None,
-                citations_url_pattern=(citation_pattern if citation_pattern is not None else citation_url_pattern) if include_citations else None,
-                citations_text_pattern=citation_text_pattern if include_citations else None,
+                citations_url_pattern=citations_url_pattern,
+                citations_text_pattern=(
+                    citation_text_pattern if include_citations else None
+                ),
                 save_history=save_history,
                 x_source_str="vectara-agentic",
                 verbose=verbose,
@@ -520,9 +529,11 @@ class VectaraToolFactory:
                     "Tool failed to generate a response since no matches were found. "
                     "Please check the arguments and try again."
                 )
+                kwargs["query"] = query
                 return {"text": msg, "metadata": {"args": args, "kwargs": kwargs}}
             if str(response) == "None":
                 msg = "Tool failed to generate a response."
+                kwargs["query"] = query
                 return {"text": msg, "metadata": {"args": args, "kwargs": kwargs}}
 
             # Extract citation metadata
@@ -564,11 +575,8 @@ class VectaraToolFactory:
                     if key.isdigit():
                         doc = value.get("document", {})
                         doc_metadata = f"{key}: " + "; ".join(
-                            [
-                                f"{k}='{v}'"
-                                for k, v in doc.items()
-                            ] +
-                            [
+                            [f"{k}='{v}'" for k, v in doc.items()]
+                            + [
                                 f"{k}='{v}'"
                                 for k, v in value.items()
                                 if k not in ["document"] + keys_to_ignore
@@ -596,8 +604,8 @@ class VectaraToolFactory:
             tool_description,
             RagToolBaseParams,
             tool_args_schema,
-            compact_docstring=self.compact_docstring,
             return_direct=return_direct,
+            vhc_eligible=vhc_eligible,
         )
         return tool
 
@@ -611,7 +619,10 @@ class ToolsFactory:
         self.agent_config = agent_config
 
     def create_tool(
-        self, function: Callable, tool_type: ToolType = ToolType.QUERY
+        self,
+        function: Callable,
+        tool_type: ToolType = ToolType.QUERY,
+        vhc_eligible: bool = True,
     ) -> VectaraTool:
         """
         Create a tool from a function.
@@ -623,7 +634,9 @@ class ToolsFactory:
         Returns:
             VectaraTool: A VectaraTool object.
         """
-        return VectaraTool.from_defaults(tool_type=tool_type, fn=function)
+        return VectaraTool.from_defaults(
+            tool_type=tool_type, fn=function, vhc_eligible=vhc_eligible
+        )
 
     def get_llama_index_tools(
         self,
@@ -684,7 +697,7 @@ class ToolsFactory:
         """
         tc = ToolsCatalog(self.agent_config)
         return [
-            self.create_tool(tool)
+            self.create_tool(tool, vhc_eligible=True)
             for tool in [tc.summarize_text, tc.rephrase_text, tc.critique_text]
         ]
 
@@ -692,7 +705,7 @@ class ToolsFactory:
         """
         Create a list of guardrail tools to avoid controversial topics.
         """
-        return [self.create_tool(get_bad_topics)]
+        return [self.create_tool(get_bad_topics, vhc_eligible=False)]
 
     def financial_tools(self):
         """
@@ -733,7 +746,8 @@ class ToolsFactory:
             )
 
         return [
-            self.create_tool(tool) for tool in [summarize_legal_text, critique_as_judge]
+            self.create_tool(tool, vhc_eligible=False)
+            for tool in [summarize_legal_text, critique_as_judge]
         ]
 
     def database_tools(
@@ -808,6 +822,7 @@ class ToolsFactory:
                 fn=tool.fn,
                 async_fn=tool.async_fn,
                 metadata=tool.metadata,
+                vhc_eligible=True,
             )
             vtools.append(vtool)
         return vtools

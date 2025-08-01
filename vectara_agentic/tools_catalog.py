@@ -1,10 +1,9 @@
 """
 This module contains the tools catalog for the Vectara Agentic.
 """
+
 from typing import List
 from datetime import date
-
-import requests
 
 from pydantic import Field
 
@@ -12,16 +11,6 @@ from .types import LLMRole
 from .agent_config import AgentConfig
 from .llm_utils import get_llm
 from .utils import remove_self_from_signature
-
-req_session = requests.Session()
-
-get_headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:98.0) Gecko/20100101 Firefox/98.0",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.5",
-    "Accept-Encoding": "gzip, deflate",
-    "Connection": "keep-alive",
-}
 
 def get_current_date() -> str:
     """
@@ -35,6 +24,7 @@ class ToolsCatalog:
     """
     A curated set of tools for vectara-agentic
     """
+
     def __init__(self, agent_config: AgentConfig):
         self.agent_config = agent_config
 
@@ -76,7 +66,9 @@ class ToolsCatalog:
     def rephrase_text(
         self,
         text: str = Field(description="the original text."),
-        instructions: str = Field(description="the specific instructions for how to rephrase the text."),
+        instructions: str = Field(
+            description="the specific instructions for how to rephrase the text."
+        ),
     ) -> str:
         """
         This is a helper tool.
@@ -103,8 +95,13 @@ class ToolsCatalog:
     def critique_text(
         self,
         text: str = Field(description="the original text."),
-        role: str = Field(default=None, description="the role of the person providing critique."),
-        point_of_view: str = Field(default=None, description="the point of view with which to provide critique."),
+        role: str = Field(
+            default=None, description="the role of the person providing critique."
+        ),
+        point_of_view: str = Field(
+            default=None,
+            description="the point of view with which to provide critique.",
+        ),
     ) -> str:
         """
         This is a helper tool.
@@ -121,12 +118,15 @@ class ToolsCatalog:
         if role:
             prompt = f"As a {role}, critique the provided text from the point of view of {point_of_view}."
         else:
-            prompt = f"Critique the provided text from the point of view of {point_of_view}."
+            prompt = (
+                f"Critique the provided text from the point of view of {point_of_view}."
+            )
         prompt += "\nStructure the critique as bullet points.\n"
         prompt += f"Original text: {text}\nCritique:"
         llm = get_llm(LLMRole.TOOL, config=self.agent_config)
         response = llm.complete(prompt)
         return response.text
+
 
 #
 # Guardrails tool: returns list of topics to avoid

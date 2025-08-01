@@ -4,8 +4,9 @@ This file contains the prompt templates for the different types of agents.
 
 # General (shared) instructions
 GENERAL_INSTRUCTIONS = """
-- Use tools as your main source of information, do not respond without using a tool at least once.
-- Do not respond based on pre-trained knowledge, unless repeated calls to the tools fail or do not provide the information needed.
+- Use tools as your main source of information.
+- Do not respond based on pre-trained knowledge. Your response should be strictly grounded in the tool outputs or user messages,
+  and you should not make up information, add commentary not supported by the source, or hallucinate.
 - Use the 'get_bad_topics' (if it exists) tool to determine the topics you are not allowed to discuss or respond to.
 - Before responding to a user query that requires knowledge of the current date, call the 'get_current_date' tool to get the current date.
   Never rely on previous knowledge of the current date.
@@ -147,36 +148,3 @@ Below is the current conversation consisting of interleaving human and assistant
 """
 
 #
-# Prompts for structured planning agent
-#
-STRUCTURED_PLANNER_INITIAL_PLAN_PROMPT = """\
-Think step-by-step. Given a task and a set of tools, create a comprehensive, end-to-end plan to accomplish the task, using the tools.
-Only use the tools that are relevant to completing the task.
-Keep in mind not every task needs to be decomposed into multiple sub-tasks if it is simple enough.
-The plan should end with a sub-task that can achieve the overall task.
-
-The tools available are:
-{tools_str}
-
-Overall Task: {task}
-"""
-
-STRUCTURED_PLANNER_PLAN_REFINE_PROMPT = """\
-Think step-by-step. Given an overall task, a set of tools, and completed sub-tasks, update (if needed) the remaining sub-tasks so that the overall task can still be completed.
-Only use the tools that are relevant to completing the task.
-Do not add new sub-tasks that are not needed to achieve the overall task.
-The final sub-task in the plan should be the one that can satisfy the overall task.
-If you do update the plan, only create new sub-tasks that will replace the remaining sub-tasks, do NOT repeat tasks that are already completed.
-If the remaining sub-tasks are enough to achieve the overall task, it is ok to skip this step, and instead explain why the plan is complete.
-
-The tools available are:
-{tools_str}
-
-Completed Sub-Tasks + Outputs:
-{completed_outputs}
-
-Remaining Sub-Tasks:
-{remaining_sub_tasks}
-
-Overall Task: {task}
-"""

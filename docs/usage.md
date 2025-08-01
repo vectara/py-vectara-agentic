@@ -66,11 +66,11 @@ arguments, for example:
 
 ```python
 from pydantic import BaseModel
+from typing import Optional
 
 # define the arguments schema for the tool
 class QueryTranscriptsArgs(BaseModel):
-    year: int | str = Field(
-        default=None,
+    year: Optional[int | str] = Field(
         description=f"The year this query relates to. An integer between {min(years)} and {max(years)} or a string specifying a condition on the year",
         examples=[2020, '>2021', '<2023', '>=2021', '<=2023', '[2021, 2023]', '[2021, 2023)']
     )
@@ -125,7 +125,8 @@ ask_transcripts = vec_factory.create_rag_tool(
     summary_num_results = 10,
     vectara_summarizer = 'vectara-summary-ext-24-05-med-omni',
     include_citations = False,
-    fcs_threshold = 0.2
+    fcs_threshold = 0.2,
+    vhc_eligible = True  # RAG tools participate in VHC by default
 )
 ```
 
@@ -277,6 +278,27 @@ def earnings_per_share(
     return np.round(net_income / number_of_shares,4)
 
 my_tool = tools_factory.create_tool(earnings_per_share)
+```
+
+**VHC Eligibility for Custom Tools**
+
+When creating custom tools, consider whether they should participate in VHC (Vectara Hallucination Correction) analysis:
+
+```python
+# Tool that provides factual data - should participate in VHC
+def get_financial_data(ticker: str) -> dict:
+    """Retrieve financial data for a company."""
+    # API call to get real financial data
+    return {"revenue": 1000000, "profit": 50000}
+
+# Tool that processes/formats data - should not participate in VHC  
+def format_financial_report(data: dict) -> str:
+    """Format financial data into a readable report."""
+    return f"Revenue: ${data['revenue']:,}, Profit: ${data['profit']:,}"
+
+# Create tools with appropriate VHC eligibility
+data_tool = tools_factory.create_tool(get_financial_data, vhc_eligible=True)
+format_tool = tools_factory.create_tool(format_financial_report, vhc_eligible=False)
 ```
 
 A few important things to note:
@@ -471,12 +493,13 @@ dictionary that provides more detailed and easier to handle information.
 The `agent_config` argument is an optional object that you can use to
 explicitly specify the configuration of your agent, including the following:
 
-- `agent_type`: the agent type. Valid values are `REACT`, `LLMCOMPILER`, `LATS`, `FUNCTION_CALLING` or `OPENAI` (default: `OPENAI`).
-- `main_llm_provider` and `tool_llm_provider`: the LLM provider for main agent and for the tools. Valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI` or `FIREWORKS` (default: `OPENAI`).
-- `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider).
+- `agent_type`: the agent type. Valid values are `REACT`, `LLMCOMPILER`, `LATS`, or `FUNCTION_CALLING` (default: `FUNCTION_CALLING`).
+- `main_llm_provider` and `tool_llm_provider`: the LLM provider for main agent and for the tools. Valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI` (default: `OPENAI`).
+
+> **Note:** Fireworks AI support has been removed. If you were using Fireworks, please migrate to one of the supported providers listed above.
+- `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider: OpenAI uses gpt-4.1, Gemini uses gemini-2.5-flash-lite).
 - `observer`: the observer type; should be `ARIZE_PHOENIX` or if undefined no observation framework will be used.
 - `endpoint_api_key`: a secret key if using the API endpoint option (defaults to `dev-api-key`)
-- `max_reasoning_steps`: the maximum number of reasoning steps (iterations for React and function calls for OpenAI agent, respectively). defaults to 50.
 
 By default, each of these parameters will be read from your environment, but you can also
 explicitly define them with the `AgentConfig` class.
@@ -502,27 +525,28 @@ Here is how we will instantiate our finance assistant:
 from vectara_agentic import Agent
 
 agent = Agent(
-     tools=[tools_factory.create_tool(tool, tool_type="query") for tool in
-               [
-                   get_company_info,
-                   get_valid_years,
-                   get_income_statement
-               ]
-           ] +
-           tools_factory.standard_tools() +
-           tools_factory.financial_tools() +
-           tools_factory.guardrail_tools() +
-           [ask_transcripts],
+     tools=[
+         # Utility tools (don't provide factual context for VHC)
+         tools_factory.create_tool(get_company_info, vhc_eligible=False),
+         tools_factory.create_tool(get_valid_years, vhc_eligible=False),
+         # Data tools (provide factual context for VHC)  
+         tools_factory.create_tool(get_income_statement, vhc_eligible=True)
+     ] +
+     tools_factory.standard_tools() +      # Auto-marked as non-VHC-eligible
+     tools_factory.financial_tools() +     # Auto-marked as VHC-eligible
+     tools_factory.guardrail_tools() +     # Auto-marked as non-VHC-eligible
+     [ask_transcripts],                     # RAG tool, VHC-eligible by default
      topic="10-K annual financial reports",
      custom_instructions=financial_assistant_instructions,
      agent_progress_callback=agent_progress_callback
 )
 ```
 
-Notice that when we call the `create_tool()` method, we specified a
-`tool_type`. This can either be `"query"` (default) or `"action"`. For
-our example, all of the tools are query tools, so we can easily add all
-of them to our agent with a list comprehension, as shown above.
+Notice that when we call the `create_tool()` method, we can specify:
+- `tool_type`: Either `"query"` (default) or `"action"`
+- `vhc_eligible`: Whether the tool should participate in VHC analysis (default `True`)
+
+In our example, we explicitly set `vhc_eligible=False` for utility tools like `get_company_info` and `get_valid_years` since they provide metadata rather than factual content for responses. The `get_income_statement` tool is marked `vhc_eligible=True` since it provides actual financial data.
 
 ## Chat with your Assistant
 Once you have created your agent, using it is quite simple. All you have
@@ -675,13 +699,10 @@ The `Agent` class defines a few helpful methods to help you understand
 the internals of your application.
 
 1.  The `report()` method prints out the agent object's type (REACT,
-    OPENAI, or LLMCOMPILER), the tools, and the LLMs used for the main
+    FUNCTION_CALLING, or LLMCOMPILER), the tools, and the LLMs used for the main
     agent and tool calling.
-2.  The `token_counts()` method tells you how many tokens you have used
-    in the current session for both the main agent and tool calling
-    LLMs. This can be helpful for users who want to track how many
-    tokens have been used, which translates to how much money they are
-    spending.
+2.  The agent provides access to session information including conversation history
+    and tool usage patterns.
 
 If you have any other information that you would like to be accessible
 to users, feel free to make a suggestion on our community
@@ -692,7 +713,7 @@ You can also setup full observability for your vectara-agentic assistant
 or agent using [Arize Phoenix](https://phoenix.arize.com/). This allows
 you to view LLM prompt inputs and outputs, the latency of each task and
 subtask, and many of the individual function calls performed by the LLM,
-as well as FCS scores for each response.
+as well as VHC corrections for each response.
 
 To set up observability for your app, follow these steps:
 
@@ -715,8 +736,8 @@ To set up observability for your app, follow these steps:
     3.  To view the traces go to <https://app.phoenix.arize.com>.
 
 In addition to the raw traces, vectara-agentic also records `FCS` values
-into Arize for every Vectara RAG call. You can see those results in the
-`Feedback` column of the arize UI.
+into Arize for every Vectara RAG call (note: RAG tools still use FCS internally).
+You can see those results in the `Feedback` column of the arize UI.
 
 **Query Callback**
 You can define a callback function to log query/response pairs in your

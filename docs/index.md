@@ -179,23 +179,23 @@ and add it to a new or existing Vectara corpus.
 
 **Agent type, LLMs and model names:**
 
-`VECTARA_AGENTIC_AGENT_TYPE`: Agent type, either OPENAI (default),
-REACT, FUNCTION_CALLING, LATS or LLMCOMPILER 
-(make sure you have an OpenAI API key if you use the OpenAI agent).
+`VECTARA_AGENTIC_AGENT_TYPE`: Agent type, either FUNCTION_CALLING (default),
+REACT, LATS or LLMCOMPILER.
+
+> **note:** OPENAI agent type removed, use FUNCTION_CALLING with OpenAI as main_llm_provider.
 
 `VECTARA_AGENTIC_MAIN_LLM_PROVIDER`: The LLM used for the agent, either
-OPENAI (default), ANTHROPIC, GEMINI, TOGETHER, COHERE, BEDROCK, GROQ, or
-FIREWORKS. Note that to use the OPENAI agent type, you must use OPENAI
-as the main LLM provider.
+OPENAI (default), ANTHROPIC, GEMINI, TOGETHER, COHERE, BEDROCK, or GROQ.
 
 `VECTARA_AGENTIC_TOOL_LLM_PROVIDER`: The LLM used for the agent tools,
 either OPENAI (default), ANTHROPIC, GEMINI, TOGETHER, COHERE, BEDROCK,
-GROQ, or FIREWORKS.
+or GROQ.
 
 `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`,
-`TOGETHER_API_KEY`, `COHERE_API_KEY`, `BEDROCK_API_KEY`, `GROQ_API_KEY`,
-or `FIREWORKS_API_KEY`: Your API key for the agent or tool LLM, if you
+`TOGETHER_API_KEY`, `COHERE_API_KEY`, `BEDROCK_API_KEY`, or `GROQ_API_KEY`: Your API key for the agent or tool LLM, if you
 choose to use these services.
+
+> **Note:** Fireworks AI support has been removed. If you were using Fireworks, please migrate to one of the supported providers listed above.
 
 With any LLM provider choice, you can also specify the model type to use
 via these environment variables:
@@ -215,4 +215,3 @@ Defaults:
 5.  For `COHERE`, the default is `command-a-03-2025`.
 6.  For `BEDROCK`, the default is `us.anthropic.claude-sonnet-4-20250514-v1:0`.
 7.  For `GROQ`, the default is `deepseek-r1-distill-llama-70b`.
-8.  For `FIREWORKS`, the default is `accounts/fireworks/models/firefunction-v2`.

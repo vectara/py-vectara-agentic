@@ -2,10 +2,10 @@
 Utilities for the Vectara agentic.
 """
 
-from typing import Tuple, Callable, Optional
+from typing import Tuple, Optional
 import os
 from functools import lru_cache
-import tiktoken
+import hashlib
 
 from llama_index.core.llms import LLM
 from llama_index.llms.openai import OpenAI
@@ -13,7 +13,7 @@ from llama_index.llms.anthropic import Anthropic
 
 # LLM provider imports are now lazy-loaded in get_llm() function
 
-from .types import LLMRole, AgentType, ModelProvider
+from .types import LLMRole, ModelProvider
 from .agent_config import AgentConfig
 
 provider_to_default_model_name = {
@@ -21,13 +21,36 @@ provider_to_default_model_name = {
     ModelProvider.ANTHROPIC: "claude-sonnet-4-20250514",
     ModelProvider.TOGETHER: "deepseek-ai/DeepSeek-V3",
     ModelProvider.GROQ: "deepseek-r1-distill-llama-70b",
-    ModelProvider.FIREWORKS: "accounts/fireworks/models/firefunction-v2",
     ModelProvider.BEDROCK: "us.anthropic.claude-sonnet-4-20250514-v1:0",
     ModelProvider.COHERE: "command-a-03-2025",
     ModelProvider.GEMINI: "models/gemini-2.5-flash",
 }
 
 DEFAULT_MODEL_PROVIDER = ModelProvider.OPENAI
+
+# Manual cache for LLM instances to handle mutable AgentConfig objects
+_llm_cache = {}
+
+
+def _create_llm_cache_key(role: LLMRole, config: Optional[AgentConfig] = None) -> str:
+    """Create a hash-based cache key for LLM instances."""
+    if config is None:
+        config = AgentConfig()
+
+    # Extract only the relevant config parameters for the cache key
+    cache_data = {
+        "role": role.value,
+        "main_llm_provider": config.main_llm_provider.value,
+        "main_llm_model_name": config.main_llm_model_name,
+        "tool_llm_provider": config.tool_llm_provider.value,
+        "tool_llm_model_name": config.tool_llm_model_name,
+        "private_llm_api_base": config.private_llm_api_base,
+        "private_llm_api_key": config.private_llm_api_key,
+    }
+
+    # Create a stable hash from the cache data
+    cache_str = str(sorted(cache_data.items()))
+    return hashlib.md5(cache_str.encode()).hexdigest()
 
 
 @lru_cache(maxsize=None)
@@ -54,42 +77,20 @@ def _get_llm_params_for_role(
             model_provider
         )
 
-    # If the agent type is OpenAI, check that the main LLM provider is also OpenAI.
-    if role == LLMRole.MAIN and config.agent_type == AgentType.OPENAI:
-        if model_provider != ModelProvider.OPENAI:
-            raise ValueError(
-                "OpenAI agent requested but main model provider is not OpenAI."
-            )
-
     return model_provider, model_name
 
 
-@lru_cache(maxsize=None)
-def get_tokenizer_for_model(
-    role: LLMRole, config: Optional[AgentConfig] = None
-) -> Optional[Callable]:
-    """
-    Get the tokenizer for the specified model, as determined by the role & config.
-    """
-    model_name = "Unknown model"
-    try:
-        model_provider, model_name = _get_llm_params_for_role(role, config)
-        if model_provider == ModelProvider.OPENAI:
-            return tiktoken.encoding_for_model("gpt-4o").encode
-        if model_provider == ModelProvider.ANTHROPIC:
-            return Anthropic().tokenizer
-    except Exception:
-        print(f"Error getting tokenizer for model {model_name}, ignoring")
-        return None
-    return None
-
-
-@lru_cache(maxsize=None)
 def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
     """
     Get the LLM for the specified role, using the provided config
     or a default if none is provided.
+
+    Uses a cache based on configuration parameters to avoid repeated LLM instantiation.
     """
+    # Check cache first
+    cache_key = _create_llm_cache_key(role, config)
+    if cache_key in _llm_cache:
+        return _llm_cache[cache_key]
     model_provider, model_name = _get_llm_params_for_role(role, config)
     max_tokens = (
         16384
@@ -107,7 +108,7 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             model=model_name,
             temperature=0,
             is_function_calling_model=True,
-            strict=True,
+            strict=False,
             max_tokens=max_tokens,
             pydantic_program_mode="openai",
         )
@@ -128,7 +129,6 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             model=model_name,
             temperature=0,
             is_function_calling_model=True,
-            allow_parallel_tool_calls=True,
             max_tokens=max_tokens,
         )
     elif model_provider == ModelProvider.TOGETHER:
@@ -157,14 +157,6 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             is_function_calling_model=True,
             max_tokens=max_tokens,
         )
-    elif model_provider == ModelProvider.FIREWORKS:
-        try:
-            from llama_index.llms.fireworks import Fireworks
-        except ImportError as e:
-            raise ImportError(
-                "fireworks not available. Install with: pip install llama-index-llms-fireworks"
-            ) from e
-        llm = Fireworks(model=model_name, temperature=0, max_tokens=max_tokens)
     elif model_provider == ModelProvider.BEDROCK:
         try:
             from llama_index.llms.bedrock_converse import BedrockConverse
@@ -197,6 +189,10 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             raise ImportError(
                 "openai_like not available. Install with: pip install llama-index-llms-openai-like"
             ) from e
+        if not config or not config.private_llm_api_base or not config.private_llm_api_key:
+            raise ValueError(
+                "Private LLM requires both private_llm_api_base and private_llm_api_key to be set in AgentConfig."
+            )
         llm = OpenAILike(
             model=model_name,
             temperature=0,
@@ -209,4 +205,7 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
 
     else:
         raise ValueError(f"Unknown LLM provider: {model_provider}")
+
+    # Cache the created LLM instance
+    _llm_cache[cache_key] = llm
     return llm

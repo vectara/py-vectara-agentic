@@ -1,13 +1,18 @@
+# Suppress external dependency warnings before any other imports
+import warnings
+warnings.simplefilter("ignore", DeprecationWarning)
+
 import unittest
 import threading
 from datetime import date
 
-from vectara_agentic.agent import _get_prompt, Agent, AgentType
+from vectara_agentic.agent import Agent, AgentType
+from vectara_agentic.agent_core.utils.prompt_formatting import format_prompt
 from vectara_agentic.agent_config import AgentConfig
 from vectara_agentic.types import ModelProvider, ObserverType
 from vectara_agentic.tools import ToolsFactory
 
-from vectara_agentic._prompts import GENERAL_INSTRUCTIONS
+from vectara_agentic.agent_core.prompts import GENERAL_INSTRUCTIONS
 
 
 def mult(x: float, y: float) -> float:
@@ -28,7 +33,7 @@ class TestAgentPackage(unittest.TestCase):
             + " with Always do as your mother tells you!"
         )
         self.assertEqual(
-            _get_prompt(prompt_template, GENERAL_INSTRUCTIONS, topic, custom_instructions), expected_output
+            format_prompt(prompt_template, GENERAL_INSTRUCTIONS, topic, custom_instructions), expected_output
         )
 
     def test_agent_init(self):
@@ -36,11 +41,11 @@ class TestAgentPackage(unittest.TestCase):
         topic = "AI"
         custom_instructions = "Always do as your mother tells you!"
         agent = Agent(tools, topic, custom_instructions)
-        self.assertEqual(agent.agent_type, AgentType.OPENAI)
+        self.assertEqual(agent.agent_type, AgentType.FUNCTION_CALLING)
         self.assertEqual(agent._topic, topic)
         self.assertEqual(agent._custom_instructions, custom_instructions)
 
-        # To run this test, you must have OPENAI_API_KEY in your environment
+        # To run this test, you must have appropriate API key in your environment
         self.assertEqual(
             agent.chat(
                 "What is 5 times 10. Only give the answer, nothing else"

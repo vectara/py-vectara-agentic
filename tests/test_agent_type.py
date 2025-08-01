@@ -1,198 +1,137 @@
+# Suppress external dependency warnings before any other imports
+import warnings
+
+warnings.simplefilter("ignore", DeprecationWarning)
+
 import unittest
 
-from vectara_agentic.agent import Agent, AgentType
-from vectara_agentic.agent_config import AgentConfig
+from conftest import (
+    AgentTestMixin,
+    mult,
+    STANDARD_TEST_TOPIC,
+    STANDARD_TEST_INSTRUCTIONS,
+    default_config,
+    react_config_anthropic,
+    react_config_gemini,
+    react_config_together,
+    fc_config_anthropic,
+    fc_config_gemini,
+    fc_config_together,
+)
+from vectara_agentic.agent import Agent
 from vectara_agentic.tools import ToolsFactory
-from vectara_agentic.types import ModelProvider
 
-import nest_asyncio
-nest_asyncio.apply()
+class TestAgentType(unittest.TestCase, AgentTestMixin):
 
-def mult(x: float, y: float) -> float:
-    "Multiply two numbers"
-    return x * y
+    def setUp(self):
+        self.tools = [ToolsFactory().create_tool(mult)]
+        self.topic = STANDARD_TEST_TOPIC
+        self.instructions = STANDARD_TEST_INSTRUCTIONS
 
-
-react_config_anthropic = AgentConfig(
-    agent_type=AgentType.REACT,
-    main_llm_provider=ModelProvider.ANTHROPIC,
-    tool_llm_provider=ModelProvider.ANTHROPIC,
-)
-
-# React with Google does not work with Gemini 2.5-flash
-react_config_gemini = AgentConfig(
-    agent_type=AgentType.REACT,
-    main_llm_provider=ModelProvider.GEMINI,
-    main_llm_model_name="models/gemini-2.0-flash",
-    tool_llm_provider=ModelProvider.GEMINI,
-    tool_llm_model_name="models/gemini-2.0-flash",
-)
-
-react_config_together = AgentConfig(
-    agent_type=AgentType.REACT,
-    main_llm_provider=ModelProvider.TOGETHER,
-    tool_llm_provider=ModelProvider.TOGETHER,
-)
-
-react_config_groq = AgentConfig(
-    agent_type=AgentType.REACT,
-    main_llm_provider=ModelProvider.GROQ,
-    tool_llm_provider=ModelProvider.GROQ,
-)
-
-fc_config_anthropic = AgentConfig(
-    agent_type=AgentType.FUNCTION_CALLING,
-    main_llm_provider=ModelProvider.ANTHROPIC,
-    tool_llm_provider=ModelProvider.ANTHROPIC,
-)
-
-fc_config_gemini = AgentConfig(
-    agent_type=AgentType.FUNCTION_CALLING,
-    main_llm_provider=ModelProvider.GEMINI,
-    tool_llm_provider=ModelProvider.GEMINI,
-)
-
-fc_config_together = AgentConfig(
-    agent_type=AgentType.FUNCTION_CALLING,
-    main_llm_provider=ModelProvider.TOGETHER,
-    tool_llm_provider=ModelProvider.TOGETHER,
-)
-
-fc_config_groq = AgentConfig(
-    agent_type=AgentType.FUNCTION_CALLING,
-    main_llm_provider=ModelProvider.GROQ,
-    tool_llm_provider=ModelProvider.GROQ,
-)
-
-
-openai_config = AgentConfig(
-    agent_type=AgentType.OPENAI,
-)
-
-class TestAgentType(unittest.TestCase):
-
-    def test_openai(self):
-        tools = [ToolsFactory().create_tool(mult)]
-        topic = "AI topic"
-        instructions = "Always do as your father tells you, if your mother agrees!"
+    def test_default_function_calling(self):
         agent = Agent(
-            agent_config=openai_config,
-            tools=tools,
-            topic=topic,
-            custom_instructions=instructions,
+            agent_config=default_config,
+            tools=self.tools,
+            topic=self.topic,
+            custom_instructions=self.instructions,
         )
 
         agent.chat("What is 5 times 10. Only give the answer, nothing else")
         agent.chat("what is 3 times 7. Only give the answer, nothing else")
-        res = agent.chat("multiply the results of the last two multiplications. Only give the answer, nothing else.")
+        res = agent.chat(
+            "multiply the results of the last two multiplications. Only give the answer, nothing else."
+        )
         self.assertIn("1050", res.response)
 
     def test_gemini(self):
-        tools = [ToolsFactory().create_tool(mult)]
-        topic = "AI topic"
-        instructions = "Always do as your father tells you, if your mother agrees!"
-
         agent = Agent(
             agent_config=react_config_gemini,
-            tools=tools,
-            topic=topic,
-            custom_instructions=instructions,
+            tools=self.tools,
+            topic=self.topic,
+            custom_instructions=self.instructions,
         )
         agent.chat("What is 5 times 10. Only give the answer, nothing else")
         agent.chat("what is 3 times 7. Only give the answer, nothing else")
-        res = agent.chat("what is the result of multiplying the results of the last two multiplications. Only give the answer, nothing else.")
+        res = agent.chat(
+            "what is the result of multiplying the results of the last two "
+            "multiplications. Only give the answer, nothing else."
+        )
         self.assertIn("1050", res.response)
 
         agent = Agent(
             agent_config=fc_config_gemini,
-            tools=tools,
-            topic=topic,
-            custom_instructions=instructions,
+            tools=self.tools,
+            topic=self.topic,
+            custom_instructions=self.instructions,
         )
         agent.chat("What is 5 times 10. Only give the answer, nothing else")
         agent.chat("what is 3 times 7. Only give the answer, nothing else")
-        res = agent.chat("what is the result of multiplying the results of the last two multiplications. Only give the answer, nothing else.")
+        res = agent.chat(
+            "what is the result of multiplying the results of the last two "
+            "multiplications. Only give the answer, nothing else."
+        )
         self.assertIn("1050", res.response)
 
     def test_together(self):
-        tools = [ToolsFactory().create_tool(mult)]
-        topic = "AI topic"
-        instructions = "Always do as your father tells you, if your mother agrees!"
-
+        # Test ReAct agent with Together
         agent = Agent(
             agent_config=react_config_together,
-            tools=tools,
-            topic=topic,
-            custom_instructions=instructions,
+            tools=self.tools,
+            topic=self.topic,
+            custom_instructions=self.instructions,
         )
-        agent.chat("What is 5 times 10. Only give the answer, nothing else")
-        agent.chat("what is 3 times 7. Only give the answer, nothing else")
-        res = agent.chat("multiply the results of the last two multiplications. Only give the answer, nothing else.")
-        self.assertIn("1050", res.response)
 
+        with self.with_provider_fallback("Together AI"):
+            agent.chat("What is 5 times 10. Only give the answer, nothing else")
+            agent.chat("what is 3 times 7. Only give the answer, nothing else")
+            res = agent.chat(
+                "multiply the results of the last two multiplications. Only give the answer, nothing else."
+            )
+            self.check_response_and_skip(res, "Together AI")
+            self.assertIn("1050", res.response)
+
+        # Test Function Calling agent with Together
         agent = Agent(
             agent_config=fc_config_together,
-            tools=tools,
-            topic=topic,
-            custom_instructions=instructions,
+            tools=self.tools,
+            topic=self.topic,
+            custom_instructions=self.instructions,
         )
-        agent.chat("What is 5 times 10. Only give the answer, nothing else")
-        agent.chat("what is 3 times 7. Only give the answer, nothing else")
-        res = agent.chat("multiply the results of the last two multiplications. Only give the answer, nothing else.")
-        self.assertIn("1050", res.response)
 
-    def test_groq(self):
-        tools = [ToolsFactory().create_tool(mult)]
-        topic = "AI topic"
-        instructions = "Always do as your father tells you, if your mother agrees!"
-
-        agent = Agent(
-            agent_config=react_config_groq,
-            tools=tools,
-            topic=topic,
-            custom_instructions=instructions,
-        )
-        agent.chat("What is 5 times 10. Only give the answer, nothing else")
-        agent.chat("what is 3 times 7. Only give the answer, nothing else")
-        res = agent.chat("multiply the results of the last two multiplications. Only give the answer, nothing else.")
-        self.assertIn("1050", res.response)
-
-        agent = Agent(
-            agent_config=fc_config_groq,
-            tools=tools,
-            topic=topic,
-            custom_instructions=instructions,
-        )
-        agent.chat("What is 5 times 10. Only give the answer, nothing else")
-        agent.chat("what is 3 times 7. Only give the answer, nothing else")
-        res = agent.chat("multiply the results of the last two multiplications. Only give the answer, nothing else.")
-        self.assertIn("1050", res.response)
+        with self.with_provider_fallback("Together AI"):
+            agent.chat("What is 5 times 10. Only give the answer, nothing else")
+            agent.chat("what is 3 times 7. Only give the answer, nothing else")
+            res = agent.chat(
+                "multiply the results of the last two multiplications. Only give the answer, nothing else."
+            )
+            self.check_response_and_skip(res, "Together AI")
+            self.assertIn("1050", res.response)
 
     def test_anthropic(self):
-        tools = [ToolsFactory().create_tool(mult)]
-        topic = "AI topic"
-        instructions = "Always do as your father tells you, if your mother agrees!"
-
         agent = Agent(
             agent_config=react_config_anthropic,
-            tools=tools,
-            topic=topic,
-            custom_instructions=instructions,
+            tools=self.tools,
+            topic=self.topic,
+            custom_instructions=self.instructions,
         )
         agent.chat("What is 5 times 10. Only give the answer, nothing else")
         agent.chat("what is 3 times 7. Only give the answer, nothing else")
-        res = agent.chat("multiply the results of the last two multiplications. Only give the answer, nothing else.")
+        res = agent.chat(
+            "multiply the results of the last two multiplications. Only give the answer, nothing else."
+        )
         self.assertIn("1050", res.response)
 
         agent = Agent(
             agent_config=fc_config_anthropic,
-            tools=tools,
-            topic=topic,
-            custom_instructions=instructions,
+            tools=self.tools,
+            topic=self.topic,
+            custom_instructions=self.instructions,
         )
         agent.chat("What is 5 times 10. Only give the answer, nothing else")
         agent.chat("what is 3 times 7. Only give the answer, nothing else")
-        res = agent.chat("multiply the results of the last two multiplications. Only give the answer, nothing else.")
+        res = agent.chat(
+            "multiply the results of the last two multiplications. Only give the answer, nothing else."
+        )
         self.assertIn("1050", res.response)
 
 

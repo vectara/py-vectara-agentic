@@ -4,6 +4,7 @@ This module contains the ToolsFactory class for creating agent tools.
 
 import inspect
 import re
+import traceback
 
 from typing import (
     Callable,
@@ -17,7 +18,7 @@ from typing import (
     get_origin,
     get_args,
 )
-from pydantic import BaseModel, create_model
+from pydantic import BaseModel, create_model, Field
 from pydantic_core import PydanticUndefined
 
 from llama_index.core.tools import FunctionTool
@@ -31,21 +32,26 @@ from .utils import is_float
 
 class VectaraToolMetadata(ToolMetadata):
     """
-    A subclass of ToolMetadata adding the tool_type attribute.
+    A subclass of ToolMetadata adding the tool_type and vhc_eligible attributes.
     """
 
     tool_type: ToolType
+    vhc_eligible: bool
 
-    def __init__(self, tool_type: ToolType, **kwargs):
+    def __init__(self, tool_type: ToolType, vhc_eligible: bool = True, **kwargs):
         super().__init__(**kwargs)
         self.tool_type = tool_type
+        self.vhc_eligible = vhc_eligible
 
     def __repr__(self) -> str:
         """
-        Returns a string representation of the VectaraToolMetadata object, including the tool_type attribute.
+        Returns a string representation of the VectaraToolMetadata object,
+        including the tool_type and vhc_eligible attributes.
         """
         base_repr = super().__repr__()
-        return f"{base_repr}, tool_type={self.tool_type}"
+        return (
+            f"{base_repr}, tool_type={self.tool_type}, vhc_eligible={self.vhc_eligible}"
+        )
 
 
 class VectaraTool(FunctionTool):
@@ -59,11 +65,17 @@ class VectaraTool(FunctionTool):
         metadata: ToolMetadata,
         fn: Optional[Callable[..., Any]] = None,
         async_fn: Optional[AsyncCallable] = None,
+        vhc_eligible: bool = True,
     ) -> None:
+        # Use Pydantic v2 compatible method for extracting metadata
         metadata_dict = (
-            metadata.dict() if hasattr(metadata, "dict") else metadata.__dict__
+            metadata.model_dump()
+            if hasattr(metadata, "model_dump")
+            else metadata.dict() if hasattr(metadata, "dict") else metadata.__dict__
         )
-        vm = VectaraToolMetadata(tool_type=tool_type, **metadata_dict)
+        vm = VectaraToolMetadata(
+            tool_type=tool_type, vhc_eligible=vhc_eligible, **metadata_dict
+        )
         super().__init__(fn, vm, async_fn)
 
     @classmethod
@@ -80,6 +92,7 @@ class VectaraTool(FunctionTool):
         async_callback: Optional[AsyncCallable] = None,
         partial_params: Optional[Dict[str, Any]] = None,
         tool_type: ToolType = ToolType.QUERY,
+        vhc_eligible: bool = True,
     ) -> "VectaraTool":
         tool = FunctionTool.from_defaults(
             fn,
@@ -98,6 +111,7 @@ class VectaraTool(FunctionTool):
             fn=tool.fn,
             metadata=tool.metadata,
             async_fn=tool.async_fn,
+            vhc_eligible=vhc_eligible,
         )
         return vectara_tool
 
@@ -123,94 +137,82 @@ class VectaraTool(FunctionTool):
         )
         return is_equal
 
+    def _create_tool_error_output(
+        self, error: Exception, args: Any, kwargs: Any, include_traceback: bool = False
+    ) -> ToolOutput:
+        """Create standardized error output for tool execution failures."""
+        if isinstance(error, TypeError):
+            # Parameter validation error handling
+            sig = inspect.signature(self.metadata.fn_schema)
+            valid_parameters = list(sig.parameters.keys())
+            params_str = ", ".join(valid_parameters)
+            return ToolOutput(
+                tool_name=self.metadata.name,
+                content=(
+                    f"Wrong argument used when calling {self.metadata.name}: {str(error)}. "
+                    f"Valid arguments: {params_str}. Please call the tool again with the correct arguments."
+                ),
+                raw_input={"args": args, "kwargs": kwargs},
+                raw_output={"response": str(error)},
+            )
+        else:
+            # General execution error handling
+            content = f"Tool {self.metadata.name} Malfunction: {str(error)}"
+            if include_traceback:
+                content += f", traceback: {traceback.format_exc()}"
+
+            return ToolOutput(
+                tool_name=self.metadata.name,
+                content=content,
+                raw_input={"args": args, "kwargs": kwargs},
+                raw_output={"response": str(error)},
+            )
+
     def call(
         self, *args: Any, ctx: Optional[Context] = None, **kwargs: Any
     ) -> ToolOutput:
         try:
-            result = super().call(*args, ctx=ctx, **kwargs)
+            # Only pass ctx if it's not None to avoid passing unwanted kwargs to the function
+            if ctx is not None:
+                result = super().call(*args, ctx=ctx, **kwargs)
+            else:
+                result = super().call(*args, **kwargs)
             return self._format_tool_output(result)
-        except TypeError as e:
-            sig = inspect.signature(self.metadata.fn_schema)
-            valid_parameters = list(sig.parameters.keys())
-            params_str = ", ".join(valid_parameters)
-
-            err_output = ToolOutput(
-                tool_name=self.metadata.name,
-                content=(
-                    f"Wrong argument used when calling {self.metadata.name}: {str(e)}."
-                    f"Valid arguments: {params_str}. please call the tool again with the correct arguments."
-                ),
-                raw_input={"args": args, "kwargs": kwargs},
-                raw_output={"response": str(e)},
-            )
-            return err_output
         except Exception as e:
-            err_output = ToolOutput(
-                tool_name=self.metadata.name,
-                content=f"Tool {self.metadata.name} Malfunction: {str(e)}",
-                raw_input={"args": args, "kwargs": kwargs},
-                raw_output={"response": str(e)},
-            )
-            return err_output
+            return self._create_tool_error_output(e, args, kwargs)
 
     async def acall(
         self, *args: Any, ctx: Optional[Context] = None, **kwargs: Any
     ) -> ToolOutput:
         try:
-            result = await super().acall(*args, ctx=ctx, **kwargs)
+            # Only pass ctx if it's not None to avoid passing unwanted kwargs to the function
+            if ctx is not None:
+                result = await super().acall(*args, ctx=ctx, **kwargs)
+            else:
+                result = await super().acall(*args, **kwargs)
             return self._format_tool_output(result)
-        except TypeError as e:
-            sig = inspect.signature(self.metadata.fn_schema)
-            valid_parameters = list(sig.parameters.keys())
-            params_str = ", ".join(valid_parameters)
-
-            err_output = ToolOutput(
-                tool_name=self.metadata.name,
-                content=(
-                    f"Wrong argument used when calling {self.metadata.name}: {str(e)}. "
-                    f"Valid arguments: {params_str}. please call the tool again with the correct arguments."
-                ),
-                raw_input={"args": args, "kwargs": kwargs},
-                raw_output={"response": str(e)},
-            )
-            return err_output
         except Exception as e:
-            import traceback
-
-            err_output = ToolOutput(
-                tool_name=self.metadata.name,
-                content=f"Tool {self.metadata.name} Malfunction: {str(e)}, traceback: {traceback.format_exc()}",
-                raw_input={"args": args, "kwargs": kwargs},
-                raw_output={"response": str(e)},
+            return self._create_tool_error_output(
+                e, args, kwargs, include_traceback=True
             )
-            return err_output
 
     def _format_tool_output(self, result: ToolOutput) -> ToolOutput:
-        """Format tool output to use human-readable representation if available."""
-        if hasattr(result, "content") and _is_human_readable_output(result.content):
-            try:
-                # Use human-readable format for content, keep raw output
-                human_readable_content = result.content.to_human_readable()
-                raw_output = result.content.get_raw_output()
-                return ToolOutput(
-                    tool_name=result.tool_name,
-                    content=human_readable_content,
-                    raw_input=result.raw_input,
-                    raw_output=raw_output,
-                )
-            except Exception as e:
-                # If formatting fails, fall back to original content with error info
-                import logging
+        """Format tool output by converting human-readable wrappers to formatted content immediately."""
+        import logging
 
+        # If the raw_output has human-readable formatting, use it for the content
+        if hasattr(result, "raw_output") and _is_human_readable_output(
+            result.raw_output
+        ):
+            try:
+                formatted_content = result.raw_output.to_human_readable()
+                # Replace the content with the formatted version
+                result.content = formatted_content
+            except Exception as e:
                 logging.warning(
-                    f"Failed to format tool output for {result.tool_name}: {e}"
+                    f"{self.metadata.name}: Failed to convert to human-readable: {e}"
                 )
-                return ToolOutput(
-                    tool_name=result.tool_name,
-                    content=f"[Formatting Error] {str(result.content)}",
-                    raw_input=result.raw_input,
-                    raw_output={"error": str(e), "original_content": result.content},
-                )
+
         return result
 
 
@@ -257,7 +259,6 @@ def _make_docstring(
     tool_description: str,
     fn_schema: Type[BaseModel],
     all_params: List[inspect.Parameter],
-    compact_docstring: bool,
 ) -> str:
     """
     Generates a docstring for a function based on its signature, description,
@@ -269,7 +270,6 @@ def _make_docstring(
         tool_description: The main description of the tool/function.
         fn_schema: The Pydantic model representing the function's arguments schema.
         all_params: A list of inspect.Parameter objects for the function signature.
-        compact_docstring: If True, omits the signature line in the main description.
 
     Returns:
         A formatted docstring string.
@@ -282,10 +282,7 @@ def _make_docstring(
     params_str = ", ".join(params_str_parts)
     signature_line = f"{tool_name}({params_str}) -> dict[str, Any]"
 
-    if compact_docstring:
-        doc_lines = [tool_description.strip()]
-    else:
-        doc_lines = [signature_line, "", tool_description.strip()]
+    doc_lines = [signature_line, "", tool_description.strip()]
 
     full_schema = fn_schema.model_json_schema()
     props = full_schema.get("properties", {})
@@ -339,14 +336,61 @@ def _make_docstring(
     return final_docstring
 
 
+def _auto_fix_field_if_needed(
+    field_name: str, field_info, annotation
+) -> Tuple[Any, Any]:
+    """
+    Auto-fix problematic Field definitions: convert non-Optional types with any default value to Optional.
+
+    Args:
+        field_name: Name of the field
+        field_info: The Pydantic FieldInfo object
+        annotation: The type annotation for the field
+
+    Returns:
+        Tuple of (possibly_modified_annotation, possibly_modified_field_info)
+    """
+    # Check for problematic pattern: non-Optional type with any default value
+    if (
+        field_info.default is not PydanticUndefined
+        and annotation is not None
+        and get_origin(annotation) is not Union
+    ):
+
+        # Convert to Optional[OriginalType] and keep the original default value
+        new_annotation = Union[annotation, type(None)]
+        # Create new field_info preserving the original default value
+        new_field_info = Field(
+            default=field_info.default,
+            description=field_info.description,
+            examples=getattr(field_info, "examples", None),
+            title=getattr(field_info, "title", None),
+            alias=getattr(field_info, "alias", None),
+            json_schema_extra=getattr(field_info, "json_schema_extra", None),
+        )
+
+        # Optional: Log the auto-fix for debugging
+        import logging
+
+        logging.debug(
+            f"Auto-fixed field '{field_name}': "
+            f"converted {annotation} with default={field_info.default} to Optional[{annotation.__name__}]"
+        )
+
+        return new_annotation, new_field_info
+    else:
+        # Keep original field definition
+        return annotation, field_info
+
+
 def create_tool_from_dynamic_function(
     function: Callable[..., ToolOutput],
     tool_name: str,
     tool_description: str,
     base_params_model: Type[BaseModel],
     tool_args_schema: Type[BaseModel],
-    compact_docstring: bool = False,
     return_direct: bool = False,
+    vhc_eligible: bool = True,
 ) -> VectaraTool:
     """
     Create a VectaraTool from a dynamic function.
@@ -356,7 +400,7 @@ def create_tool_from_dynamic_function(
         tool_description (str): The description of the tool.
         base_params_model (Type[BaseModel]): The Pydantic model for the base parameters.
         tool_args_schema (Type[BaseModel]): The Pydantic model for the tool arguments.
-        compact_docstring (bool): Whether to use a compact docstring format.
+        return_direct (bool): Whether to return the tool output directly.
     Returns:
         VectaraTool: The created VectaraTool.
     """
@@ -371,6 +415,11 @@ def create_tool_from_dynamic_function(
     fields: Dict[str, Any] = {}
     base_params = []
     for field_name, field_info in base_params_model.model_fields.items():
+        # Apply auto-conversion if needed
+        annotation, field_info = _auto_fix_field_if_needed(
+            field_name, field_info, field_info.annotation
+        )
+
         default = (
             Ellipsis if field_info.default is PydanticUndefined else field_info.default
         )
@@ -378,16 +427,21 @@ def create_tool_from_dynamic_function(
             field_name,
             inspect.Parameter.POSITIONAL_OR_KEYWORD,
             default=default if default is not Ellipsis else inspect.Parameter.empty,
-            annotation=field_info.annotation,
+            annotation=annotation,
         )
         base_params.append(param)
-        fields[field_name] = (field_info.annotation, field_info)
+        fields[field_name] = (annotation, field_info)
 
     # Add tool_args_schema fields to the fields dict if not already included.
     for field_name, field_info in tool_args_schema.model_fields.items():
         if field_name in fields:
             continue
 
+        # Apply auto-conversion if needed
+        annotation, field_info = _auto_fix_field_if_needed(
+            field_name, field_info, field_info.annotation
+        )
+
         default = (
             Ellipsis if field_info.default is PydanticUndefined else field_info.default
         )
@@ -395,12 +449,12 @@ def create_tool_from_dynamic_function(
             field_name,
             inspect.Parameter.POSITIONAL_OR_KEYWORD,
             default=default if default is not Ellipsis else inspect.Parameter.empty,
-            annotation=field_info.annotation,
+            annotation=annotation,
         )
         base_params.append(param)
-        fields[field_name] = (field_info.annotation, field_info)
+        fields[field_name] = (annotation, field_info)
 
-    # Create the dynamic schema with both base_params_model and tool_args_schema fields.
+    # Create the dynamic schema with both base_params_model and tool_args_schema fields (auto-fixed)
     fn_schema = create_model(f"{tool_name}_schema", **fields)
 
     # Combine parameters into a function signature.
@@ -414,7 +468,7 @@ def create_tool_from_dynamic_function(
     function.__name__ = re.sub(r"[^A-Za-z0-9_]", "_", tool_name)
 
     function.__doc__ = _make_docstring(
-        function, tool_name, tool_description, fn_schema, all_params, compact_docstring
+        function, tool_name, tool_description, fn_schema, all_params
     )
     tool = VectaraTool.from_defaults(
         fn=function,
@@ -423,6 +477,7 @@ def create_tool_from_dynamic_function(
         fn_schema=fn_schema,
         tool_type=ToolType.QUERY,
         return_direct=return_direct,
+        vhc_eligible=vhc_eligible,
     )
     return tool
 

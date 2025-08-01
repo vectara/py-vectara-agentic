@@ -6,6 +6,7 @@ import os
 from dataclasses import dataclass, field
 from .types import ModelProvider, AgentType, ObserverType
 
+
 @dataclass(eq=True, frozen=True)
 class AgentConfig:
     """
@@ -19,7 +20,7 @@ class AgentConfig:
     # Agent type
     agent_type: AgentType = field(
         default_factory=lambda: AgentType(
-            os.getenv("VECTARA_AGENTIC_AGENT_TYPE", AgentType.OPENAI.value)
+            os.getenv("VECTARA_AGENTIC_AGENT_TYPE", AgentType.FUNCTION_CALLING.value)
         )
     )
 
@@ -46,11 +47,15 @@ class AgentConfig:
 
     # Params for Private LLM endpoint if used
     private_llm_api_base: str = field(
-        default_factory=lambda: os.getenv("VECTARA_AGENTIC_PRIVATE_LLM_API_BASE",
-                                          "http://private-endpoint.company.com:5000/v1")
+        default_factory=lambda: os.getenv(
+            "VECTARA_AGENTIC_PRIVATE_LLM_API_BASE",
+            "http://private-endpoint.company.com:5000/v1",
+        )
     )
     private_llm_api_key: str = field(
-        default_factory=lambda: os.getenv("VECTARA_AGENTIC_PRIVATE_LLM_API_KEY", "<private-api-key>")
+        default_factory=lambda: os.getenv(
+            "VECTARA_AGENTIC_PRIVATE_LLM_API_KEY", "<private-api-key>"
+        )
     )
 
     # Observer
@@ -65,20 +70,18 @@ class AgentConfig:
         default_factory=lambda: os.getenv("VECTARA_AGENTIC_API_KEY", "dev-api-key")
     )
 
-    # max reasoning steps
-    # used for both OpenAI and React Agent types
-    max_reasoning_steps: int = field(
-        default_factory=lambda: int(os.getenv("VECTARA_AGENTIC_MAX_REASONING_STEPS", "50"))
-    )
-
     def __post_init__(self):
         # Use object.__setattr__ since the dataclass is frozen
         if isinstance(self.agent_type, str):
             object.__setattr__(self, "agent_type", AgentType(self.agent_type))
         if isinstance(self.main_llm_provider, str):
-            object.__setattr__(self, "main_llm_provider", ModelProvider(self.main_llm_provider))
+            object.__setattr__(
+                self, "main_llm_provider", ModelProvider(self.main_llm_provider)
+            )
         if isinstance(self.tool_llm_provider, str):
-            object.__setattr__(self, "tool_llm_provider", ModelProvider(self.tool_llm_provider))
+            object.__setattr__(
+                self, "tool_llm_provider", ModelProvider(self.tool_llm_provider)
+            )
         if isinstance(self.observer, str):
             object.__setattr__(self, "observer", ObserverType(self.observer))
 
@@ -94,7 +97,6 @@ class AgentConfig:
             "tool_llm_model_name": self.tool_llm_model_name,
             "observer": self.observer.value,
             "endpoint_api_key": self.endpoint_api_key,
-            "max_reasoning_steps": self.max_reasoning_steps
         }
 
     @classmethod
@@ -110,5 +112,4 @@ class AgentConfig:
             tool_llm_model_name=config_dict["tool_llm_model_name"],
             observer=ObserverType(config_dict["observer"]),
             endpoint_api_key=config_dict["endpoint_api_key"],
-            max_reasoning_steps=config_dict["max_reasoning_steps"]
         )

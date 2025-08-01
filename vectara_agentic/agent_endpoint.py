@@ -16,12 +16,6 @@ from .agent import Agent
 from .agent_config import AgentConfig
 
 
-class ChatRequest(BaseModel):
-    """Request schema for the /chat endpoint."""
-
-    message: str
-
-
 class CompletionRequest(BaseModel):
     """Request schema for the /v1/completions endpoint."""
 
@@ -64,12 +58,14 @@ class CompletionResponse(BaseModel):
 
 class ChatMessage(BaseModel):
     """Schema for individual chat messages in ChatCompletionRequest."""
+
     role: Literal["system", "user", "assistant"]
     content: str
 
 
 class ChatCompletionRequest(BaseModel):
     """Request schema for the /v1/chat endpoint."""
+
     model: str
     messages: List[ChatMessage]
     temperature: Optional[float] = Field(1.0, ge=0.0, le=2.0)
@@ -79,6 +75,7 @@ class ChatCompletionRequest(BaseModel):
 
 class ChatCompletionChoice(BaseModel):
     """Choice schema returned in ChatCompletionResponse."""
+
     index: int
     message: ChatMessage
     finish_reason: Literal["stop", "length", "error", None]
@@ -86,6 +83,7 @@ class ChatCompletionChoice(BaseModel):
 
 class ChatCompletionResponse(BaseModel):
     """Response schema for the /v1/chat endpoint."""
+
     id: str
     object: Literal["chat.completion"]
     created: int
