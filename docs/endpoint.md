@@ -4,7 +4,7 @@ It's super easy to host your vectara-agentic assistant or agent behind
 an API endpoint:
 
 `vectara-agentic` can be easily hosted locally or on a remote machine
-behind an API endpoint, by following theses steps:
+behind an API endpoint, by following these steps:
 
 1\. **Setup your API key** Ensure that you have your API key set up as
 an environment variable:

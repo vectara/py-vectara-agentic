@@ -101,7 +101,7 @@ different `tool_name_prefix`.
 In addition to the tools above, vectara-agentic also supports these
 additional tools from the LlamaIndex Tools hub:
 
-1.  `arxiv`: A tool that queries the arXiv respository of papers.
+1.  `arxiv`: A tool that queries the arXiv repository of papers.
 2.  `tavily_research`: A tool that queries the web using Tavily.
 3.  `kuzu`: A tool that queries the Kuzu graph database.
 4.  `waii`: A tool for querying databases with natural language.

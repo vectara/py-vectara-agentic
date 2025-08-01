@@ -388,7 +388,7 @@ recommend for you to follow.
 **VHC Eligibility for Custom Tools**
 
 When creating custom tools, you should consider whether they should participate in VHC (Vectara Hallucination Correction) analysis.
-To learn more about this feature, reference the [VHC Elibility](tools.md#vhc-eligibility) section.
+To learn more about this feature, reference the [VHC Eligibility](tools.md#vhc-eligibility) section.
 
 For example, the `get_financial_data()` tool defined below should use VHC because it provides factual financial information about a stock.
 On the other hand, `format_financial_report()` should not use VHC because it is simply used to create a structured output from another tool.
