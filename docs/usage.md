@@ -37,7 +37,7 @@ There are three categories of tools you can use with vectara-agentic:
     code in Python.
 
 **Vectara RAG Query Tool**
-Let's see how to create a Vectara query tool. In order to use this
+Let's see how to create a Vectara RAG tool. In order to use this
 tool, you need to create a corpus and API key with a [Vectara
 account](https://console.vectara.com/signup/?utm_source=github&utm_medium=code&utm_term=DevRel&utm_content=vectara-agentic&utm_campaign=github-code-DevRel-vectara-agentic).
 In this example, we will create the `ask_transcripts` tool, which can be
@@ -58,8 +58,9 @@ Note that:
 
 - The arguments for this tool are defined using Python's `pydantic` package with the `Field` class. By defining the tool in this
   way, we provide a good description for each argument so that the agent LLM can easily understand the tool's functionality 
-  and how to use it properly.
-- The `query` argument is added automatically to the RAG tool, and you don't need to specify it here
+  and how to use it properly. Each argument corresponds to a metadata attribute for documents in the Vectara corpus.
+  The agent will provide these arguments based on the user's query to filter the matching search results returned by the RAG tool.
+- The `query` argument is added automatically to the RAG tool, so you don't need to specify it here.
 
 You can also define an argument to support optional conditional
 arguments, for example:
@@ -126,7 +127,7 @@ ask_transcripts = vec_factory.create_rag_tool(
     vectara_summarizer = 'vectara-summary-ext-24-05-med-omni',
     include_citations = False,
     fcs_threshold = 0.2,
-    vhc_eligible = True  # RAG tools participate in VHC by default
+    vhc_eligible = True
 )
 ```
 
@@ -143,12 +144,12 @@ In the code above, we did the following:
     [Authorization](https://console.vectara.com/console/apiAccess/apiKeys)
     page and give it to access to all the corpora you want for this
     query tool. When specifying your environment variables, set
-    `VECTARA_CORPUS_KEY` to a list of corpus IDs separated by commas
-    (e.g. `5,6,19`).
+    `VECTARA_CORPUS_KEY` to a list of corpus keys separated by commas
+    (e.g. `corpus_key1,corpus_key2,corpus_key3`).
 -   Then we called `create_rag_tool()`, specifying the tool name,
     description and schema for the tool, followed by various optional
     parameters to control the Vectara RAG query tool. Notice that we
-    also specified the type of each additional argument in the schema.
+    also specified the type of each additional argument in the schema with the `tool_args_type` parameter.
     The type of each argument can be `"doc"` or `"part"`, corresponding
     to whether the metadata argument is document metadata or part
     metadata in the Vectara corpus. See this
@@ -177,7 +178,7 @@ and finally the [MMR](https://docs.vectara.com/docs/learn/mmr-reranker)
 reranker with a diversity bias of 0.1. You can also supply other
 parameters to each reranker, such as a `cutoff` parameter, which removes
 documents that have scores below this threshold value after applying the
-given reranker. Lastly, you can add another [user defined
+given reranker. Lastly, you can add a [user defined
 function](https://docs.vectara.com/docs/learn/user-defined-function-reranker)
 reranker as the last reranker in the chain to specify a customized
 expression to rerank results in a way that is relevant to your specific
@@ -201,7 +202,7 @@ with different parameters, depending on your needs.
   argument. If specified, it allows you to specify a different base URL for Vectara,
   for example when you have an on-premise installation.
 - If you want to specify a Certificate Authority for a local installation,
-  you can set "export REQUESTS_CA_BUNDLE=/path/to/custom_ca_bundle.pem".
+  you can set `"export REQUESTS_CA_BUNDLE=/path/to/custom_ca_bundle.pem"`in your environment.
 
 **Vectara Search Tool**
 In most cases, you will likely want to use the Vectara RAG query tool,
@@ -214,6 +215,9 @@ the results. For example, you may ask your agent "How many documents
 mention information about tax laws and regulations?". The agent will be
 able to get a list of documents from your Vectara corpus and analyze the
 results to answer your question.
+
+You can also get a summary of each retrieved document by specifying
+`summarize_docs=True` when creating your search function.
 
 **Metadata Filtering**
 In most cases, you will want to use the `tool_args_schema` to define the
@@ -231,6 +235,11 @@ case, you can use the `fixed_filter` parameter to the
 In our example where we want all results to be from 2022 and later, we
 would specify `fixed_filter = "doc.year >= 2022"`.
 
+Make sure that these fields are defined as filter attributes in your
+Vectara corpus.
+See this [page](https://docs.vectara.com/docs/learn/metadata-search-filtering/using-metadata-filters)
+for more information about metadata and filter attributes.
+
 **Additional Tools**
 To generate non-RAG tools, you can use the `ToolsFactory` class, which
 provides some out-of-the-box tools that you might find helpful when
@@ -247,7 +256,7 @@ Currently, we have a few tool groups you may want to consider using:
 -   `database_tools()`: tools to explore SQL databases and make queries
     based on user prompts.
 -   `guardrail_tools()`: These tools are designed to help the agent
-    avoid certain topics from its response.
+    avoid certain topics that may be inappropriate or controversial in its responses.
 
 For example, to get access to all the legal tools, you can use the
 following:
@@ -258,8 +267,7 @@ from vectara_agentic.tools import ToolsFactory
 legal_tools = ToolsFactory().legal_tools()
 ```
 
-For more details about the tools see `Tools <tools>`{.interpreted-text
-role="doc"}.
+For more details about these and other tools, see [Tools](tools.md).
 
 **Create your own tool**
 You can also create your own tool directly by defining a Python
@@ -278,27 +286,6 @@ def earnings_per_share(
     return np.round(net_income / number_of_shares,4)
 
 my_tool = tools_factory.create_tool(earnings_per_share)
-```
-
-**VHC Eligibility for Custom Tools**
-
-When creating custom tools, consider whether they should participate in VHC (Vectara Hallucination Correction) analysis:
-
-```python
-# Tool that provides factual data - should participate in VHC
-def get_financial_data(ticker: str) -> dict:
-    """Retrieve financial data for a company."""
-    # API call to get real financial data
-    return {"revenue": 1000000, "profit": 50000}
-
-# Tool that processes/formats data - should not participate in VHC  
-def format_financial_report(data: dict) -> str:
-    """Format financial data into a readable report."""
-    return f"Revenue: ${data['revenue']:,}, Profit: ${data['profit']:,}"
-
-# Create tools with appropriate VHC eligibility
-data_tool = tools_factory.create_tool(get_financial_data, vhc_eligible=True)
-format_tool = tools_factory.create_tool(format_financial_report, vhc_eligible=False)
 ```
 
 A few important things to note:
@@ -381,7 +368,7 @@ use the tool. This function definition follows best practices for
 defining tools. You should make this description detailed enough so that
 your agent knows when to use each of your tools.
 
-You can define your tool as an individual python function (as shown
+You can define your tool as an individual Python function (as shown
 above) or as a method in a Python class. It may be helpful to define all
 of your tools (Vectara tools, other pre-built tools, and your custom
 tools) in a single AgentTools class. Please note that you **cannot**
@@ -397,6 +384,28 @@ request was unable to be processed).
 Finally, notice that we have used snake_case for all of our function
 names. While this is not required, it's a best practice that we
 recommend for you to follow.
+
+**VHC Eligibility for Custom Tools**
+
+When creating custom tools, you should consider whether they should participate in VHC (Vectara Hallucination Correction) analysis.
+To learn more about this feature, reference the [VHC Eligibility](tools.md#vhc-eligibility) section.
+
+For example, the `get_financial_data()` tool defined below should use VHC because it provides factual financial information about a stock.
+On the other hand, `format_financial_report()` should not use VHC because it is simply used to create a structured output from another tool.
+
+```python
+def get_financial_data(ticker: str) -> dict:
+    """Retrieve financial data for a company."""
+    # API call to get real financial data
+    return {"revenue": 1000000, "profit": 50000}
+
+def format_financial_report(data: dict) -> str:
+    """Format financial data into a readable report."""
+    return f"Revenue: ${data['revenue']:,}, Profit: ${data['profit']:,}"
+
+data_tool = tools_factory.create_tool(get_financial_data, vhc_eligible=True)
+format_tool = tools_factory.create_tool(format_financial_report, vhc_eligible=False)
+```
 
 ## Initialize The Agent
 Now that we have our tools, let's create the agent, using the following
@@ -493,7 +502,7 @@ dictionary that provides more detailed and easier to handle information.
 The `agent_config` argument is an optional object that you can use to
 explicitly specify the configuration of your agent, including the following:
 
-- `agent_type`: the agent type. Valid values are `REACT`, `LLMCOMPILER`, `LATS`, or `FUNCTION_CALLING` (default: `FUNCTION_CALLING`).
+- `agent_type`: the agent type. Valid values are `FUNCTION_CALLING`, `REACT`, `LLMCOMPILER`, or `LATS` (default: `FUNCTION_CALLING`).
 - `main_llm_provider` and `tool_llm_provider`: the LLM provider for main agent and for the tools. Valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI` (default: `OPENAI`).
 
 > **Note:** Fireworks AI support has been removed. If you were using Fireworks, please migrate to one of the supported providers listed above.
@@ -526,16 +535,14 @@ from vectara_agentic import Agent
 
 agent = Agent(
      tools=[
-         # Utility tools (don't provide factual context for VHC)
          tools_factory.create_tool(get_company_info, vhc_eligible=False),
          tools_factory.create_tool(get_valid_years, vhc_eligible=False),
-         # Data tools (provide factual context for VHC)  
          tools_factory.create_tool(get_income_statement, vhc_eligible=True)
      ] +
-     tools_factory.standard_tools() +      # Auto-marked as non-VHC-eligible
-     tools_factory.financial_tools() +     # Auto-marked as VHC-eligible
-     tools_factory.guardrail_tools() +     # Auto-marked as non-VHC-eligible
-     [ask_transcripts],                     # RAG tool, VHC-eligible by default
+     tools_factory.standard_tools() +
+     tools_factory.financial_tools() +
+     tools_factory.guardrail_tools() +
+     [ask_transcripts],
      topic="10-K annual financial reports",
      custom_instructions=financial_assistant_instructions,
      agent_progress_callback=agent_progress_callback
@@ -543,6 +550,7 @@ agent = Agent(
 ```
 
 Notice that when we call the `create_tool()` method, we can specify:
+
 - `tool_type`: Either `"query"` (default) or `"action"`
 - `vhc_eligible`: Whether the tool should participate in VHC analysis (default `True`)
 
@@ -604,7 +612,7 @@ obtain the generator object by accessing the `chat_stream` member.
 ## Using Workflows
 
 vectara-agentic now supports custom workflows via the `run()` method, enabling you to define multi-step interactions with validated inputs and outputs.
-To learn more about workflows read [the documentation](https://docs.llamaindex.ai/en/stable/understanding/workflows/basic_flow/)
+To learn more about workflows read [the documentation](https://docs.llamaindex.ai/en/stable/understanding/workflows/basic_flow/) from LlamaIndex.
 
 ### Defining a Custom Workflow
 
@@ -634,7 +642,7 @@ When the `run()` method in vectara-agentic is invoked, it calls the workflow wit
 
 - `agent`: the agent object used to call `run()` (self)
 - `tools`: the tools provided to the agent. Those can be used as needed in the flow.
-- `llm`: a pointer to a LlamaIndex llm, so it can be used in the workflow. For example, one of the steps may call `llm.acomplete(prompt)`
+- `llm`: a pointer to a LlamaIndex LLM, so it can be used in the workflow. For example, one of the steps may call `llm.acomplete(prompt)`
 - `verbose`: controls whether extra debug information is displayed
 - `inputs`: this is the actual inputs to the workflow provided by the call to `run()` and must be of type `InputsModel`
 
@@ -685,11 +693,15 @@ print(workflow_output.answer)
 
 The `run()` method executes your workflow’s logic, validates the output against the `OutputsModel`, and returns a structured result.
 
-### Using SubQuestionQueryWorkflow
+### Using SubQuestionQueryWorkflow and SequentialSubQuestionsWorkflow
 
-vectara-agentic already includes one useful workflow you can use right away (it is also useful as an advanced example)
-This workflow is called `SubQuestionQueryWorkflow` and it works by breaking a complex query into sub-queries and then
+vectara-agentic already includes two useful workflows you can use right away (they are also useful as advanced examples)
+These workflows are called `SubQuestionQueryWorkflow` and `SequentialSubQuestionsWorkflow`, and they work by breaking a complex query into sub-queries and then
 executing each sub-query with the agent until it reaches a good response.
+
+The difference is that `SubQuestionQueryWorkflow` will create a series of independent sub-queries and execute them in parallel
+while `SequentialSubQuestionsWorkflow` will create a sequence of dependent sub-queries and answer them sequentially,
+providing the answer from the previous question as context to the next question in the sequence.
 
 
 ## Additional Information
@@ -698,8 +710,7 @@ executing each sub-query with the agent until it reaches a good response.
 The `Agent` class defines a few helpful methods to help you understand
 the internals of your application.
 
-1.  The `report()` method prints out the agent object's type (REACT,
-    FUNCTION_CALLING, or LLMCOMPILER), the tools, and the LLMs used for the main
+1.  The `report()` method prints out the agent object's type (FUNCTION_CALLING, REACT, LLMCOMPILER, or LATS), the tools, and the LLMs used for the main
     agent and tool calling.
 2.  The agent provides access to session information including conversation history
     and tool usage patterns.

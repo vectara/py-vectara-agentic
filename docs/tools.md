@@ -86,7 +86,7 @@ This creates five tools:
 
 Together, these 5 tools provide a comprehensive set of capabilities for an agent to interact with a database. 
 
-For example, an agent can use the `ev_list_tables` tool to get a list of tables in the database, and then use the `ev_describe_tables` tool to get the schema of a specific table. It will use the `ev_load_sample_data` to get a sample of the data in the table, or the `ev_load_unique_values` to explore the type of values valid for a column. Finally, the agent can use the `ev_load_data` tool to load the data into the agent\'s memory.
+For example, an agent can use the `ev_list_tables` tool to get a list of tables in the database, and then use the `ev_describe_tables` tool to get the schema of a specific table. It will use the `ev_load_sample_data` to get a sample of the data in the table, or the `ev_load_unique_values` to explore the type of values valid for a column. Finally, the agent can use the `ev_load_data` tool to load the data into the agent's memory.
 
 **Multiple databases**
 
@@ -101,17 +101,19 @@ different `tool_name_prefix`.
 In addition to the tools above, vectara-agentic also supports these
 additional tools from the LlamaIndex Tools hub:
 
-1.  `arxiv`: A tool that queries the arXiv respository of papers.
+1.  `arxiv`: A tool that queries the arXiv repository of papers.
 2.  `tavily_research`: A tool that queries the web using Tavily.
 3.  `kuzu`: A tool that queries the Kuzu graph database.
 4.  `waii`: A tool for querying databases with natural language.
-5.  `exa.ai`: A tool that uses EXA.AI search.
-6.  `brave`: A tool that uses Brave Search.
-7.  `neo4j`: A tool that queries a Neo4J graph database.
-8.  `google`: A set of tools that interact with Google services,
+5.  `exa`: A tool that uses EXA.AI search.
+6.  `brave_search`: A tool that uses Brave Search.
+7.  `bing_search`: A tool that uses Bing Search.
+8.  `wikipedia`: A tool that searches content from Wikipedia pages.
+9.  `neo4j`: A tool that queries a Neo4J graph database.
+10.  `google`: A set of tools that interact with Google services,
     including Gmail, Google Calendar, and Google Search.
-9.  `slack`: A tool that interacts with Slack.
-10. `salesforce`: A tool that queries Salesforce.
+11.  `slack`: A tool that interacts with Slack.
+12. `salesforce`: A tool that queries Salesforce.
 
 ## Human-Readable Tool Output
 
@@ -189,12 +191,14 @@ VHC eligibility controls which tools contribute context to VHC processing. This 
 ### Understanding VHC Eligibility
 
 **VHC-eligible tools** (`vhc_eligible=True`, default) are those that provide factual information:
+
 - RAG tools (`create_rag_tool`)
 - Search tools (`create_search_tool`) 
 - Data retrieval tools (API calls, database queries)
 - Information lookup tools
 
 **Non-VHC-eligible tools** (`vhc_eligible=False`) are utility tools that process or transform content:
+
 - Text summarization tools
 - Text rephrasing tools
 - Content formatting tools
@@ -205,10 +209,11 @@ VHC eligibility controls which tools contribute context to VHC processing. This 
 
 | Tool Category | VHC Eligible | Examples |
 |---------------|--------------|----------|
+| **Vectara RAG/Search** | ✅ Yes | All RAG and search tools |
 | **Standard Tools** | ❌ No | `summarize_text`, `rephrase_text`, `critique_text` |
 | **Guardrail Tools** | ❌ No | `get_bad_topics` |
 | **Database Tools** | ✅ Yes | All database tools (provide factual data) |
-| **Vectara RAG/Search** | ✅ Yes | All RAG and search tools |
+
 
 ### Setting VHC Eligibility
 
@@ -260,12 +265,14 @@ format_tool = factory.create_tool(format_currency, vhc_eligible=False)
 1. **Default Behavior**: Most tools should use the default `vhc_eligible=True` unless they're pure utility functions
 
 2. **Utility Tools**: Mark tools as `vhc_eligible=False` if they:
+
    - Transform or reformat existing data
    - Perform validation or checks
    - Generate URLs or links
    - Provide metadata about other tools
 
 3. **Content Tools**: Keep `vhc_eligible=True` (default) for tools that:
+
    - Retrieve data from APIs or databases
    - Search or query information sources
    - Return factual content
