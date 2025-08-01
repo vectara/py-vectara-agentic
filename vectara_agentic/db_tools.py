@@ -83,7 +83,7 @@ class DatabaseTools:
 
     def _get_metadata_from_fn_name(
         self,
-        fn_name: Callable,
+        fn_name: str,
     ) -> Optional[ToolMetadata]:
         """Return map from function name.
 
