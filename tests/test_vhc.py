@@ -54,8 +54,8 @@ class TestVHC(unittest.TestCase):
             vectara_api_key=vectara_api_key,
         )
 
-        res = agent.chat("Are large cats better than small dogs?")
-        vhc_corrections = res.metadata.get("corrections", None)
+        _ = agent.chat("Are large cats better than small dogs?")
+        vhc_corrections = agent.compute_vhc()
         self.assertTrue(
             len(vhc_corrections) >= 0 and len(vhc_corrections) <= 2,
             "Corrections should be between 0 and 2"

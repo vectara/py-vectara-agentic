@@ -126,6 +126,10 @@ class TestAgentPackage(unittest.TestCase):
             chat_history=[("What is 5 times 10", "50"), ("What is 3 times 7", "21")]
         )
 
+        data = agent.dumps()
+        clone = Agent.loads(data)
+        assert clone.memory.get() == agent.memory.get()
+
         res = agent.chat("multiply the results of the last two questions. Output only the answer.")
         self.assertEqual(res.response, "1050")
 

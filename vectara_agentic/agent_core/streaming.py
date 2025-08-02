@@ -211,8 +211,12 @@ async def execute_post_stream_processing(
     if agent_instance.query_logging_callback:
         agent_instance.query_logging_callback(prompt, final.response)
 
-    # VHC processing is now handled separately via agent.compute_vhc()
-    # to avoid blocking streaming completion
+    # Update agent memory with the conversation
+    from llama_index.core.llms import ChatMessage
+    from llama_index.core.llms import MessageRole
+    user_msg = ChatMessage.from_str(prompt, role=MessageRole.USER)
+    assistant_msg = ChatMessage.from_str(response_text, role=MessageRole.ASSISTANT)
+    agent_instance.memory.put_messages([user_msg, assistant_msg])
 
     if not final.metadata:
         final.metadata = {}

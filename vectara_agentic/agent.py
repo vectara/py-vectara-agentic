@@ -568,8 +568,15 @@ class Agent:
                     from llama_index.core.workflow import Context
 
                     ctx = Context(current_agent)
+
+                    # Get chat history from memory (excluding system messages)
+                    chat_history = []
+                    for msg in self.memory.get():
+                        if msg.role != MessageRole.SYSTEM:
+                            chat_history.append(msg)
+
                     handler = current_agent.run(
-                        user_msg=prompt, ctx=ctx, memory=self.memory
+                        user_msg=prompt, ctx=ctx, chat_history=chat_history
                     )
 
                     # Listen to workflow events if progress callback is set
@@ -703,6 +710,12 @@ class Agent:
                         response=response_text, metadata=getattr(result, "metadata", {})
                     )
 
+                    # Update memory with the conversation for workflow-based agents
+                    from llama_index.core.llms import ChatMessage
+                    user_msg = ChatMessage.from_str(prompt, role=MessageRole.USER)
+                    assistant_msg = ChatMessage.from_str(response_text, role=MessageRole.ASSISTANT)
+                    self.memory.put_messages([user_msg, assistant_msg])
+
                 # Standard chat interaction for other agent types
                 else:
                     agent_response = await current_agent.achat(prompt)
@@ -771,8 +784,15 @@ class Agent:
                     from llama_index.core.workflow import Context
 
                     ctx = Context(current_agent)
+
+                    # Get chat history from memory (excluding system messages)
+                    chat_history = []
+                    for msg in self.memory.get():
+                        if msg.role != MessageRole.SYSTEM:
+                            chat_history.append(msg)
+
                     handler = current_agent.run(
-                        user_msg=prompt, ctx=ctx, memory=self.memory
+                        user_msg=prompt, ctx=ctx, chat_history=chat_history
                     )
 
                     # Use the dedicated FunctionCallingStreamHandler
@@ -816,9 +836,9 @@ class Agent:
             f"{max_attempts} attempts ({last_error})."
         )
 
-    async def compute_vhc(self) -> Dict[str, Any]:
+    async def acompute_vhc(self) -> Dict[str, Any]:
         """
-        Compute VHC for the last query/response pair.
+        Compute VHC for the last query/response pair (async version).
         Results are cached for subsequent calls.
 
         Returns:
@@ -881,6 +901,21 @@ class Agent:
         except Exception as e:
             logger.error(f"VHC computation failed: {e}")
             return {'corrected_text': None, 'corrections': []}
+
+    def compute_vhc(self) -> Dict[str, Any]:
+        """
+        Compute VHC for the last query/response pair (sync version).
+        Results are cached for subsequent calls.
+
+        Returns:
+            Dict[str, Any]: Dictionary containing 'corrected_text' and 'corrections'
+        """
+        try:
+            loop = asyncio.get_event_loop()
+            return loop.run_until_complete(self.acompute_vhc())
+        except RuntimeError:
+            # No event loop running, create a new one
+            return asyncio.run(self.acompute_vhc())
 
     #
     # run() method for running a workflow
