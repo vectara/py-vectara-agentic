@@ -1,5 +1,5 @@
-llama-index==0.12.49
-llama-index-core==0.12.49
+llama-index==0.12.51
+llama-index-core==0.12.51
 llama-index-workflow==1.0.1
 llama-index-cli==0.4.4
 llama-index-indices-managed-vectara==0.4.5
