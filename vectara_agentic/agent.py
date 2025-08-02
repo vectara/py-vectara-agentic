@@ -184,6 +184,11 @@ class Agent:
             logger.warning(f"Failed to set up observer ({e}), ignoring")
             self.observability_enabled = False
 
+        # VHC state tracking
+        self._vhc_cache = {}  # Cache VHC results by query hash
+        self._last_query = None
+        self._last_response = None
+
     @property
     def llm(self):
         """Lazy-loads the LLM."""
@@ -750,6 +755,8 @@ class Agent:
         Returns:
             AgentStreamingResponse: The streaming response from the agent.
         """
+        # Store query for VHC processing
+        self._last_query = prompt
         max_attempts = 4 if self.fallback_agent_config else 2
         attempt = 0
         orig_llm = self.llm.metadata.model_name
@@ -808,6 +815,72 @@ class Agent:
             f"For {orig_llm} LLM - failure can't be resolved after "
             f"{max_attempts} attempts ({last_error})."
         )
+
+    async def compute_vhc(self) -> Dict[str, Any]:
+        """
+        Compute VHC for the last query/response pair.
+        Results are cached for subsequent calls.
+
+        Returns:
+            Dict[str, Any]: Dictionary containing 'corrected_text' and 'corrections'
+        """
+        if not self._last_query:
+            return {'corrected_text': None, 'corrections': []}
+
+        # For VHC to work, we need the response text from memory
+        # Get the latest assistant response from memory
+        messages = self.memory.get()
+        if not messages:
+            return {'corrected_text': None, 'corrections': []}
+
+        # Find the last assistant message
+        last_response = None
+        for msg in reversed(messages):
+            if msg.role == MessageRole.ASSISTANT:
+                last_response = msg.content
+                break
+
+        if not last_response:
+            return {'corrected_text': None, 'corrections': []}
+
+        # Update stored response for caching
+        self._last_response = last_response
+
+        # Create cache key from query + response
+        cache_key = hash(f"{self._last_query}:{self._last_response}")
+
+        # Return cached results if available
+        if cache_key in self._vhc_cache:
+            return self._vhc_cache[cache_key]
+
+        # Check if we have VHC API key
+        if not self.vectara_api_key:
+            return {'corrected_text': None, 'corrections': []}
+
+        # Compute VHC using existing library function
+        from .agent_core.utils.hallucination import analyze_hallucinations
+
+        try:
+            corrected_text, corrections = analyze_hallucinations(
+                query=self._last_query,
+                chat_history=self.memory.get(),
+                agent_response=self._last_response,
+                tools=self.tools,
+                vectara_api_key=self.vectara_api_key
+            )
+
+            # Cache results
+            results = {
+                'corrected_text': corrected_text,
+                'corrections': corrections
+            }
+            self._vhc_cache[cache_key] = results
+
+            return results
+
+        except Exception as e:
+            logger.error(f"VHC computation failed: {e}")
+            return {'corrected_text': None, 'corrections': []}
 
     #
     # run() method for running a workflow

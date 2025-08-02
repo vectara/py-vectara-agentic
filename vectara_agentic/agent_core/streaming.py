@@ -13,7 +13,6 @@ from typing import Callable, Any, Dict, AsyncIterator
 from collections import OrderedDict
 
 from ..types import AgentResponse
-from .utils.hallucination import analyze_hallucinations
 
 class ToolEventTracker:
     """
@@ -208,21 +207,12 @@ async def execute_post_stream_processing(
     # Post-processing steps
     # pylint: disable=protected-access
     await agent_instance._aformat_for_lats(prompt, final)
+
     if agent_instance.query_logging_callback:
         agent_instance.query_logging_callback(prompt, final.response)
 
-    # Calculate factual consistency score
-
-    if agent_instance.vectara_api_key:
-        corrected_text, corrections = analyze_hallucinations(
-            query=prompt,
-            chat_history=agent_instance.memory.get(),
-            agent_response=final.response,
-            tools=agent_instance.tools,
-            vectara_api_key=agent_instance.vectara_api_key,
-        )
-        user_metadata["corrected_text"] = corrected_text
-        user_metadata["corrections"] = corrections
+    # VHC processing is now handled separately via agent.compute_vhc()
+    # to avoid blocking streaming completion
 
     if not final.metadata:
         final.metadata = {}
