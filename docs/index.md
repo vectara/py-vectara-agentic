@@ -26,7 +26,7 @@ For example:
     sub-queries and call the RAG query tool for each sub-query, then
     combine the responses to come up with a comprehensive response.
 -   The agent can identify filtering criteria in the user query and use
-    them to filter the results from the RAG query tool.
+    them to filter the results when using RAG query tool.
 
 The main tool used in vectara-agentic is the `Vectara RAG query tool`,
 which queries a Vectara corpus and returns the most relevant response.
@@ -42,7 +42,7 @@ up-to-date information, access enterprise specific data via APIs, make
 SQL queries to a database, or even perform actions such as creating a
 calendar event or sending an email.
 
-Let\'s demonstrate the advantage of Agentic RAG via a simple example.
+Let's demonstrate the advantage of Agentic RAG via a simple example.
 
 Imagine that you have ingested into Vectara all your Google Drive files,
 JIRA tickets, and product documentation. You build an Agentic RAG
@@ -71,9 +71,10 @@ on that issue from the first query.
 **What is vectara-agentic?**
 
 Vectara-agentic is a Python package for building Agentic RAG applications powered by Vectara. It:
-- Provides a simple API to define tools, including Vectara RAG tool and Vectara search tooo.
+
+- Provides a simple API to define tools, including Vectara RAG tool and Vectara search tool.
 - Includes pre-built tools for various domains (legal, finance, etc).
-- Integrates with multiple LLM providers (OpenAI, Anthropic, Gemini, Together.AI, Cohere, GROQ, Fireworks AI).
+- Integrates with multiple LLM providers (OpenAI, Anthropic, Gemini, Together.AI, Cohere, Bedrock, and GROQ).
 - Supports advanced workflows for complex queries.
 
 ## Agent Architecture
@@ -86,7 +87,7 @@ of the following components:
 -   One or more RAG tools for making queries to corpora in Vectara.
 -   A set of additional tools that the agent can use to retrieve
     information, process data, or perform actions.
--   A central LLM, or agent (based on `ReAct`, `OpenAI`, `LATS`, or
+-   A central LLM, or agent (based on `FunctionCalling`, `ReAct`, `LATS`, or
     `LLMCompiler` agent type) that manages the process of interpreting
     the user query, creating and executing a plan to collect information
     needed to respond to that query, and crafting a final response.
@@ -133,13 +134,13 @@ agent.chat("What is Vectara's pet policy?")
 
 When we run this code, we get the following response:
 
-> Vectara\'s pet policy does not allow common household pets like cats
+> Vectara's pet policy does not allow common household pets like cats
 > and dogs on their campuses. Instead, they welcome a select group of
 > exotic creatures that reflect their innovative spirit and core values.
 > Additionally, birds are not only permitted but encouraged in their
 > workspace as part of their unique approach.
 
-In the above code, we defined a single RAG tool (ask_pet_policy_tool)
+In the above code, we defined a single RAG tool (`ask_pet_policy_tool`)
 for our `Agent` class, and then created an AI assistant with this tool.
 
 The above code demonstrates the typical flow for instantiating your
@@ -148,7 +149,7 @@ case it only used a single tool. Since making a simple assistant like
 this with just one RAG tool is a common need, we have provided a single
 function that does all of this at once called `from_corpus()`.
 
-Here\'s how you can create a simple assistant that uses a single RAG
+Here's how you can create a simple assistant that uses a single RAG
 tool for asking questions about Medicare:
 
 ``` python
@@ -167,8 +168,6 @@ agent = Agent.from_corpus(
 2. Set up environment variables:
 
 **Vectara Corpus:**
-- `VECTARA_CORPUS_KEY`: Your corpus key
-- `VECTARA_API_KEY`: Your API key
 
 `VECTARA_CORPUS_KEY`: The corpus key for the corpus that contains the
 Vectara pet policy. You can download the [Pet Policy PDF
@@ -182,7 +181,7 @@ and add it to a new or existing Vectara corpus.
 `VECTARA_AGENTIC_AGENT_TYPE`: Agent type, either FUNCTION_CALLING (default),
 REACT, LATS or LLMCOMPILER.
 
-> **note:** OPENAI agent type removed, use FUNCTION_CALLING with OpenAI as main_llm_provider.
+> **note:** OPENAI agent type has been removed; use FUNCTION_CALLING agent type when using OpenAI as the agent's LLM provider (see `VECTARA_AGENTIC_MAIN_LLM_PROVIDER` below).
 
 `VECTARA_AGENTIC_MAIN_LLM_PROVIDER`: The LLM used for the agent, either
 OPENAI (default), ANTHROPIC, GEMINI, TOGETHER, COHERE, BEDROCK, or GROQ.
@@ -211,7 +210,7 @@ Defaults:
 1.  For `OPENAI`, the default is `gpt-4.1`.
 2.  For `ANTHROPIC`, the default is `claude-sonnet-4-20250514`.
 3.  For `GEMINI`, the default is `gemini-2.5-flash`.
-4.  For `TOGETHER.AI`, the default is `moonshotai/Kimi-K2-Instruct`.
+4.  For `TOGETHER.AI`, the default is `deepseek-ai/DeepSeek-V3`.
 5.  For `COHERE`, the default is `command-a-03-2025`.
 6.  For `BEDROCK`, the default is `us.anthropic.claude-sonnet-4-20250514-v1:0`.
 7.  For `GROQ`, the default is `deepseek-r1-distill-llama-70b`.
