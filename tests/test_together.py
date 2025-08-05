@@ -11,20 +11,21 @@ from vectara_agentic.tools import ToolsFactory
 import nest_asyncio
 nest_asyncio.apply()
 
-from conftest import mult, fc_config_bedrock, STANDARD_TEST_TOPIC, STANDARD_TEST_INSTRUCTIONS
+from conftest import fc_config_together, mult, STANDARD_TEST_TOPIC, STANDARD_TEST_INSTRUCTIONS
+
 
 ARIZE_LOCK = threading.Lock()
 
-class TestBedrock(unittest.TestCase):
+class TestTogether(unittest.TestCase):
 
     def test_multiturn(self):
         with ARIZE_LOCK:
             tools = [ToolsFactory().create_tool(mult)]
             agent = Agent(
+                agent_config=fc_config_together,
                 tools=tools,
                 topic=STANDARD_TEST_TOPIC,
                 custom_instructions=STANDARD_TEST_INSTRUCTIONS,
-                agent_config=fc_config_bedrock,
             )
 
             agent.chat("What is 5 times 10. Only give the answer, nothing else")

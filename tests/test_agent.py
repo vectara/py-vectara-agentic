@@ -13,11 +13,7 @@ from vectara_agentic.types import ModelProvider, ObserverType
 from vectara_agentic.tools import ToolsFactory
 
 from vectara_agentic.agent_core.prompts import GENERAL_INSTRUCTIONS
-
-
-def mult(x: float, y: float) -> float:
-    "Multiply two numbers"
-    return x * y
+from conftest import mult, STANDARD_TEST_TOPIC, STANDARD_TEST_INSTRUCTIONS
 
 
 ARIZE_LOCK = threading.Lock()
@@ -38,12 +34,10 @@ class TestAgentPackage(unittest.TestCase):
 
     def test_agent_init(self):
         tools = [ToolsFactory().create_tool(mult)]
-        topic = "AI"
-        custom_instructions = "Always do as your mother tells you!"
-        agent = Agent(tools, topic, custom_instructions)
+        agent = Agent(tools, STANDARD_TEST_TOPIC, STANDARD_TEST_INSTRUCTIONS)
         self.assertEqual(agent.agent_type, AgentType.FUNCTION_CALLING)
-        self.assertEqual(agent._topic, topic)
-        self.assertEqual(agent._custom_instructions, custom_instructions)
+        self.assertEqual(agent._topic, STANDARD_TEST_TOPIC)
+        self.assertEqual(agent._custom_instructions, STANDARD_TEST_INSTRUCTIONS)
 
         # To run this test, you must have appropriate API key in your environment
         self.assertEqual(
@@ -56,8 +50,6 @@ class TestAgentPackage(unittest.TestCase):
     def test_agent_config(self):
         with ARIZE_LOCK:
             tools = [ToolsFactory().create_tool(mult)]
-            topic = "AI topic"
-            instructions = "Always do as your father tells you, if your mother agrees!"
             config = AgentConfig(
                 agent_type=AgentType.REACT,
                 main_llm_provider=ModelProvider.ANTHROPIC,
@@ -69,12 +61,12 @@ class TestAgentPackage(unittest.TestCase):
 
             agent = Agent(
                 tools=tools,
-                topic=topic,
-                custom_instructions=instructions,
+                topic=STANDARD_TEST_TOPIC,
+                custom_instructions=STANDARD_TEST_INSTRUCTIONS,
                 agent_config=config
             )
-            self.assertEqual(agent._topic, topic)
-            self.assertEqual(agent._custom_instructions, instructions)
+            self.assertEqual(agent._topic, STANDARD_TEST_TOPIC)
+            self.assertEqual(agent._custom_instructions, STANDARD_TEST_INSTRUCTIONS)
             self.assertEqual(agent.agent_type, AgentType.REACT)
             self.assertEqual(agent.agent_config.observer, ObserverType.ARIZE_PHOENIX)
             self.assertEqual(agent.agent_config.main_llm_provider, ModelProvider.ANTHROPIC)

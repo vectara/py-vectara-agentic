@@ -16,25 +16,21 @@ nest_asyncio.apply()
 from conftest import (
     fc_config_openai,
     fc_config_anthropic,
+    mult,
+    STANDARD_TEST_TOPIC,
+    STANDARD_TEST_INSTRUCTIONS,
 )
-
-
-def mult(x: float, y: float) -> float:
-    "Multiply two numbers"
-    return x * y
 
 
 class TestAgentStreaming(unittest.IsolatedAsyncioTestCase):
 
     async def test_anthropic(self):
         tools = [ToolsFactory().create_tool(mult)]
-        topic = "AI topic"
-        instructions = "Always do as your father tells you, if your mother agrees!"
         agent = Agent(
             agent_config=fc_config_anthropic,
             tools=tools,
-            topic=topic,
-            custom_instructions=instructions,
+            topic=STANDARD_TEST_TOPIC,
+            custom_instructions=STANDARD_TEST_INSTRUCTIONS,
         )
 
         # First calculation: 5 * 10 = 50
@@ -68,13 +64,11 @@ class TestAgentStreaming(unittest.IsolatedAsyncioTestCase):
 
     async def test_openai(self):
         tools = [ToolsFactory().create_tool(mult)]
-        topic = "AI topic"
-        instructions = "Always do as your father tells you, if your mother agrees!"
         agent = Agent(
             agent_config=fc_config_openai,
             tools=tools,
-            topic=topic,
-            custom_instructions=instructions,
+            topic=STANDARD_TEST_TOPIC,
+            custom_instructions=STANDARD_TEST_INSTRUCTIONS,
         )
 
         # First calculation: 5 * 10 = 50

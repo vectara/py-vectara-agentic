@@ -8,29 +8,16 @@ from vectara_agentic.agent import Agent
 from vectara_agentic.agent_config import AgentConfig
 from vectara_agentic.tools import ToolsFactory
 from vectara_agentic.sub_query_workflow import SubQuestionQueryWorkflow, SequentialSubQuestionsWorkflow
-
-def mult(x: float, y: float):
-    """
-    Multiply two numbers.
-    """
-    return x * y
-
-def add(x: float, y: float):
-    """
-    Add two numbers.
-    """
-    return x + y
+from conftest import mult, add, STANDARD_TEST_TOPIC, WORKFLOW_TEST_INSTRUCTIONS
 
 class TestWorkflowPackage(unittest.IsolatedAsyncioTestCase):
 
     async def test_sub_query_workflow(self):
         tools = [ToolsFactory().create_tool(mult)] + [ToolsFactory().create_tool(add)]
-        topic = "AI topic"
-        instructions = "You are a helpful AI assistant."
         agent = Agent(
             tools=tools,
-            topic=topic,
-            custom_instructions=instructions,
+            topic=STANDARD_TEST_TOPIC,
+            custom_instructions=WORKFLOW_TEST_INSTRUCTIONS,
             agent_config = AgentConfig(),
             workflow_cls = SubQuestionQueryWorkflow,
         )
@@ -50,12 +37,10 @@ class TestWorkflowPackage(unittest.IsolatedAsyncioTestCase):
 
     async def test_seq_sub_query_workflow(self):
         tools = [ToolsFactory().create_tool(mult)] + [ToolsFactory().create_tool(add)]
-        topic = "AI topic"
-        instructions = "You are a helpful AI assistant."
         agent = Agent(
             tools=tools,
-            topic=topic,
-            custom_instructions=instructions,
+            topic=STANDARD_TEST_TOPIC,
+            custom_instructions=WORKFLOW_TEST_INSTRUCTIONS,
             agent_config = AgentConfig(),
             workflow_cls = SequentialSubQuestionsWorkflow,
         )
@@ -70,12 +55,10 @@ class TestWorkflowFailure(unittest.IsolatedAsyncioTestCase):
 
     async def test_workflow_failure_sub_question(self):
         tools = [ToolsFactory().create_tool(mult)] + [ToolsFactory().create_tool(add)]
-        topic = "AI topic"
-        instructions = "You are a helpful AI assistant."
         agent = Agent(
             tools=tools,
-            topic=topic,
-            custom_instructions=instructions,
+            topic=STANDARD_TEST_TOPIC,
+            custom_instructions=WORKFLOW_TEST_INSTRUCTIONS,
             agent_config = AgentConfig(),
             workflow_cls = SubQuestionQueryWorkflow,
             workflow_timeout = 1
@@ -89,12 +72,10 @@ class TestWorkflowFailure(unittest.IsolatedAsyncioTestCase):
 
     async def test_workflow_failure_seq_sub_question(self):
         tools = [ToolsFactory().create_tool(mult)] + [ToolsFactory().create_tool(add)]
-        topic = "AI topic"
-        instructions = "You are a helpful AI assistant."
         agent = Agent(
             tools=tools,
-            topic=topic,
-            custom_instructions=instructions,
+            topic=STANDARD_TEST_TOPIC,
+            custom_instructions=WORKFLOW_TEST_INSTRUCTIONS,
             agent_config = AgentConfig(),
             workflow_cls = SequentialSubQuestionsWorkflow,
             workflow_timeout = 1

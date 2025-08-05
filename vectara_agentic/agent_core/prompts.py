@@ -31,7 +31,7 @@ GENERAL_INSTRUCTIONS = """
   Be consistent with the format of numbers and dates across multi turn conversations.
 - Handling citations - IMPORTANT:
   1) Always embed citations inline with the text of your response, using valid URLs provided by tools.
-     You must embed every citation inline, immediately after the fact it supports, and never collect citations in a list at the end.  
+     You must embed every citation inline, immediately after the fact it supports, and never collect citations in a list at the end.
      Never omit a legitimate citations.
      Avoid creating a bibliography or a list of sources at the end of your response, and referring the reader to that list.
      Instead, embed citations directly in the text where the information is presented.

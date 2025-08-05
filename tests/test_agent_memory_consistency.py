@@ -11,11 +11,7 @@ from vectara_agentic.agent_config import AgentConfig
 from vectara_agentic.types import ModelProvider, AgentConfigType
 from vectara_agentic.tools import ToolsFactory
 from llama_index.core.llms import ChatMessage, MessageRole
-
-
-def mult(x: float, y: float) -> float:
-    """Multiply two numbers"""
-    return x * y
+from conftest import mult, STANDARD_TEST_TOPIC, STANDARD_TEST_INSTRUCTIONS
 
 
 ARIZE_LOCK = threading.Lock()
@@ -27,8 +23,8 @@ class TestAgentMemoryConsistency(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures"""
         self.tools = [ToolsFactory().create_tool(mult)]
-        self.topic = "Mathematics"
-        self.custom_instructions = "You are a helpful math assistant."
+        self.topic = STANDARD_TEST_TOPIC
+        self.custom_instructions = STANDARD_TEST_INSTRUCTIONS
 
         # Main agent config
         self.main_config = AgentConfig(

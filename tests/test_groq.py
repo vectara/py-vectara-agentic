@@ -5,40 +5,26 @@ warnings.simplefilter("ignore", DeprecationWarning)
 import unittest
 import threading
 
-from vectara_agentic.agent import Agent, AgentType
-from vectara_agentic.agent_config import AgentConfig
+from vectara_agentic.agent import Agent
 from vectara_agentic.tools import ToolsFactory
-from vectara_agentic.types import ModelProvider
 
 import nest_asyncio
 nest_asyncio.apply()
 
-def mult(x: float, y: float) -> float:
-    "Multiply two numbers"
-    return x * y
-
+from conftest import mult, fc_config_groq, STANDARD_TEST_TOPIC, STANDARD_TEST_INSTRUCTIONS
 
 ARIZE_LOCK = threading.Lock()
-
-
-fc_config_groq = AgentConfig(
-    agent_type=AgentType.FUNCTION_CALLING,
-    main_llm_provider=ModelProvider.GROQ,
-    tool_llm_provider=ModelProvider.GROQ,
-)
-
 
 class TestGROQ(unittest.TestCase):
 
     def test_multiturn(self):
         with ARIZE_LOCK:
             tools = [ToolsFactory().create_tool(mult)]
-            topic = "AI topic"
-            instructions = "Always do as your father tells you, if your mother agrees!"
             agent = Agent(
                 tools=tools,
-                topic=topic,
-                custom_instructions=instructions,
+                topic=STANDARD_TEST_TOPIC,
+                custom_instructions=STANDARD_TEST_INSTRUCTIONS,
+                agent_config=fc_config_groq,
             )
 
             agent.chat("What is 5 times 10. Only give the answer, nothing else")

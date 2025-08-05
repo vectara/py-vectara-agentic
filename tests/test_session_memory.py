@@ -12,16 +12,7 @@ from vectara_agentic.agent_config import AgentConfig
 from vectara_agentic.types import ModelProvider
 from vectara_agentic.tools import ToolsFactory
 from llama_index.core.llms import ChatMessage, MessageRole
-
-
-def mult(x: float, y: float) -> float:
-    """Multiply two numbers"""
-    return x * y
-
-
-def add(x: float, y: float) -> float:
-    """Add two numbers"""
-    return x + y
+from conftest import mult, add
 
 
 ARIZE_LOCK = threading.Lock()

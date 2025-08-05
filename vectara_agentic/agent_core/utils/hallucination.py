@@ -50,8 +50,9 @@ class Hallucination:
         logging.info(f"VHC: query={query}\n")
         logging.info(f"VHC: response={hypothesis}\n")
         logging.info("VHC: Context:")
+        CONTEXT_LOG_LENGTH = 200
         for i, ctx in enumerate(context):
-            logging.info(f"VHC: context {i}: {ctx[:200]}\n\n")
+            logging.info(f"VHC: context {i}: {ctx[:CONTEXT_LOG_LENGTH]}\n\n")
 
         logging.info(f"VHC: outputs: {len(corrections)} corrections")
         logging.info(f"VHC: corrected_text: {corrected_text}\n")
