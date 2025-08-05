@@ -15,9 +15,9 @@ from conftest import mult, fc_config_groq, STANDARD_TEST_TOPIC, STANDARD_TEST_IN
 
 ARIZE_LOCK = threading.Lock()
 
-class TestGROQ(unittest.TestCase):
+class TestGROQ(unittest.IsolatedAsyncioTestCase):
 
-    def test_multiturn(self):
+    async def test_multiturn(self):
         with ARIZE_LOCK:
             tools = [ToolsFactory().create_tool(mult)]
             agent = Agent(
@@ -27,10 +27,34 @@ class TestGROQ(unittest.TestCase):
                 agent_config=fc_config_groq,
             )
 
-            agent.chat("What is 5 times 10. Only give the answer, nothing else")
-            agent.chat("what is 3 times 7. Only give the answer, nothing else")
-            res = agent.chat("multiply the results of the last two questions. Output only the answer.")
-            self.assertEqual(res.response, "1050")
+            # First calculation: 5 * 10 = 50
+            stream1 = await agent.astream_chat(
+                "What is 5 times 10. Only give the answer, nothing else"
+            )
+            # Consume the stream
+            async for chunk in stream1.async_response_gen():
+                pass
+            _ = await stream1.aget_response()
+
+            # Second calculation: 3 * 7 = 21
+            stream2 = await agent.astream_chat(
+                "what is 3 times 7. Only give the answer, nothing else"
+            )
+            # Consume the stream
+            async for chunk in stream2.async_response_gen():
+                pass
+            _ = await stream2.aget_response()
+
+            # Final calculation: 50 * 21 = 1050
+            stream3 = await agent.astream_chat(
+                "multiply the results of the last two questions. Output only the answer."
+            )
+            # Consume the stream
+            async for chunk in stream3.async_response_gen():
+                pass
+            response3 = await stream3.aget_response()
+
+            self.assertEqual(response3.response, "1050")
 
 
 if __name__ == "__main__":
