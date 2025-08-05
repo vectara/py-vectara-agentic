@@ -7,7 +7,7 @@ import threading
 from datetime import date
 
 from vectara_agentic.agent import Agent, AgentType
-from vectara_agentic.agent_core.utils.prompt_formatting import format_prompt
+from vectara_agentic.agent_core.factory import format_prompt
 from vectara_agentic.agent_config import AgentConfig
 from vectara_agentic.types import ModelProvider, ObserverType
 from vectara_agentic.tools import ToolsFactory
