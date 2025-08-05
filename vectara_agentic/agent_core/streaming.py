@@ -9,6 +9,8 @@ import asyncio
 import logging
 import uuid
 import json
+import traceback
+
 from typing import Callable, Any, Dict, AsyncIterator
 from collections import OrderedDict
 
@@ -259,8 +261,6 @@ def create_stream_post_processing_task(
         try:
             return await _post_process()
         except Exception:
-            import traceback
-
             traceback.print_exc()
             # Return empty response on error
             return AgentResponse(response="", metadata={})
@@ -331,8 +331,6 @@ class FunctionCallingStreamHandler:
         try:
             self.final_response_container["resp"] = await self.handler
         except Exception as e:
-            import traceback
-
             logging.error(f"🔍 [STREAM_ERROR] Error processing stream events: {e}")
             logging.error(f"🔍 [STREAM_ERROR] Full traceback: {traceback.format_exc()}")
             self.final_response_container["resp"] = type(
@@ -459,7 +457,6 @@ class FunctionCallingStreamHandler:
                 )
 
         except Exception as e:
-            import traceback
 
             logging.error(f"Exception in progress callback: {e}")
             logging.error(f"Traceback: {traceback.format_exc()}")
