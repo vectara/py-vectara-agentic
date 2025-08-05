@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Breaking Changes
 
 - **Removed LATS and LLMCOMPILER agent types** - These agent types are no longer supported as LlamaIndex has deprecated the underlying `LATSAgentWorker` and `LLMCompilerAgentWorker` classes
+- **Updated default model for GROQ** - using the new OpenAI openai/gpt-oss-20b.
 
 ## [0.4.0] - 2025-07-31
 

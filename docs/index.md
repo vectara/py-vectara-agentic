@@ -211,4 +211,4 @@ Defaults:
 4.  For `TOGETHER.AI`, the default is `deepseek-ai/DeepSeek-V3`.
 5.  For `COHERE`, the default is `command-a-03-2025`.
 6.  For `BEDROCK`, the default is `us.anthropic.claude-sonnet-4-20250514-v1:0`.
-7.  For `GROQ`, the default is `deepseek-r1-distill-llama-70b`.
+7.  For `GROQ`, the default is `openai/gpt-oss-20b`.
