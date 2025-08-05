@@ -14,6 +14,7 @@ from collections import OrderedDict
 
 from ..types import AgentResponse
 
+
 class ToolEventTracker:
     """
     Tracks event IDs for tool calls to ensure consistent pairing of tool calls and outputs.
@@ -25,7 +26,7 @@ class ToolEventTracker:
 
     def __init__(self):
         self.event_ids = OrderedDict()  # tool_call_id -> event_id mapping
-        self.fallback_counter = 0       # For events without identifiable tool_ids
+        self.fallback_counter = 0  # For events without identifiable tool_ids
 
     def get_event_id(self, event) -> str:
         """
@@ -184,7 +185,9 @@ async def execute_post_stream_processing(
         AgentResponse: Processed final response
     """
     if result is None:
-        logging.warning("Received None result from streaming, returning empty response.")
+        logging.warning(
+            "Received None result from streaming, returning empty response."
+        )
         return AgentResponse(
             response="No response generated",
             metadata=getattr(result, "metadata", {}),
@@ -205,18 +208,11 @@ async def execute_post_stream_processing(
     )
 
     # Post-processing steps
-    # pylint: disable=protected-access
-    await agent_instance._aformat_for_lats(prompt, final)
 
     if agent_instance.query_logging_callback:
         agent_instance.query_logging_callback(prompt, final.response)
 
-    # Update agent memory with the conversation
-    from llama_index.core.llms import ChatMessage
-    from llama_index.core.llms import MessageRole
-    user_msg = ChatMessage.from_str(prompt, role=MessageRole.USER)
-    assistant_msg = ChatMessage.from_str(response_text, role=MessageRole.ASSISTANT)
-    agent_instance.memory.put_messages([user_msg, assistant_msg])
+    # Let LlamaIndex handle agent memory naturally - no custom capture needed
 
     if not final.metadata:
         final.metadata = {}
@@ -224,6 +220,7 @@ async def execute_post_stream_processing(
 
     if agent_instance.observability_enabled:
         from .._observability import eval_fcs
+
         eval_fcs()
 
     return final
@@ -293,10 +290,14 @@ class FunctionCallingStreamHandler:
         """
         had_tool_calls = False
         transitioned_to_prose = False
-        event_count = 0
 
         async for ev in self.handler.stream_events():
-            event_count += 1
+            # Store tool outputs for VHC regardless of progress callback
+            from llama_index.core.agent.workflow import ToolCallResult
+            if isinstance(ev, ToolCallResult):
+                if hasattr(self.agent_instance, '_add_tool_output'):
+                    # pylint: disable=W0212
+                    self.agent_instance._add_tool_output(ev.tool_name, str(ev.tool_output))
 
             # Handle progress callbacks if available
             if self.agent_instance.agent_progress_callback:
@@ -330,7 +331,10 @@ class FunctionCallingStreamHandler:
         try:
             self.final_response_container["resp"] = await self.handler
         except Exception as e:
-            logging.error(f"Error processing stream events: {e}")
+            import traceback
+
+            logging.error(f"🔍 [STREAM_ERROR] Error processing stream events: {e}")
+            logging.error(f"🔍 [STREAM_ERROR] Full traceback: {traceback.format_exc()}")
             self.final_response_container["resp"] = type(
                 "AgentResponse",
                 (),

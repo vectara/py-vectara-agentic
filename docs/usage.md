@@ -502,7 +502,7 @@ dictionary that provides more detailed and easier to handle information.
 The `agent_config` argument is an optional object that you can use to
 explicitly specify the configuration of your agent, including the following:
 
-- `agent_type`: the agent type. Valid values are `FUNCTION_CALLING`, `REACT`, `LLMCOMPILER`, or `LATS` (default: `FUNCTION_CALLING`).
+- `agent_type`: the agent type. Valid values are `FUNCTION_CALLING` or `REACT` (default: `FUNCTION_CALLING`).
 - `main_llm_provider` and `tool_llm_provider`: the LLM provider for main agent and for the tools. Valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI` (default: `OPENAI`).
 
 > **Note:** Fireworks AI support has been removed. If you were using Fireworks, please migrate to one of the supported providers listed above.
@@ -710,7 +710,7 @@ providing the answer from the previous question as context to the next question 
 The `Agent` class defines a few helpful methods to help you understand
 the internals of your application.
 
-1.  The `report()` method prints out the agent object's type (FUNCTION_CALLING, REACT, LLMCOMPILER, or LATS), the tools, and the LLMs used for the main
+1.  The `report()` method prints out the agent object's type (FUNCTION_CALLING or REACT), the tools, and the LLMs used for the main
     agent and tool calling.
 2.  The agent provides access to session information including conversation history
     and tool usage patterns.

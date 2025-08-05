@@ -3,10 +3,11 @@ This module contains the Agent class for handling different types of agents and 
 """
 
 import warnings
+
 warnings.simplefilter("ignore", DeprecationWarning)
 
 # pylint: disable=wrong-import-position
-from typing import List, Callable, Optional, Dict, Any, Union, Tuple, TYPE_CHECKING
+from typing import List, Callable, Optional, Dict, Any, Tuple, TYPE_CHECKING
 import os
 from datetime import date
 import json
@@ -19,7 +20,7 @@ from pydantic_core import PydanticUndefined
 from dotenv import load_dotenv
 
 # Runtime imports for components used at module level
-from llama_index.core.llms import MessageRole
+from llama_index.core.llms import MessageRole, ChatMessage
 from llama_index.core.callbacks import CallbackManager
 from llama_index.core.memory import Memory
 
@@ -27,7 +28,6 @@ from llama_index.core.memory import Memory
 if TYPE_CHECKING:
     from llama_index.core.tools import FunctionTool
     from llama_index.core.workflow import Workflow
-    from llama_index.core.agent.runner.base import AgentRunner
     from llama_index.core.agent.types import BaseAgent
     from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 
@@ -96,6 +96,7 @@ class Agent:
         workflow_cls: Optional["Workflow"] = None,
         workflow_timeout: int = 120,
         vectara_api_key: Optional[str] = None,
+        session_id: Optional[str] = None,
     ) -> None:
         """
         Initialize the agent with the specified type, tools, topic, and system message.
@@ -121,6 +122,8 @@ class Agent:
             workflow_cls (Workflow, optional): The workflow class to be used with run(). Defaults to None.
             workflow_timeout (int, optional): The timeout for the workflow in seconds. Defaults to 120.
             vectara_api_key (str, optional): The Vectara API key for FCS evaluation. Defaults to None.
+            session_id (str, optional): The session ID for memory persistence.
+                                        If None, auto-generates from topic and date. Defaults to None.
         """
         self.agent_config = agent_config or AgentConfig()
         self.agent_config_type = AgentConfigType.DEFAULT
@@ -147,7 +150,9 @@ class Agent:
 
         # Validate tools
         if validate_tools:
-            validate_tool_consistency(self.tools, self._custom_instructions, self.agent_config)
+            validate_tool_consistency(
+                self.tools, self._custom_instructions, self.agent_config
+            )
 
         # Setup callback manager
         callbacks: list[BaseCallbackHandler] = [
@@ -157,15 +162,15 @@ class Agent:
         self.verbose = verbose
 
         self.session_id = (
-            getattr(self, "session_id", None) or f"{topic}:{date.today().isoformat()}"
+            session_id
+            or getattr(self, "session_id", None)
+            or f"{topic}:{date.today().isoformat()}"
         )
 
         self.memory = Memory.from_defaults(
             session_id=self.session_id, token_limit=65536
         )
         if chat_history:
-            from llama_index.core.llms import ChatMessage
-
             msgs = []
             for u, a in chat_history:
                 msgs.append(ChatMessage.from_str(u, role=MessageRole.USER))
@@ -188,6 +193,7 @@ class Agent:
         self._vhc_cache = {}  # Cache VHC results by query hash
         self._last_query = None
         self._last_response = None
+        self._current_tool_outputs = []  # Store tool outputs from current query for VHC
 
     @property
     def llm(self):
@@ -214,7 +220,7 @@ class Agent:
 
     def _create_agent(
         self, config: AgentConfig, llm_callback_manager: "CallbackManager"
-    ) -> Union["BaseAgent", "AgentRunner"]:
+    ) -> "BaseAgent":
         """
         Creates the agent based on the configuration object.
 
@@ -223,7 +229,7 @@ class Agent:
             llm_callback_manager: The callback manager for the agent's llm.
 
         Returns:
-            Union[BaseAgent, AgentRunner]: The configured agent object.
+            BaseAgent: The configured agent object.
         """
         # Use the same LLM instance for consistency
         llm = (
@@ -246,12 +252,11 @@ class Agent:
         )
 
     def clear_memory(self) -> None:
-        """Clear the agent's memory."""
+        """Clear the agent's memory and reset agent instances to ensure consistency."""
         self.memory.reset()
-        if getattr(self, "_agent", None):
-            self._agent.memory = self.memory
-        if getattr(self, "_fallback_agent", None):
-            self._fallback_agent.memory = self.memory
+        # Clear agent instances so they get recreated with the cleared memory
+        self._agent = None
+        self._fallback_agent = None
 
     def __eq__(self, other):
         if not isinstance(other, Agent):
@@ -325,6 +330,7 @@ class Agent:
         chat_history: Optional[list[Tuple[str, str]]] = None,
         workflow_cls: Optional["Workflow"] = None,
         workflow_timeout: int = 120,
+        session_id: Optional[str] = None,
     ) -> "Agent":
         """
         Create an agent from tools, agent type, and language model.
@@ -344,6 +350,8 @@ class Agent:
                 Defaults to False.
             workflow_cls (Workflow, optional): The workflow class to be used with run(). Defaults to None.
             workflow_timeout (int, optional): The timeout for the workflow in seconds. Defaults to 120.
+            session_id (str, optional): The session ID for memory persistence.
+                                        If None, auto-generates from topic and date. Defaults to None.
 
         Returns:
             Agent: An instance of the Agent class.
@@ -361,6 +369,7 @@ class Agent:
             fallback_agent_config=fallback_agent_config,
             workflow_cls=workflow_cls,
             workflow_timeout=workflow_timeout,
+            session_id=session_id,
         )
 
     @classmethod
@@ -405,8 +414,18 @@ class Agent:
         vectara_presence_penalty: Optional[float] = None,
         vectara_save_history: bool = True,
         return_direct: bool = False,
+        session_id: Optional[str] = None,
     ) -> "Agent":
-        """Create an agent from a single Vectara corpus using the factory function."""
+        """Create an agent from a single Vectara corpus using the factory function.
+
+        Args:
+            tool_name (str): Name of the tool to be created.
+            data_description (str): Description of the data/corpus.
+            assistant_specialty (str): The specialty/topic of the assistant.
+            session_id (str, optional): The session ID for memory persistence.
+                                        If None, auto-generates from topic and date. Defaults to None.
+            ... (other parameters as documented in factory function)
+        """
         # Use the factory function to avoid code duplication
         config = create_agent_from_corpus(
             tool_name=tool_name,
@@ -449,6 +468,7 @@ class Agent:
             chat_history=chat_history,
             agent_progress_callback=agent_progress_callback,
             query_logging_callback=query_logging_callback,
+            session_id=session_id,
             **config,
         )
 
@@ -456,11 +476,16 @@ class Agent:
         """
         Switch the configuration type of the agent.
         This function is called automatically to switch the agent configuration if the current configuration fails.
+        Ensures memory consistency by clearing agent instances so they are recreated with current memory.
         """
         if self.agent_config_type == AgentConfigType.DEFAULT:
             self.agent_config_type = AgentConfigType.FALLBACK
+            # Clear the fallback agent so it gets recreated with current memory
+            self._fallback_agent = None
         else:
             self.agent_config_type = AgentConfigType.DEFAULT
+            # Clear the main agent so it gets recreated with current memory
+            self._agent = None
 
     def report(self, detailed: bool = False) -> None:
         """
@@ -505,19 +530,6 @@ class Agent:
             or not self.fallback_agent_config
             else self.fallback_agent_config.agent_type
         )
-
-    async def _aformat_for_lats(self, prompt, agent_response):
-        llm_prompt = f"""
-        Given the question '{prompt}', and agent response '{agent_response.response}',
-        Please provide a well formatted final response to the query.
-        final response:
-        """
-        agent_type = self._get_current_agent_type()
-        if agent_type != AgentType.LATS:
-            return
-
-        agent = self._get_current_agent()
-        agent_response.response = (await agent.llm.acomplete(llm_prompt)).text
 
     def chat(self, prompt: str) -> AgentResponse:
         """
@@ -567,16 +579,12 @@ class Agent:
                 ]:
                     from llama_index.core.workflow import Context
 
+                    # Create context and pass memory to the workflow agent
+                    # According to LlamaIndex docs, we should let the workflow manage memory internally
                     ctx = Context(current_agent)
 
-                    # Get chat history from memory (excluding system messages)
-                    chat_history = []
-                    for msg in self.memory.get():
-                        if msg.role != MessageRole.SYSTEM:
-                            chat_history.append(msg)
-
                     handler = current_agent.run(
-                        user_msg=prompt, ctx=ctx, chat_history=chat_history
+                        user_msg=prompt, memory=self.memory, ctx=ctx
                     )
 
                     # Listen to workflow events if progress callback is set
@@ -710,11 +718,26 @@ class Agent:
                         response=response_text, metadata=getattr(result, "metadata", {})
                     )
 
-                    # Update memory with the conversation for workflow-based agents
-                    from llama_index.core.llms import ChatMessage
-                    user_msg = ChatMessage.from_str(prompt, role=MessageRole.USER)
-                    assistant_msg = ChatMessage.from_str(response_text, role=MessageRole.ASSISTANT)
-                    self.memory.put_messages([user_msg, assistant_msg])
+                    # Retrieve updated memory from workflow context
+                    # According to LlamaIndex docs, workflow agents manage memory internally
+                    # and we can access it via ctx.store.get("memory")
+                    try:
+                        workflow_memory = await ctx.store.get("memory")
+                        if workflow_memory:
+                            # Update our external memory with the workflow's memory
+                            self.memory = workflow_memory
+                    except Exception as e:
+                        # If we can't retrieve workflow memory, fall back to manual management
+                        warning_msg = (
+                            f"Could not retrieve workflow memory, falling back to "
+                            f"manual management: {e}"
+                        )
+                        logger.warning(warning_msg)
+                        user_msg = ChatMessage.from_str(prompt, role=MessageRole.USER)
+                        assistant_msg = ChatMessage.from_str(
+                            response_text, role=MessageRole.ASSISTANT
+                        )
+                        self.memory.put_messages([user_msg, assistant_msg])
 
                 # Standard chat interaction for other agent types
                 else:
@@ -731,7 +754,9 @@ class Agent:
             except Exception as e:
                 last_error = e
                 if self.verbose:
-                    logger.warning(f"LLM call failed on attempt {attempt}. " f"Error: {e}.")
+                    logger.warning(
+                        f"LLM call failed on attempt {attempt}. " f"Error: {e}."
+                    )
                 if attempt >= 2 and self.fallback_agent_config:
                     self._switch_agent_config()
                 await asyncio.sleep(1)
@@ -768,8 +793,9 @@ class Agent:
         Returns:
             AgentStreamingResponse: The streaming response from the agent.
         """
-        # Store query for VHC processing
+        # Store query for VHC processing and clear previous tool outputs
         self._last_query = prompt
+        self._clear_tool_outputs()
         max_attempts = 4 if self.fallback_agent_config else 2
         attempt = 0
         orig_llm = self.llm.metadata.model_name
@@ -783,16 +809,12 @@ class Agent:
                 if self._get_current_agent_type() == AgentType.FUNCTION_CALLING:
                     from llama_index.core.workflow import Context
 
+                    # Create context and pass memory to the workflow agent
+                    # According to LlamaIndex docs, we should let the workflow manage memory internally
                     ctx = Context(current_agent)
 
-                    # Get chat history from memory (excluding system messages)
-                    chat_history = []
-                    for msg in self.memory.get():
-                        if msg.role != MessageRole.SYSTEM:
-                            chat_history.append(msg)
-
                     handler = current_agent.run(
-                        user_msg=prompt, ctx=ctx, chat_history=chat_history
+                        user_msg=prompt, memory=self.memory, ctx=ctx
                     )
 
                     # Use the dedicated FunctionCallingStreamHandler
@@ -836,22 +858,57 @@ class Agent:
             f"{max_attempts} attempts ({last_error})."
         )
 
+    def _clear_tool_outputs(self):
+        """Clear stored tool outputs at the start of a new query."""
+        self._current_tool_outputs.clear()
+        logging.info("🔧 [TOOL_STORAGE] Cleared stored tool outputs for new query")
+
+    def _add_tool_output(self, tool_name: str, content: str):
+        """Add a tool output to the current collection for VHC."""
+        tool_output = {
+            'status_type': 'TOOL_OUTPUT',
+            'content': content,
+            'tool_name': tool_name
+        }
+        self._current_tool_outputs.append(tool_output)
+        logging.info(f"🔧 [TOOL_STORAGE] Added tool output from '{tool_name}': {len(content)} chars")
+
+    def _get_stored_tool_outputs(self) -> List[dict]:
+        """Get the stored tool outputs from the current query."""
+        logging.info(f"🔧 [TOOL_STORAGE] Retrieved {len(self._current_tool_outputs)} stored tool outputs")
+        return self._current_tool_outputs.copy()
+
     async def acompute_vhc(self) -> Dict[str, Any]:
         """
         Compute VHC for the last query/response pair (async version).
-        Results are cached for subsequent calls.
+        Results are cached for subsequent calls. Tool outputs are automatically
+        collected during streaming and used internally.
 
         Returns:
             Dict[str, Any]: Dictionary containing 'corrected_text' and 'corrections'
         """
+        logging.info(
+            f"🔍🔍🔍 [VHC_AGENT_ENTRY] UNIQUE_DEBUG_MESSAGE acompute_vhc method called - "
+            f"stored_tool_outputs_count={len(self._current_tool_outputs)}"
+        )
+        logging.info(
+            f"🔍🔍🔍 [VHC_AGENT_ENTRY] _last_query: {'set' if self._last_query else 'None'}"
+        )
+
         if not self._last_query:
-            return {'corrected_text': None, 'corrections': []}
+            logging.info("🔍 [VHC_AGENT] Returning early - no _last_query")
+            return {"corrected_text": None, "corrections": []}
 
         # For VHC to work, we need the response text from memory
         # Get the latest assistant response from memory
         messages = self.memory.get()
+        logging.info(
+            f"🔍 [VHC_AGENT] memory.get() returned {len(messages) if messages else 0} messages"
+        )
+
         if not messages:
-            return {'corrected_text': None, 'corrections': []}
+            logging.info("🔍 [VHC_AGENT] Returning early - no messages in memory")
+            return {"corrected_text": None, "corrections": []}
 
         # Find the last assistant message
         last_response = None
@@ -860,8 +917,13 @@ class Agent:
                 last_response = msg.content
                 break
 
+        logging.info(
+            f"🔍 [VHC_AGENT] Found last_response: {'set' if last_response else 'None'}"
+        )
+
         if not last_response:
-            return {'corrected_text': None, 'corrections': []}
+            logging.info("🔍 [VHC_AGENT] Returning early - no last assistant response found")
+            return {"corrected_text": None, "corrections": []}
 
         # Update stored response for caching
         self._last_response = last_response
@@ -874,38 +936,45 @@ class Agent:
             return self._vhc_cache[cache_key]
 
         # Check if we have VHC API key
+        logging.info(
+            f"🔍 [VHC_AGENT] acompute_vhc called with vectara_api_key={'set' if self.vectara_api_key else 'None'}"
+        )
         if not self.vectara_api_key:
-            return {'corrected_text': None, 'corrections': []}
+            logging.info("🔍 [VHC_AGENT] No vectara_api_key - returning early with None")
+            return {"corrected_text": None, "corrections": []}
 
         # Compute VHC using existing library function
         from .agent_core.utils.hallucination import analyze_hallucinations
 
         try:
+            # Use stored tool outputs from current query
+            stored_tool_outputs = self._get_stored_tool_outputs()
+            logging.info(f"🔧 [VHC_AGENT] Using {len(stored_tool_outputs)} stored tool outputs for VHC")
+
             corrected_text, corrections = analyze_hallucinations(
                 query=self._last_query,
                 chat_history=self.memory.get(),
                 agent_response=self._last_response,
                 tools=self.tools,
-                vectara_api_key=self.vectara_api_key
+                vectara_api_key=self.vectara_api_key,
+                tool_outputs=stored_tool_outputs,
             )
 
             # Cache results
-            results = {
-                'corrected_text': corrected_text,
-                'corrections': corrections
-            }
+            results = {"corrected_text": corrected_text, "corrections": corrections}
             self._vhc_cache[cache_key] = results
 
             return results
 
         except Exception as e:
             logger.error(f"VHC computation failed: {e}")
-            return {'corrected_text': None, 'corrections': []}
+            return {"corrected_text": None, "corrections": []}
 
     def compute_vhc(self) -> Dict[str, Any]:
         """
         Compute VHC for the last query/response pair (sync version).
-        Results are cached for subsequent calls.
+        Results are cached for subsequent calls. Tool outputs are automatically
+        collected during streaming and used internally.
 
         Returns:
             Dict[str, Any]: Dictionary containing 'corrected_text' and 'corrections'
@@ -990,7 +1059,9 @@ class Agent:
                         input_dict[key] = value
                 output = outputs_model_on_fail_cls.model_validate(input_dict)
             else:
-                logger.warning(f"Vectara Agentic: Workflow failed with unexpected error: {e}")
+                logger.warning(
+                    f"Vectara Agentic: Workflow failed with unexpected error: {e}"
+                )
                 raise type(e)(str(e)).with_traceback(e.__traceback__)
 
         return output

@@ -1,10 +1,11 @@
 """Vectara Hallucination Detection and Correction client."""
 
 import logging
-from typing import List, Dict, Optional, Tuple
+from typing import List, Optional, Tuple
 import requests
 
 from llama_index.core.llms import MessageRole
+
 
 class Hallucination:
     """Vectara Hallucination Correction."""
@@ -46,79 +47,18 @@ class Hallucination:
         corrected_text = data.get("corrected_text", "")
         corrections = data.get("corrections", [])
 
-        logging.debug(
-            f"VHC: query={query}\n"
-        )
-        logging.debug(
-            f"VHC: response={hypothesis}\n"
-        )
-        logging.debug("VHC: Context:")
+        logging.info(f"VHC: query={query}\n")
+        logging.info(f"VHC: response={hypothesis}\n")
+        logging.info("VHC: Context:")
         for i, ctx in enumerate(context):
-            logging.info(f"VHC: context {i}: {ctx}\n\n")
+            logging.info(f"VHC: context {i}: {ctx[:200]}\n\n")
 
-        logging.debug(
-            f"VHC: outputs: {len(corrections)} corrections"
-        )
-        logging.debug(
-            f"VHC: corrected_text: {corrected_text}\n"
-        )
+        logging.info(f"VHC: outputs: {len(corrections)} corrections")
+        logging.info(f"VHC: corrected_text: {corrected_text}\n")
         for correction in corrections:
-            logging.debug(f"VHC: correction: {correction}\n")
+            logging.info(f"VHC: correction: {correction}\n")
 
         return corrected_text, corrections
-
-def extract_tool_call_mapping(chat_history) -> Dict[str, str]:
-    """Extract tool_call_id to tool_name mapping from chat history."""
-    tool_call_id_to_name = {}
-    for msg in chat_history:
-        if (
-            msg.role == MessageRole.ASSISTANT
-            and hasattr(msg, "additional_kwargs")
-            and msg.additional_kwargs
-        ):
-            tool_calls = msg.additional_kwargs.get("tool_calls", [])
-            for tool_call in tool_calls:
-                if (
-                    isinstance(tool_call, dict)
-                    and "id" in tool_call
-                    and "function" in tool_call
-                ):
-                    tool_call_id = tool_call["id"]
-                    tool_name = tool_call["function"].get("name")
-                    if tool_call_id and tool_name:
-                        tool_call_id_to_name[tool_call_id] = tool_name
-
-    return tool_call_id_to_name
-
-
-def identify_tool_name(msg, tool_call_id_to_name: Dict[str, str]) -> Optional[str]:
-    """Identify tool name from message using multiple strategies."""
-    tool_name = None
-
-    # First try: standard tool_name attribute (for backwards compatibility)
-    tool_name = getattr(msg, "tool_name", None)
-
-    # Second try: additional_kwargs (LlamaIndex standard location)
-    if (
-        tool_name is None
-        and hasattr(msg, "additional_kwargs")
-        and msg.additional_kwargs
-    ):
-        tool_name = msg.additional_kwargs.get("name") or msg.additional_kwargs.get(
-            "tool_name"
-        )
-
-        # If no direct tool name, try to map from tool_call_id
-        if tool_name is None:
-            tool_call_id = msg.additional_kwargs.get("tool_call_id")
-            if tool_call_id and tool_call_id in tool_call_id_to_name:
-                tool_name = tool_call_id_to_name[tool_call_id]
-
-    # Third try: extract from content if it's a ToolOutput object
-    if tool_name is None and hasattr(msg.content, "tool_name"):
-        tool_name = msg.content.tool_name
-
-    return tool_name
 
 
 def check_tool_eligibility(tool_name: Optional[str], tools: List) -> bool:
@@ -140,51 +80,66 @@ def check_tool_eligibility(tool_name: Optional[str], tools: List) -> bool:
 
     return True
 
+
 def analyze_hallucinations(
-    query: str, chat_history: List,
-    agent_response: str, tools: List, vectara_api_key: str
+    query: str,
+    chat_history: List,
+    agent_response: str,
+    tools: List,
+    vectara_api_key: str,
+    tool_outputs: Optional[List[dict]] = None,
 ) -> Tuple[Optional[str], List[str]]:
-    """Use VHC to compute corrected_text and corrections."""
+    """Use VHC to compute corrected_text and corrections using provided tool data."""
+
     if not vectara_api_key:
-        logging.debug("No Vectara API key - returning None")
+        logging.warning("VHC: No Vectara API key - returning None")
         return None, []
 
-    # Build a mapping from tool_call_id to tool_name for better tool identification
-    tool_call_id_to_name = extract_tool_call_mapping(chat_history)
-
     context = []
+
+    # Process tool outputs if provided
+    if tool_outputs:
+        tool_output_count = 0
+        for tool_output in tool_outputs:
+            if tool_output.get("status_type") == "TOOL_OUTPUT" and tool_output.get(
+                "content"
+            ):
+                tool_output_count += 1
+                tool_name = tool_output.get("tool_name")
+                is_vhc_eligible = check_tool_eligibility(tool_name, tools)
+
+                if is_vhc_eligible:
+                    content = str(tool_output["content"])
+                    if content and content.strip():
+                        context.append(content)
+
+        logging.info(
+            f"VHC: Processed {tool_output_count} tool outputs, added {len(context)} to context so far"
+        )
+    else:
+        logging.info("VHC: No tool outputs provided")
+
+    # Add user messages and previous assistant messages from chat_history for context
     last_assistant_index = -1
     for i, msg in enumerate(chat_history):
         if msg.role == MessageRole.ASSISTANT and msg.content:
             last_assistant_index = i
 
     for i, msg in enumerate(chat_history):
-        if msg.role == MessageRole.TOOL:
-            tool_name = identify_tool_name(msg, tool_call_id_to_name)
-            is_vhc_eligible = check_tool_eligibility(tool_name, tools)
-
-            # Only count tool calls from VHC-eligible tools
-            if is_vhc_eligible:
-                content = msg.content
-
-                # Since tools with human-readable output now convert to formatted strings immediately
-                # in VectaraTool._format_tool_output(), we just use the content directly
-                content = str(content) if content is not None else ""
-
-                # Only add non-empty content to context
-                if content and content.strip():
-                    context.append(content)
-
-        elif msg.role == MessageRole.USER and msg.content:
-            context.append(msg.content)
+        if msg.role == MessageRole.USER and msg.content:
+            # Don't include the current query in context since it's passed separately as query parameter
+            if msg.content != query:
+                context.append(msg.content)
 
         elif msg.role == MessageRole.ASSISTANT and msg.content:
-            if i == last_assistant_index:  # do not include the last assistant message
-                continue
-            context.append(msg.content)
+            if i != last_assistant_index:  # do not include the last assistant message
+                context.append(msg.content)
 
-    # If no context or no tool calls, we cannot compute VHC
+    logging.info(f"VHC: Final VHC context has {len(context)} items")
+
+    # If no context, we cannot compute VHC
     if len(context) == 0:
+        logging.info("VHC: No context available for VHC - returning None")
         return None, []
 
     try:
@@ -195,7 +150,7 @@ def analyze_hallucinations(
         return corrected_text, corrections
 
     except Exception as e:
-        logging.error(
+        logging.warning(
             f"VHC call failed: {e}. "
             "Ensure you have a valid Vectara API key and the Hallucination Correction service is available."
         )

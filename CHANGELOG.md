@@ -5,7 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.0] - 2024-XX-XX
+## [0.4.1] - 2025-08-06
+
+### Breaking Changes
+
+- **Removed LATS and LLMCOMPILER agent types** - These agent types are no longer supported as LlamaIndex has deprecated the underlying `LATSAgentWorker` and `LLMCompilerAgentWorker` classes
+
+## [0.4.0] - 2025-07-31
 
 ### Breaking Changes
 
@@ -24,7 +30,8 @@ If you are upgrading from v0.3.x:
 3. **Fireworks users**: Migrate to one of the supported providers: OpenAI, Anthropic, Together.AI, GROQ, Cohere, Bedrock, or Gemini
 4. **Token counting users**: This functionality has been removed with no direct replacement
 5. **Compact_docstring users**: Remove this option from your configuration
-6. **OpenAI agent type**: use FUNCTION_CALLING instead.
+6. **OpenAI agent type**: use FUNCTION_CALLING instead
+7. **LATS and LLMCOMPILER users**: Migrate to REACT or FUNCTION_CALLING agent types, or implement custom workflows using the new LlamaIndex Workflows framework
 
 ### Added
 

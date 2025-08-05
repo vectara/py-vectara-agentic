@@ -48,7 +48,7 @@
 - **Rapid Tool Creation:**  
   Build Vectara RAG tools or search tools with a single line of code.
 - **Agent Flexibility:**  
-  Supports multiple agent types including `ReAct`, `Function Calling`, `LATS`, and `LLMCompiler`.
+  Supports multiple agent types including `ReAct` and `Function Calling`.
 - **Pre-Built Domain Tools:**  
   Tools tailored for finance, legal, and other verticals.
 - **Multi-LLM Integration:**  
@@ -668,7 +668,7 @@ agent = Agent(
 ```
 
 The `AgentConfig` object may include the following items:
-- `agent_type`: the agent type. Valid values are `REACT`, `LLMCOMPILER`, `LATS` or `FUNCTION_CALLING` (default: `FUNCTION_CALLING`).
+- `agent_type`: the agent type. Valid values are `REACT` or `FUNCTION_CALLING` (default: `FUNCTION_CALLING`).
 - `main_llm_provider` and `tool_llm_provider`: the LLM provider for main agent and for the tools. Valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI` (default: `OPENAI`).
 
 > **Note:** Fireworks AI support has been removed. If you were using Fireworks, please migrate to one of the supported providers listed above.

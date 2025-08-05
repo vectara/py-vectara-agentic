@@ -7,21 +7,15 @@ with proper configuration, prompt formatting, and structured planning setup.
 
 import os
 import re
-import warnings
-from typing import List, Union, Optional, Dict, Any
+from datetime import date
+from typing import List, Optional, Dict, Any
 
 from llama_index.core.tools import FunctionTool
 from llama_index.core.memory import Memory
 from llama_index.core.callbacks import CallbackManager
 from llama_index.core.agent.workflow import FunctionAgent, ReActAgent
-from llama_index.core.agent.react.formatter import ReActChatFormatter
-from llama_index.core.agent.runner.base import AgentRunner
 from llama_index.core.agent.types import BaseAgent
 
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    from llama_index.agent.llm_compiler import LLMCompilerAgentWorker
-from llama_index.agent.lats import LATSAgentWorker
 from pydantic import Field, create_model
 
 from ..agent_config import AgentConfig
@@ -32,8 +26,33 @@ from .prompts import (
     GENERAL_INSTRUCTIONS,
 )
 from ..tools import VectaraToolFactory
-from .utils.prompt_formatting import format_prompt, format_llm_compiler_prompt
 from .utils.schemas import PY_TYPES
+
+
+def format_prompt(
+    prompt_template: str,
+    general_instructions: str,
+    topic: str,
+    custom_instructions: str,
+) -> str:
+    """
+    Generate a prompt by replacing placeholders with topic and date.
+
+    Args:
+        prompt_template: The template for the prompt
+        general_instructions: General instructions to be included in the prompt
+        topic: The topic to be included in the prompt
+        custom_instructions: The custom instructions to be included in the prompt
+
+    Returns:
+        str: The formatted prompt
+    """
+    return (
+        prompt_template.replace("{chat_topic}", topic)
+        .replace("{today}", date.today().strftime("%A, %B %d, %Y"))
+        .replace("{custom_instructions}", custom_instructions)
+        .replace("{INSTRUCTIONS}", general_instructions)
+    )
 
 
 def create_react_agent(
@@ -136,119 +155,6 @@ def create_function_agent(
         verbose=verbose,
     )
 
-
-def create_llmcompiler_agent(
-    tools: List[FunctionTool],
-    llm,
-    memory: Memory,
-    config: AgentConfig,
-    callback_manager: CallbackManager,
-    general_instructions: str,
-    topic: str,
-    custom_instructions: str,
-    verbose: bool = True,
-) -> AgentRunner:
-    """
-    Create an LLM Compiler agent.
-
-    Args:
-        tools: List of tools available to the agent
-        llm: Language model instance
-        memory: Agent memory
-        config: Agent configuration
-        callback_manager: Callback manager for events
-        general_instructions: General instructions for the agent
-        topic: Topic expertise area
-        custom_instructions: Custom user instructions
-        verbose: Whether to enable verbose output
-
-    Returns:
-        AgentRunner: Configured LLM Compiler agent
-    """
-    agent_worker = LLMCompilerAgentWorker.from_tools(
-        tools=tools,
-        llm=llm,
-        verbose=verbose,
-        callback_manager=callback_manager,
-    )
-
-    # Format main system prompt
-    agent_worker.system_prompt = format_prompt(
-        prompt_template=format_llm_compiler_prompt(
-            prompt=agent_worker.system_prompt,
-            general_instructions=general_instructions,
-            topic=topic,
-            custom_instructions=custom_instructions,
-        ),
-        general_instructions=general_instructions,
-        topic=topic,
-        custom_instructions=custom_instructions,
-    )
-
-    # Format replan prompt
-    agent_worker.system_prompt_replan = format_prompt(
-        prompt_template=format_llm_compiler_prompt(
-            prompt=agent_worker.system_prompt_replan,
-            general_instructions=GENERAL_INSTRUCTIONS,
-            topic=topic,
-            custom_instructions=custom_instructions,
-        ),
-        general_instructions=GENERAL_INSTRUCTIONS,
-        topic=topic,
-        custom_instructions=custom_instructions,
-    )
-
-    return agent_worker.as_agent()
-
-
-def create_lats_agent(
-    tools: List[FunctionTool],
-    llm,
-    memory: Memory,
-    config: AgentConfig,
-    callback_manager: CallbackManager,
-    general_instructions: str,
-    topic: str,
-    custom_instructions: str,
-    verbose: bool = True,
-) -> AgentRunner:
-    """
-    Create a LATS (Language Agent Tree Search) agent.
-
-    Args:
-        tools: List of tools available to the agent
-        llm: Language model instance
-        memory: Agent memory
-        config: Agent configuration
-        callback_manager: Callback manager for events
-        general_instructions: General instructions for the agent
-        topic: Topic expertise area
-        custom_instructions: Custom user instructions
-        verbose: Whether to enable verbose output
-
-    Returns:
-        AgentRunner: Configured LATS agent
-    """
-    agent_worker = LATSAgentWorker.from_tools(
-        tools=tools,
-        llm=llm,
-        num_expansions=3,
-        max_rollouts=-1,
-        verbose=verbose,
-        callback_manager=callback_manager,
-    )
-
-    prompt = format_prompt(
-        REACT_PROMPT_TEMPLATE,
-        general_instructions,
-        topic,
-        custom_instructions,
-    )
-
-    agent_worker.chat_formatter = ReActChatFormatter(system_header=prompt)
-    return agent_worker.as_agent()
-
-
 def create_agent_from_config(
     tools: List[FunctionTool],
     llm,
@@ -260,7 +166,7 @@ def create_agent_from_config(
     custom_instructions: str,
     verbose: bool = True,
     agent_type: Optional[AgentType] = None,  # For compatibility with existing interface
-) -> Union[BaseAgent, AgentRunner]:
+) -> BaseAgent:
     """
     Create an agent based on configuration.
 
@@ -280,7 +186,7 @@ def create_agent_from_config(
         agent_type: Override agent type (for backward compatibility)
 
     Returns:
-        Union[BaseAgent, AgentRunner]: Configured agent
+        BaseAgent: Configured agent
 
     Raises:
         ValueError: If unknown agent type is specified
@@ -304,30 +210,6 @@ def create_agent_from_config(
         )
     elif effective_agent_type == AgentType.REACT:
         agent = create_react_agent(
-            tools,
-            llm,
-            memory,
-            config,
-            callback_manager,
-            general_instructions,
-            topic,
-            custom_instructions,
-            verbose,
-        )
-    elif effective_agent_type == AgentType.LLMCOMPILER:
-        agent = create_llmcompiler_agent(
-            tools,
-            llm,
-            memory,
-            config,
-            callback_manager,
-            general_instructions,
-            topic,
-            custom_instructions,
-            verbose,
-        )
-    elif effective_agent_type == AgentType.LATS:
-        agent = create_lats_agent(
             tools,
             llm,
             memory,

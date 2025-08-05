@@ -26,7 +26,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Agent System (vectara_agentic/agent.py)**
 - Main `Agent` class that orchestrates AI assistants using LlamaIndex agent framework
-- Supports multiple agent types: ReAct, Function Calling, LATS, LLMCompiler
+- Supports multiple agent types: ReAct, Function Calling
 - Built around tools, custom instructions, and configurable LLM providers
 - Handles both sync/async chat interactions and streaming responses
 

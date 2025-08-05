@@ -89,19 +89,20 @@ class TestAgentPackage(unittest.TestCase):
             )
 
     def test_multiturn(self):
-        tools = [ToolsFactory().create_tool(mult)]
-        topic = "AI topic"
-        instructions = "Always do as your father tells you, if your mother agrees!"
-        agent = Agent(
-            tools=tools,
-            topic=topic,
-            custom_instructions=instructions,
-        )
+        with ARIZE_LOCK:
+            tools = [ToolsFactory().create_tool(mult)]
+            topic = "AI topic"
+            instructions = "Always do as your father tells you, if your mother agrees!"
+            agent = Agent(
+                tools=tools,
+                topic=topic,
+                custom_instructions=instructions,
+            )
 
-        agent.chat("What is 5 times 10. Only give the answer, nothing else")
-        agent.chat("what is 3 times 7. Only give the answer, nothing else")
-        res = agent.chat("multiply the results of the last two questions. Output only the answer.")
-        self.assertEqual(res.response, "1050")
+            agent.chat("What is 5 times 10. Only give the answer, nothing else")
+            agent.chat("what is 3 times 7. Only give the answer, nothing else")
+            res = agent.chat("multiply the results of the last two questions. Output only the answer.")
+            self.assertEqual(res.response, "1050")
 
     def test_from_corpus(self):
         agent = Agent.from_corpus(

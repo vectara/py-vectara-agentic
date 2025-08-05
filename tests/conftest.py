@@ -19,6 +19,7 @@ from vectara_agentic.types import AgentType, ModelProvider
 # Common Test Functions
 # ========================================
 
+
 def mult(x: float, y: float) -> float:
     """Multiply two numbers - common test function used across multiple test files."""
     return x * y
@@ -37,7 +38,9 @@ def add(x: float, y: float) -> float:
 STANDARD_TEST_TOPIC = "AI topic"
 
 # Standard test instructions used across most tests
-STANDARD_TEST_INSTRUCTIONS = "Always do as your father tells you, if your mother agrees!"
+STANDARD_TEST_INSTRUCTIONS = (
+    "Always do as your father tells you, if your mother agrees!"
+)
 
 # Alternative instructions for specific tests
 WORKFLOW_TEST_INSTRUCTIONS = "You are a helpful AI assistant."
@@ -138,6 +141,7 @@ private_llm_fc_config = AgentConfig(
 # ========================================
 # Error Detection and Testing Utilities
 # ========================================
+
 
 def is_rate_limited(response_text: str) -> bool:
     """

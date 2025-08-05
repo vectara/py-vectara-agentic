@@ -87,8 +87,7 @@ of the following components:
 -   One or more RAG tools for making queries to corpora in Vectara.
 -   A set of additional tools that the agent can use to retrieve
     information, process data, or perform actions.
--   A central LLM, or agent (based on `FunctionCalling`, `ReAct`, `LATS`, or
-    `LLMCompiler` agent type) that manages the process of interpreting
+-   A central LLM, or agent (based on `FunctionCalling` or `ReAct` agent type) that manages the process of interpreting
     the user query, creating and executing a plan to collect information
     needed to respond to that query, and crafting a final response.
 
@@ -178,8 +177,7 @@ and add it to a new or existing Vectara corpus.
 
 **Agent type, LLMs and model names:**
 
-`VECTARA_AGENTIC_AGENT_TYPE`: Agent type, either FUNCTION_CALLING (default),
-REACT, LATS or LLMCOMPILER.
+`VECTARA_AGENTIC_AGENT_TYPE`: Agent type, either FUNCTION_CALLING (default) or REACT.
 
 > **note:** OPENAI agent type has been removed; use FUNCTION_CALLING agent type when using OpenAI as the agent's LLM provider (see `VECTARA_AGENTIC_MAIN_LLM_PROVIDER` below).
 
