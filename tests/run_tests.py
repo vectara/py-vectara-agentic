@@ -34,6 +34,7 @@ def suppress_pydantic_warnings():
     resource_patterns = [
         ".*unclosed transport.*",
         ".*unclosed <socket\\.socket.*",
+        ".*unclosed event loop.*",
     ]
 
     for pattern in pydantic_patterns:

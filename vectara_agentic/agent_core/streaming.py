@@ -9,11 +9,18 @@ import asyncio
 import logging
 import uuid
 import json
+import traceback
+
 from typing import Callable, Any, Dict, AsyncIterator
 from collections import OrderedDict
 
+from llama_index.core.agent.workflow import (
+    ToolCall,
+    ToolCallResult,
+    AgentInput,
+    AgentOutput,
+)
 from ..types import AgentResponse
-from .utils.hallucination import analyze_hallucinations
 
 class ToolEventTracker:
     """
@@ -26,7 +33,7 @@ class ToolEventTracker:
 
     def __init__(self):
         self.event_ids = OrderedDict()  # tool_call_id -> event_id mapping
-        self.fallback_counter = 0       # For events without identifiable tool_ids
+        self.fallback_counter = 0  # For events without identifiable tool_ids
 
     def get_event_id(self, event) -> str:
         """
@@ -185,7 +192,9 @@ async def execute_post_stream_processing(
         AgentResponse: Processed final response
     """
     if result is None:
-        logging.warning("Received None result from streaming, returning empty response.")
+        logging.warning(
+            "Received None result from streaming, returning empty response."
+        )
         return AgentResponse(
             response="No response generated",
             metadata=getattr(result, "metadata", {}),
@@ -206,23 +215,11 @@ async def execute_post_stream_processing(
     )
 
     # Post-processing steps
-    # pylint: disable=protected-access
-    await agent_instance._aformat_for_lats(prompt, final)
+
     if agent_instance.query_logging_callback:
         agent_instance.query_logging_callback(prompt, final.response)
 
-    # Calculate factual consistency score
-
-    if agent_instance.vectara_api_key:
-        corrected_text, corrections = analyze_hallucinations(
-            query=prompt,
-            chat_history=agent_instance.memory.get(),
-            agent_response=final.response,
-            tools=agent_instance.tools,
-            vectara_api_key=agent_instance.vectara_api_key,
-        )
-        user_metadata["corrected_text"] = corrected_text
-        user_metadata["corrections"] = corrections
+    # Let LlamaIndex handle agent memory naturally - no custom capture needed
 
     if not final.metadata:
         final.metadata = {}
@@ -230,6 +227,7 @@ async def execute_post_stream_processing(
 
     if agent_instance.observability_enabled:
         from .._observability import eval_fcs
+
         eval_fcs()
 
     return final
@@ -268,8 +266,6 @@ def create_stream_post_processing_task(
         try:
             return await _post_process()
         except Exception:
-            import traceback
-
             traceback.print_exc()
             # Return empty response on error
             return AgentResponse(response="", metadata={})
@@ -299,10 +295,13 @@ class FunctionCallingStreamHandler:
         """
         had_tool_calls = False
         transitioned_to_prose = False
-        event_count = 0
 
         async for ev in self.handler.stream_events():
-            event_count += 1
+            # Store tool outputs for VHC regardless of progress callback
+            if isinstance(ev, ToolCallResult):
+                if hasattr(self.agent_instance, '_add_tool_output'):
+                    # pylint: disable=W0212
+                    self.agent_instance._add_tool_output(ev.tool_name, str(ev.tool_output))
 
             # Handle progress callbacks if available
             if self.agent_instance.agent_progress_callback:
@@ -336,7 +335,8 @@ class FunctionCallingStreamHandler:
         try:
             self.final_response_container["resp"] = await self.handler
         except Exception as e:
-            logging.error(f"Error processing stream events: {e}")
+            logging.error(f"🔍 [STREAM_ERROR] Error processing stream events: {e}")
+            logging.error(f"🔍 [STREAM_ERROR] Full traceback: {traceback.format_exc()}")
             self.final_response_container["resp"] = type(
                 "AgentResponse",
                 (),
@@ -365,11 +365,6 @@ class FunctionCallingStreamHandler:
         Returns:
             bool: True if this event should be tracked for tool purposes
         """
-        from llama_index.core.agent.workflow import (
-            ToolCall,
-            ToolCallResult,
-        )
-
         # Track explicit tool events from LlamaIndex workflow
         if isinstance(event, (ToolCall, ToolCallResult)):
             return True
@@ -391,12 +386,6 @@ class FunctionCallingStreamHandler:
         """Handle progress callback events for different event types with proper context propagation."""
         # Import here to avoid circular imports
         from ..types import AgentStatusType
-        from llama_index.core.agent.workflow import (
-            ToolCall,
-            ToolCallResult,
-            AgentInput,
-            AgentOutput,
-        )
 
         try:
             if isinstance(event, ToolCall):
@@ -461,7 +450,6 @@ class FunctionCallingStreamHandler:
                 )
 
         except Exception as e:
-            import traceback
 
             logging.error(f"Exception in progress callback: {e}")
             logging.error(f"Traceback: {traceback.format_exc()}")

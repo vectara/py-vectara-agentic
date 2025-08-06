@@ -7,6 +7,9 @@ max-attributes=12
 max-args=20
 max-locals=25
 
+[SIMILARITIES]
+min-similarity-lines=10
+
 [MESSAGES CONTROL]
 disable = 
     broad-exception-caught, 
@@ -26,4 +29,3 @@ disable =
     no-else-return,
     too-many-boolean-expressions,
     too-many-lines,
-

@@ -334,6 +334,9 @@ def deserialize_agent_from_dict(
     mem = restore_memory_from_dict(data, token_limit=65536)
     agent.memory = mem
 
+    # Restore session_id to match the memory's session_id
+    agent.session_id = mem.session_id
+
     # Keep inner agent (if already built) in sync
     # pylint: disable=protected-access
     if getattr(agent, "_agent", None) is not None:

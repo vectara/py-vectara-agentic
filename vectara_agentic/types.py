@@ -18,8 +18,6 @@ class AgentType(Enum):
 
     REACT = "REACT"
     FUNCTION_CALLING = "FUNCTION_CALLING"
-    LLMCOMPILER = "LLMCOMPILER"
-    LATS = "LATS"
 
 
 class ObserverType(Enum):
@@ -142,8 +140,16 @@ class AgentStreamingResponse:
             resp = cast(AgentResponse, self.base.get_response())
         elif hasattr(self.base, "to_response"):
             resp = cast(AgentResponse, self.base.to_response())
-        else:
+        elif hasattr(self.base, "get_final_response"):
             resp = cast(AgentResponse, self.base.get_final_response())
+        else:
+            # Fallback for StreamingAgentChatResponse objects that don't have standard methods
+            # Try to get the response directly from the object's response attribute
+            if hasattr(self.base, "response"):
+                response_text = self.base.response if isinstance(self.base.response, str) else str(self.base.response)
+                resp = AgentResponse(response=response_text, metadata=getattr(self.base, "metadata", {}))
+            else:
+                resp = AgentResponse(response="", metadata={})
 
         resp.metadata = (resp.metadata or {}) | self.metadata
         return resp

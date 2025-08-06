@@ -1,10 +1,8 @@
-llama-index==0.12.49
-llama-index-core==0.12.49
+llama-index==0.12.52
+llama-index-core==0.12.52.post1
 llama-index-workflow==1.0.1
 llama-index-cli==0.4.4
 llama-index-indices-managed-vectara==0.4.5
-llama-index-agent-llm-compiler==0.3.2
-llama-index-agent-lats==0.3.2
 llama-index-agent-openai==0.4.12
 llama-index-llms-openai==0.4.7
 llama-index-llms-openai-like==0.4.0
@@ -35,7 +33,7 @@ openinference-instrumentation-llama-index==4.3.1
 opentelemetry-proto>=1.31.0
 arize-phoenix==10.9.1
 arize-phoenix-otel==0.10.3
-protobuf==5.29.3
+protobuf==5.29.5
 tokenizers>=0.20
 pydantic==2.11.5
 pandas==2.2.3

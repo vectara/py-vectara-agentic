@@ -14,8 +14,7 @@ from vectara_agentic.tools import ToolsFactory
 from llama_index.core.utilities.sql_wrapper import SQLDatabase
 from sqlalchemy import create_engine
 
-def mult(x: float, y: float) -> float:
-    return x * y
+from conftest import mult, STANDARD_TEST_TOPIC, STANDARD_TEST_INSTRUCTIONS
 
 
 ARIZE_LOCK = threading.Lock()
@@ -44,12 +43,10 @@ class TestAgentSerialization(unittest.TestCase):
             )
 
             tools = [ToolsFactory().create_tool(mult)] + ToolsFactory().standard_tools() + db_tools
-            topic = "AI topic"
-            instructions = "Always do as your father tells you, if your mother agrees!"
             agent = Agent(
                 tools=tools,
-                topic=topic,
-                custom_instructions=instructions,
+                topic=STANDARD_TEST_TOPIC,
+                custom_instructions=STANDARD_TEST_INSTRUCTIONS,
                 agent_config=config
             )
 

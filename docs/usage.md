@@ -407,6 +407,40 @@ data_tool = tools_factory.create_tool(get_financial_data, vhc_eligible=True)
 format_tool = tools_factory.create_tool(format_financial_report, vhc_eligible=False)
 ```
 
+**Computing Vectara Hallucination Correction (VHC)**
+
+After your agent generates a response, you can compute VHC to analyze and correct any detected hallucinations:
+
+```python
+# Chat with the agent first
+response = agent.chat("What was Apple's revenue in 2022?")
+print(response.response)
+
+# Compute VHC analysis
+vhc_result = agent.compute_vhc()
+
+# Access results
+if vhc_result["corrected_text"]:
+    print("Original response:", response.response)
+    print("Corrected response:", vhc_result["corrected_text"])
+    print("Detected corrections:", vhc_result["corrections"])
+else:
+    print("No corrections needed or VHC not available")
+```
+
+For async applications, use the async version:
+
+```python
+# Async chat and VHC computation
+response = await agent.achat("What was Apple's revenue in 2022?")
+vhc_result = await agent.acompute_vhc()
+```
+
+**VHC Requirements:**
+- Requires a valid `VECTARA_API_KEY` environment variable
+- Only VHC-eligible tools contribute factual content for the analysis
+- Results are cached to avoid redundant computation for the same query/response pair
+
 ## Initialize The Agent
 Now that we have our tools, let's create the agent, using the following
 arguments:
@@ -502,7 +536,7 @@ dictionary that provides more detailed and easier to handle information.
 The `agent_config` argument is an optional object that you can use to
 explicitly specify the configuration of your agent, including the following:
 
-- `agent_type`: the agent type. Valid values are `FUNCTION_CALLING`, `REACT`, `LLMCOMPILER`, or `LATS` (default: `FUNCTION_CALLING`).
+- `agent_type`: the agent type. Valid values are `FUNCTION_CALLING` or `REACT` (default: `FUNCTION_CALLING`).
 - `main_llm_provider` and `tool_llm_provider`: the LLM provider for main agent and for the tools. Valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI` (default: `OPENAI`).
 
 > **Note:** Fireworks AI support has been removed. If you were using Fireworks, please migrate to one of the supported providers listed above.
@@ -710,7 +744,7 @@ providing the answer from the previous question as context to the next question 
 The `Agent` class defines a few helpful methods to help you understand
 the internals of your application.
 
-1.  The `report()` method prints out the agent object's type (FUNCTION_CALLING, REACT, LLMCOMPILER, or LATS), the tools, and the LLMs used for the main
+1.  The `report()` method prints out the agent object's type (FUNCTION_CALLING or REACT), the tools, and the LLMs used for the main
     agent and tool calling.
 2.  The agent provides access to session information including conversation history
     and tool usage patterns.
