@@ -14,8 +14,8 @@ import traceback
 from typing import Callable, Any, Dict, AsyncIterator
 from collections import OrderedDict
 
+from llama_index.core.agent.workflow import ToolCallResult
 from ..types import AgentResponse
-
 
 class ToolEventTracker:
     """
@@ -293,7 +293,6 @@ class FunctionCallingStreamHandler:
 
         async for ev in self.handler.stream_events():
             # Store tool outputs for VHC regardless of progress callback
-            from llama_index.core.agent.workflow import ToolCallResult
             if isinstance(ev, ToolCallResult):
                 if hasattr(self.agent_instance, '_add_tool_output'):
                     # pylint: disable=W0212
