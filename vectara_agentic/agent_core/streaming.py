@@ -14,7 +14,12 @@ import traceback
 from typing import Callable, Any, Dict, AsyncIterator
 from collections import OrderedDict
 
-from llama_index.core.agent.workflow import ToolCallResult
+from llama_index.core.agent.workflow import (
+    ToolCall,
+    ToolCallResult,
+    AgentInput,
+    AgentOutput,
+)
 from ..types import AgentResponse
 
 class ToolEventTracker:
@@ -360,11 +365,6 @@ class FunctionCallingStreamHandler:
         Returns:
             bool: True if this event should be tracked for tool purposes
         """
-        from llama_index.core.agent.workflow import (
-            ToolCall,
-            ToolCallResult,
-        )
-
         # Track explicit tool events from LlamaIndex workflow
         if isinstance(event, (ToolCall, ToolCallResult)):
             return True
@@ -386,12 +386,6 @@ class FunctionCallingStreamHandler:
         """Handle progress callback events for different event types with proper context propagation."""
         # Import here to avoid circular imports
         from ..types import AgentStatusType
-        from llama_index.core.agent.workflow import (
-            ToolCall,
-            ToolCallResult,
-            AgentInput,
-            AgentOutput,
-        )
 
         try:
             if isinstance(event, ToolCall):
