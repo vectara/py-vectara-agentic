@@ -407,6 +407,40 @@ data_tool = tools_factory.create_tool(get_financial_data, vhc_eligible=True)
 format_tool = tools_factory.create_tool(format_financial_report, vhc_eligible=False)
 ```
 
+**Computing Vectara Hallucination Correction (VHC)**
+
+After your agent generates a response, you can compute VHC to analyze and correct any detected hallucinations:
+
+```python
+# Chat with the agent first
+response = agent.chat("What was Apple's revenue in 2022?")
+print(response.response)
+
+# Compute VHC analysis
+vhc_result = agent.compute_vhc()
+
+# Access results
+if vhc_result["corrected_text"]:
+    print("Original response:", response.response)
+    print("Corrected response:", vhc_result["corrected_text"])
+    print("Detected corrections:", vhc_result["corrections"])
+else:
+    print("No corrections needed or VHC not available")
+```
+
+For async applications, use the async version:
+
+```python
+# Async chat and VHC computation
+response = await agent.achat("What was Apple's revenue in 2022?")
+vhc_result = await agent.acompute_vhc()
+```
+
+**VHC Requirements:**
+- Requires a valid `VECTARA_API_KEY` environment variable
+- Only VHC-eligible tools contribute factual content for the analysis
+- Results are cached to avoid redundant computation for the same query/response pair
+
 ## Initialize The Agent
 Now that we have our tools, let's create the agent, using the following
 arguments:

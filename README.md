@@ -455,6 +455,49 @@ Built-in formatters include `format_as_table`, `format_as_json`, and `format_as_
 
 The human-readable format, if available, is used when using Vectara Hallucination Correction.
 
+## 🔍 Vectara Hallucination Correction (VHC)
+
+`vectara-agentic` provides built-in support for Vectara Hallucination Correction (VHC), which analyzes agent responses and corrects any detected hallucinations based on the factual content retrieved by VHC-eligible tools.
+
+### Computing VHC
+
+After a chat interaction, you can compute VHC to analyze and correct the agent's response:
+
+```python
+# Chat with the agent
+response = agent.chat("What was Apple's revenue in 2022?")
+print(response.response)
+
+# Compute VHC analysis
+vhc_result = agent.compute_vhc()
+
+# Access corrected text and corrections
+if vhc_result["corrected_text"]:
+    print("Original:", response.response)
+    print("Corrected:", vhc_result["corrected_text"])
+    print("Corrections:", vhc_result["corrections"])
+else:
+    print("No corrections needed or VHC not available")
+```
+
+### Async VHC Computation
+
+For async applications, use `acompute_vhc()`:
+
+```python
+# Async chat
+response = await agent.achat("What was Apple's revenue in 2022?")
+
+# Async VHC computation
+vhc_result = await agent.acompute_vhc()
+```
+
+### VHC Requirements
+
+- VHC requires a valid `VECTARA_API_KEY` environment variable
+- Only VHC-eligible tools (those marked with `vhc_eligible=True`) contribute to the analysis
+- VHC results are cached for each query/response pair to avoid redundant computation
+
 ### Tool Validation
 
 When creating an agent, you can enable tool validation by setting `validate_tools=True`. This will check that any tools mentioned in your custom instructions actually exist in the agent's tool set:

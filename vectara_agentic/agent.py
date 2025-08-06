@@ -121,7 +121,7 @@ class Agent:
                 Defaults to False.
             workflow_cls (Workflow, optional): The workflow class to be used with run(). Defaults to None.
             workflow_timeout (int, optional): The timeout for the workflow in seconds. Defaults to 120.
-            vectara_api_key (str, optional): The Vectara API key for FCS evaluation. Defaults to None.
+            vectara_api_key (str, optional): The Vectara API key for VHC computation. Defaults to None.
             session_id (str, optional): The session ID for memory persistence.
                                         If None, auto-generates from topic and date. Defaults to None.
         """
