@@ -14,7 +14,7 @@ from llama_index.core.tools import FunctionTool
 from llama_index.core.memory import Memory
 from llama_index.core.callbacks import CallbackManager
 from llama_index.core.agent.workflow import FunctionAgent, ReActAgent
-from llama_index.core.agent.types import BaseAgent
+from llama_index.core.agent import BaseWorkflowAgent
 
 from pydantic import Field, create_model
 
@@ -115,8 +115,7 @@ def create_function_agent(
     """
     Create a unified Function Calling agent.
 
-    This replaces both the deprecated OpenAI agent and the dedicated function calling agent,
-    providing a single modern implementation with flexible capabilities.
+    Modern workflow-based function calling agent implementation using LlamaIndex 0.13.0+ architecture.
 
     Args:
         tools: List of tools available to the agent
@@ -137,7 +136,7 @@ def create_function_agent(
         - Works with any LLM provider (OpenAI, Anthropic, Together, etc.)
         - Memory/state is managed via Context object during workflow execution
         - Parallel tool calls depend on LLM provider support
-        - Replaces both OpenAI agent (legacy) and function calling agent implementations
+        - Modern workflow-based agent implementation using LlamaIndex 0.13.0+ architecture
     """
     prompt = format_prompt(
         GENERAL_PROMPT_TEMPLATE,
@@ -166,7 +165,7 @@ def create_agent_from_config(
     custom_instructions: str,
     verbose: bool = True,
     agent_type: Optional[AgentType] = None,  # For compatibility with existing interface
-) -> BaseAgent:
+) -> BaseWorkflowAgent:
     """
     Create an agent based on configuration.
 
@@ -186,7 +185,7 @@ def create_agent_from_config(
         agent_type: Override agent type (for backward compatibility)
 
     Returns:
-        BaseAgent: Configured agent
+        BaseWorkflowAgent: Configured agent
 
     Raises:
         ValueError: If unknown agent type is specified

@@ -19,6 +19,30 @@ from conftest import mult, STANDARD_TEST_TOPIC, STANDARD_TEST_INSTRUCTIONS
 ARIZE_LOCK = threading.Lock()
 
 class TestAgentPackage(unittest.TestCase):
+    def setUp(self):
+        self.agents_to_cleanup = []
+
+    def tearDown(self):
+        import gc
+        import asyncio
+
+        for agent in self.agents_to_cleanup:
+            if hasattr(agent, 'cleanup'):
+                agent.cleanup()
+
+        # Force garbage collection to clean up any remaining references
+        gc.collect()
+
+        # Cancel any remaining asyncio tasks without closing the event loop
+        try:
+            loop = asyncio.get_event_loop()
+            if not loop.is_closed():
+                pending = asyncio.all_tasks(loop)
+                for task in pending:
+                    task.cancel()
+        except RuntimeError:
+            pass
+
     def test_get_prompt(self):
         prompt_template = "{chat_topic} on {today} with {custom_instructions}"
         topic = "Programming"
@@ -35,6 +59,7 @@ class TestAgentPackage(unittest.TestCase):
     def test_agent_init(self):
         tools = [ToolsFactory().create_tool(mult)]
         agent = Agent(tools, STANDARD_TEST_TOPIC, STANDARD_TEST_INSTRUCTIONS)
+        self.agents_to_cleanup.append(agent)
         self.assertEqual(agent.agent_type, AgentType.FUNCTION_CALLING)
         self.assertEqual(agent._topic, STANDARD_TEST_TOPIC)
         self.assertEqual(agent._custom_instructions, STANDARD_TEST_INSTRUCTIONS)
@@ -65,6 +90,7 @@ class TestAgentPackage(unittest.TestCase):
                 custom_instructions=STANDARD_TEST_INSTRUCTIONS,
                 agent_config=config
             )
+            self.agents_to_cleanup.append(agent)
             self.assertEqual(agent._topic, STANDARD_TEST_TOPIC)
             self.assertEqual(agent._custom_instructions, STANDARD_TEST_INSTRUCTIONS)
             self.assertEqual(agent.agent_type, AgentType.REACT)
@@ -90,6 +116,7 @@ class TestAgentPackage(unittest.TestCase):
                 topic=topic,
                 custom_instructions=instructions,
             )
+            self.agents_to_cleanup.append(agent)
 
             agent.chat("What is 5 times 10. Only give the answer, nothing else")
             agent.chat("what is 3 times 7. Only give the answer, nothing else")
@@ -104,6 +131,7 @@ class TestAgentPackage(unittest.TestCase):
             data_description="information",
             assistant_specialty="question answering",
         )
+        self.agents_to_cleanup.append(agent)
 
         self.assertIsInstance(agent, Agent)
         self.assertEqual(agent._topic, "question answering")
@@ -118,6 +146,7 @@ class TestAgentPackage(unittest.TestCase):
             custom_instructions=instructions,
             chat_history=[("What is 5 times 10", "50"), ("What is 3 times 7", "21")]
         )
+        self.agents_to_cleanup.append(agent)
 
         data = agent.dumps()
         clone = Agent.loads(data)
@@ -136,8 +165,10 @@ class TestAgentPackage(unittest.TestCase):
             assistant_specialty="question answering",
             general_instructions=general_instructions,
         )
+        self.agents_to_cleanup.append(agent)
 
         res = agent.chat("What is the meaning of the universe?")
+        print(f"Response: {res.response}")
         self.assertEqual(res.response, "I DIDN'T DO IT")
 
 

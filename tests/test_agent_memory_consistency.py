@@ -172,21 +172,21 @@ class TestAgentMemoryConsistency(unittest.TestCase):
 
         # Verify initial session_id
         self.assertEqual(agent.session_id, self.session_id)
-        self.assertEqual(agent.memory.session_id, self.session_id)
+        self.assertEqual(agent.memory.chat_store_key, self.session_id)
 
         # Switch configurations multiple times
         agent._switch_agent_config()
         self.assertEqual(agent.session_id, self.session_id)
-        self.assertEqual(agent.memory.session_id, self.session_id)
+        self.assertEqual(agent.memory.chat_store_key, self.session_id)
 
         agent._switch_agent_config()
         self.assertEqual(agent.session_id, self.session_id)
-        self.assertEqual(agent.memory.session_id, self.session_id)
+        self.assertEqual(agent.memory.chat_store_key, self.session_id)
 
         # Clear memory
         agent.clear_memory()
         self.assertEqual(agent.session_id, self.session_id)
-        self.assertEqual(agent.memory.session_id, self.session_id)
+        self.assertEqual(agent.memory.chat_store_key, self.session_id)
 
     def test_serialization_preserves_consistency(self):
         """Test that serialization/deserialization preserves memory consistency behavior"""

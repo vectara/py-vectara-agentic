@@ -67,7 +67,7 @@ async def summarize_documents(
     corpus_key: str,
     api_key: str,
     doc_ids: list[str],
-    llm_name: str = "gpt-4o",
+    llm_name: str = "gpt-5-mini",
 ) -> dict[str, str | BaseException]:
     """
     Summarize multiple documents in a Vectara corpus using the Vectara API.
@@ -75,7 +75,7 @@ async def summarize_documents(
     if not doc_ids:
         return {}
     if llm_name is None:
-        llm_name = "gpt-4o"
+        llm_name = "gpt-5-mini"
     tasks = [
         summarize_vectara_document(
             corpus_key=corpus_key, api_key=api_key, llm_name=llm_name, doc_id=doc_id
