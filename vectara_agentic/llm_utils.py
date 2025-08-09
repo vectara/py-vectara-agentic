@@ -17,7 +17,7 @@ from .types import LLMRole, ModelProvider
 from .agent_config import AgentConfig
 
 provider_to_default_model_name = {
-    ModelProvider.OPENAI: "gpt-5-mini",
+    ModelProvider.OPENAI: "gpt-4.1",
     ModelProvider.ANTHROPIC: "claude-sonnet-4-20250514",
     ModelProvider.TOGETHER: "deepseek-ai/DeepSeek-V3",
     ModelProvider.GROQ: "openai/gpt-oss-20b",

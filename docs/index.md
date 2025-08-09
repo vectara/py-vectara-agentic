@@ -205,7 +205,7 @@ LLM provider.
 
 Defaults:
 
-1.  For `OPENAI`, the default is `gpt-5-mini`.
+1.  For `OPENAI`, the default is `gpt-4.1`.
 2.  For `ANTHROPIC`, the default is `claude-sonnet-4-20250514`.
 3.  For `GEMINI`, the default is `gemini-2.5-flash`.
 4.  For `TOGETHER.AI`, the default is `deepseek-ai/DeepSeek-V3`.

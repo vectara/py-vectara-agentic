@@ -122,19 +122,19 @@ react_config_groq = AgentConfig(
 private_llm_react_config = AgentConfig(
     agent_type=AgentType.REACT,
     main_llm_provider=ModelProvider.PRIVATE,
-    main_llm_model_name="gpt-5-mini",
+    main_llm_model_name="gpt-4.1-mini",
     private_llm_api_base="http://localhost:8000/v1",
     tool_llm_provider=ModelProvider.PRIVATE,
-    tool_llm_model_name="gpt-5-mini",
+    tool_llm_model_name="gpt-4.1-mini",
 )
 
 private_llm_fc_config = AgentConfig(
     agent_type=AgentType.FUNCTION_CALLING,
     main_llm_provider=ModelProvider.PRIVATE,
-    main_llm_model_name="gpt-5-mini",
+    main_llm_model_name="gpt-4.1-mini",
     private_llm_api_base="http://localhost:8000/v1",
     tool_llm_provider=ModelProvider.PRIVATE,
-    tool_llm_model_name="gpt-5-mini",
+    tool_llm_model_name="gpt-4.1-mini",
 )
 
 

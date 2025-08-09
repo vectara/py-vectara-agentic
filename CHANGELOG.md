@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.4.2] - 2025-08-09
 
-### Changed
-
-- **Updated default model for OpenAI**: OpenAI now defaults to gpt-5-mini
-
 ### Improvements
 
 - **Upgraded to LlamaIndex 0.13.0** - Cleaned up legacy code references and improved response type handling
