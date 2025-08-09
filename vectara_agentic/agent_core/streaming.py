@@ -337,15 +337,11 @@ class FunctionCallingStreamHandler:
         except Exception as e:
             logging.error(f"🔍 [STREAM_ERROR] Error processing stream events: {e}")
             logging.error(f"🔍 [STREAM_ERROR] Full traceback: {traceback.format_exc()}")
-            self.final_response_container["resp"] = type(
-                "AgentResponse",
-                (),
-                {
-                    "response": "Response completion Error",
-                    "source_nodes": [],
-                    "metadata": None,
-                },
-            )()
+            self.final_response_container["resp"] = AgentResponse(
+                response="Response completion Error",
+                source_nodes=[],
+                metadata={}
+            )
         finally:
             # Clean up event tracker to prevent memory leaks
             self.event_tracker.clear_old_entries()

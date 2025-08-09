@@ -35,6 +35,8 @@ def suppress_pydantic_warnings():
         ".*unclosed transport.*",
         ".*unclosed <socket\\.socket.*",
         ".*unclosed event loop.*",
+        ".*unclosed resource <TCPTransport.*",
+        ".*Implicitly cleaning up <TemporaryDirectory.*",
     ]
 
     for pattern in pydantic_patterns:

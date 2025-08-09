@@ -132,3 +132,22 @@ def eval_fcs() -> None:
             eval_name="Vectara FCS",
         ),
     )
+
+
+def shutdown_observer() -> None:
+    """
+    Shutdown the Phoenix observer and clean up resources.
+    """
+    try:
+        import phoenix as px
+        from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
+
+        LlamaIndexInstrumentor().uninstrument()
+
+        # Close Phoenix session if running locally
+        if hasattr(px, 'close'):
+            px.close()
+    except ImportError:
+        pass
+    except Exception:
+        pass

@@ -54,7 +54,7 @@ class TestPrivateLLM(unittest.TestCase):
         config = AgentConfig(
             agent_type=AgentType.FUNCTION_CALLING,
             main_llm_provider=ModelProvider.PRIVATE,
-            main_llm_model_name="gpt-4.1",
+            main_llm_model_name="gpt-4.1-mini",
             private_llm_api_base=f"http://127.0.0.1:{FLASK_PORT}/v1",
             private_llm_api_key="TEST_API_KEY",
         )
