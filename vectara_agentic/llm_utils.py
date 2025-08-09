@@ -104,6 +104,7 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
         else 8192
     )
     if model_provider == ModelProvider.OPENAI:
+        additional_kwargs = {"reasoning_effort": "minimal"} if model_name.startswith("gpt-5") else {}
         llm = OpenAI(
             model=model_name,
             temperature=0,
@@ -111,6 +112,7 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             strict=False,
             max_tokens=max_tokens,
             pydantic_program_mode="openai",
+            additional_kwargs=additional_kwargs
         )
     elif model_provider == ModelProvider.ANTHROPIC:
         llm = Anthropic(
