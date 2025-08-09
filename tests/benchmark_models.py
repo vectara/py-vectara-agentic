@@ -135,7 +135,7 @@ class ModelBenchmark:
         import random
         import json
         import psutil
-        from datetime import datetime, timedelta
+        from datetime import datetime
 
         tools_factory = ToolsFactory()
 
@@ -319,7 +319,7 @@ class ModelBenchmark:
                     "disk_free_gb": round(disk.free / (1024**3), 2),
                     "timestamp": datetime.now().isoformat(),
                 }
-            except Exception as e:
+            except Exception:
                 # Fallback with simulated data for testing
                 return {
                     "cpu_usage_percent": random.randint(20, 95),
