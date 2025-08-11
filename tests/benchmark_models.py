@@ -80,6 +80,7 @@ class ModelBenchmark:
             {"provider": ModelProvider.TOGETHER, "model": "deepseek-ai/DeepSeek-V3"},
             {"provider": ModelProvider.GROQ, "model": "openai/gpt-oss-20b"},
             {"provider": ModelProvider.GEMINI, "model": "models/gemini-2.5-flash"},
+            {"provider": ModelProvider.GEMINI, "model": "models/gemini-2.5-pro"},
         ]
 
         # Test scenarios - focused on advanced tool calling only
