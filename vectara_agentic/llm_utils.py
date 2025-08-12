@@ -17,7 +17,7 @@ from .types import LLMRole, ModelProvider
 from .agent_config import AgentConfig
 
 provider_to_default_model_name = {
-    ModelProvider.OPENAI: "gpt-4.1",
+    ModelProvider.OPENAI: "gpt-4.1-mini",
     ModelProvider.ANTHROPIC: "claude-sonnet-4-20250514",
     ModelProvider.TOGETHER: "deepseek-ai/DeepSeek-V3",
     ModelProvider.GROQ: "openai/gpt-oss-20b",
@@ -104,6 +104,7 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
         else 8192
     )
     if model_provider == ModelProvider.OPENAI:
+        additional_kwargs = {"reasoning_effort": "minimal"} if model_name.startswith("gpt-5") else {}
         llm = OpenAI(
             model=model_name,
             temperature=0,
@@ -111,6 +112,7 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             strict=False,
             max_tokens=max_tokens,
             pydantic_program_mode="openai",
+            additional_kwargs=additional_kwargs
         )
     elif model_provider == ModelProvider.ANTHROPIC:
         llm = Anthropic(

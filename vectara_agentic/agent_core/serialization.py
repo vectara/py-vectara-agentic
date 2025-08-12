@@ -13,7 +13,8 @@ from typing import Dict, Any, List, Optional, Callable
 
 import cloudpickle as pickle
 from pydantic import Field, create_model, BaseModel
-from llama_index.core.memory import Memory
+from llama_index.core.memory import ChatMemoryBuffer
+from llama_index.core.storage.chat_store import SimpleChatStore
 from llama_index.core.llms import ChatMessage
 from llama_index.core.tools import FunctionTool
 
@@ -23,7 +24,7 @@ from ..types import ToolType
 from .utils.schemas import get_field_type
 
 
-def restore_memory_from_dict(data: Dict[str, Any], token_limit: int = 65536) -> Memory:
+def restore_memory_from_dict(data: Dict[str, Any], session_id: str, token_limit: int = 65536) -> ChatMemoryBuffer:
     """
     Restore agent memory from serialized dictionary data.
 
@@ -31,13 +32,18 @@ def restore_memory_from_dict(data: Dict[str, Any], token_limit: int = 65536) -> 
 
     Args:
         data: Serialized agent data dictionary
+        session_id: Session ID to use for the memory
         token_limit: Token limit for the memory instance
 
     Returns:
-        Memory: Restored memory instance
+        ChatMemoryBuffer: Restored memory instance
     """
-    session_id = data.get("memory_session_id", "default")
-    mem = Memory.from_defaults(session_id=session_id, token_limit=token_limit)
+    chat_store = SimpleChatStore()
+    mem = ChatMemoryBuffer.from_defaults(
+        chat_store=chat_store,
+        chat_store_key=session_id,
+        token_limit=token_limit
+    )
 
     # New JSON dump format
     dump = data.get("memory_dump", [])
@@ -260,7 +266,7 @@ def serialize_agent_to_dict(agent) -> Dict[str, Any]:
     return {
         "agent_type": agent.agent_config.agent_type.value,
         "memory_dump": [m.model_dump() for m in agent.memory.get()],
-        "memory_session_id": getattr(agent.memory, "session_id", None),
+        "session_id": agent.session_id,
         "tools": serialize_tools(agent.tools),
         # pylint: disable=protected-access
         "topic": agent._topic,
@@ -324,18 +330,18 @@ def deserialize_agent_from_dict(
         agent_progress_callback=agent_progress_callback,
         query_logging_callback=query_logging_callback,
         vectara_api_key=data.get("vectara_api_key"),
+        session_id=data.get("session_id"),
     )
 
     # Restore custom metadata (backward compatible)
     # pylint: disable=protected-access
     agent._custom_metadata = data.get("custom_metadata", {})
 
-    # Restore memory
-    mem = restore_memory_from_dict(data, token_limit=65536)
+    # Restore memory with the agent's session_id
+    # Support both new and legacy serialization formats
+    session_id_from_data = data.get("session_id") or data.get("memory_session_id", "default")
+    mem = restore_memory_from_dict(data, session_id_from_data, token_limit=65536)
     agent.memory = mem
-
-    # Restore session_id to match the memory's session_id
-    agent.session_id = mem.session_id
 
     # Keep inner agent (if already built) in sync
     # pylint: disable=protected-access

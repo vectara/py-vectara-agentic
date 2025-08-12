@@ -567,25 +567,6 @@ class VectaraToolFactory:
             # Create human-readable output with citation formatting
             def format_rag_response(result):
                 text = result["text"]
-
-                # Format citations if present
-                metadata = result["metadata"]
-                citation_info = []
-                for key, value in metadata.items():
-                    if key.isdigit():
-                        doc = value.get("document", {})
-                        doc_metadata = f"{key}: " + "; ".join(
-                            [f"{k}='{v}'" for k, v in doc.items()]
-                            + [
-                                f"{k}='{v}'"
-                                for k, v in value.items()
-                                if k not in ["document"] + keys_to_ignore
-                            ]
-                        )
-                        citation_info.append(doc_metadata)
-                if citation_info:
-                    text += "\n\nCitations:\n" + "\n".join(citation_info)
-
                 return text
 
             return create_human_readable_output(res, format_rag_response)

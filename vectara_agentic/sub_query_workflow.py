@@ -6,6 +6,7 @@ that takes a user question and a list of tools, and outputs a list of sub-questi
 import re
 import json
 import logging
+from typing import List, Tuple
 
 from pydantic import BaseModel, Field
 
@@ -44,7 +45,7 @@ class SubQuestionQueryWorkflow(Workflow):
         Outputs for the workflow when it fails.
         """
 
-        qna: list[tuple[str,str]] = Field(default_factory=list, description="List of question-answer pairs")
+        qna: List[Tuple[str, str]] = Field(default_factory=list, description="List of question-answer pairs")
 
     # Workflow Event types
     class QueryEvent(Event):
@@ -220,7 +221,7 @@ class SequentialSubQuestionsWorkflow(Workflow):
         Outputs for the workflow when it fails.
         """
 
-        qna: list[tuple[str,str]] = Field(
+        qna: List[Tuple[str, str]] = Field(
             default_factory=list, description="List of question-answer pairs"
         )
 

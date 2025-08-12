@@ -22,13 +22,14 @@ from dotenv import load_dotenv
 # Runtime imports for components used at module level
 from llama_index.core.llms import MessageRole, ChatMessage
 from llama_index.core.callbacks import CallbackManager
-from llama_index.core.memory import Memory
+from llama_index.core.memory import ChatMemoryBuffer
+from llama_index.core.storage.chat_store import SimpleChatStore
 
 # Heavy llama_index imports moved to TYPE_CHECKING for lazy loading
 if TYPE_CHECKING:
     from llama_index.core.tools import FunctionTool
     from llama_index.core.workflow import Workflow
-    from llama_index.core.agent.types import BaseAgent
+    from llama_index.core.agent import BaseWorkflowAgent
     from llama_index.core.callbacks.base_handler import BaseCallbackHandler
 
 
@@ -167,8 +168,11 @@ class Agent:
             or f"{topic}:{date.today().isoformat()}"
         )
 
-        self.memory = Memory.from_defaults(
-            session_id=self.session_id, token_limit=65536
+        chat_store = SimpleChatStore()
+        self.memory = ChatMemoryBuffer.from_defaults(
+            chat_store=chat_store,
+            chat_store_key=self.session_id,
+            token_limit=65536
         )
         if chat_history:
             msgs = []
@@ -220,7 +224,7 @@ class Agent:
 
     def _create_agent(
         self, config: AgentConfig, llm_callback_manager: "CallbackManager"
-    ) -> "BaseAgent":
+    ) -> "BaseWorkflowAgent":
         """
         Creates the agent based on the configuration object.
 
@@ -229,7 +233,7 @@ class Agent:
             llm_callback_manager: The callback manager for the agent's llm.
 
         Returns:
-            BaseAgent: The configured agent object.
+            BaseWorkflowAgent: The configured agent object.
         """
         # Use the same LLM instance for consistency
         llm = (
@@ -1102,3 +1106,29 @@ class Agent:
         return deserialize_agent_from_dict(
             cls, data, agent_progress_callback, query_logging_callback
         )
+
+    def cleanup(self) -> None:
+        """Clean up resources used by the agent."""
+        from ._observability import shutdown_observer
+
+        if hasattr(self, 'agent') and hasattr(self.agent, '_llm'):
+            llm = self.agent._llm
+            if hasattr(llm, 'client') and hasattr(llm.client, 'close'):
+                try:
+                    if asyncio.iscoroutinefunction(llm.client.close):
+                        asyncio.run(llm.client.close())
+                    else:
+                        llm.client.close()
+                except Exception:
+                    pass
+
+        # Shutdown observability connections
+        shutdown_observer()
+
+    def __enter__(self):
+        """Context manager entry."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit with cleanup."""
+        self.cleanup()
