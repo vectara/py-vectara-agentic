@@ -70,17 +70,13 @@ class ModelBenchmark:
         self.enable_observability = enable_observability
         self.models_to_test = [
             # OpenAI models
-            {"provider": ModelProvider.OPENAI, "model": "gpt-5"},
             {"provider": ModelProvider.OPENAI, "model": "gpt-5-mini"},
-            {"provider": ModelProvider.OPENAI, "model": "gpt-4o"},
             {"provider": ModelProvider.OPENAI, "model": "gpt-4o-mini"},
-            {"provider": ModelProvider.OPENAI, "model": "gpt-4.1"},
             {"provider": ModelProvider.OPENAI, "model": "gpt-4.1-mini"},
             {"provider": ModelProvider.ANTHROPIC, "model": "claude-sonnet-4-20250514"},
             {"provider": ModelProvider.TOGETHER, "model": "deepseek-ai/DeepSeek-V3"},
             {"provider": ModelProvider.GROQ, "model": "openai/gpt-oss-20b"},
-            {"provider": ModelProvider.GEMINI, "model": "models/gemini-2.5-flash"},
-            {"provider": ModelProvider.GEMINI, "model": "models/gemini-2.5-pro"},
+            {"provider": ModelProvider.GEMINI, "model": "models/gemini-2.5-flash-lite"},
         ]
 
         # Test scenarios - focused on advanced tool calling only

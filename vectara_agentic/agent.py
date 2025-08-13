@@ -22,8 +22,8 @@ from dotenv import load_dotenv
 # Runtime imports for components used at module level
 from llama_index.core.llms import MessageRole, ChatMessage
 from llama_index.core.callbacks import CallbackManager
-from llama_index.core.memory import ChatMemoryBuffer
-from llama_index.core.storage.chat_store import SimpleChatStore
+from llama_index.core.memory import Memory
+
 
 # Heavy llama_index imports moved to TYPE_CHECKING for lazy loading
 if TYPE_CHECKING:
@@ -168,10 +168,8 @@ class Agent:
             or f"{topic}:{date.today().isoformat()}"
         )
 
-        chat_store = SimpleChatStore()
-        self.memory = ChatMemoryBuffer.from_defaults(
-            chat_store=chat_store,
-            chat_store_key=self.session_id,
+        self.memory = Memory.from_defaults(
+            session_id=self.session_id,
             token_limit=65536
         )
         if chat_history:
@@ -756,6 +754,8 @@ class Agent:
                 return agent_response
 
             except Exception as e:
+                import traceback
+                print(f"DEBUG - Exception in astream_chat: {e}, traceback: {traceback.format_exc()}")
                 last_error = e
                 if self.verbose:
                     logger.warning(

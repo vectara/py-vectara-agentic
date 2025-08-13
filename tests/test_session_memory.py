@@ -43,8 +43,8 @@ class TestSessionMemoryManagement(unittest.TestCase):
         # Verify the agent uses the provided session_id
         self.assertEqual(agent.session_id, custom_session_id)
 
-        # Verify memory uses the same session_id (via chat_store_key)
-        self.assertEqual(agent.memory.chat_store_key, custom_session_id)
+        # Verify memory uses the same session_id
+        self.assertEqual(agent.memory.session_id, custom_session_id)
 
     def test_agent_init_without_session_id(self):
         """Test Agent initialization without session_id (auto-generation)"""
@@ -59,8 +59,8 @@ class TestSessionMemoryManagement(unittest.TestCase):
         expected_pattern = f"{self.topic}:{date.today().isoformat()}"
         self.assertEqual(agent.session_id, expected_pattern)
 
-        # Verify memory uses the same session_id (via chat_store_key)
-        self.assertEqual(agent.memory.chat_store_key, expected_pattern)
+        # Verify memory uses the same session_id
+        self.assertEqual(agent.memory.session_id, expected_pattern)
 
     def test_from_tools_with_session_id(self):
         """Test Agent.from_tools() with custom session_id"""
@@ -76,7 +76,7 @@ class TestSessionMemoryManagement(unittest.TestCase):
 
         # Verify the agent uses the provided session_id
         self.assertEqual(agent.session_id, custom_session_id)
-        self.assertEqual(agent.memory.chat_store_key, custom_session_id)
+        self.assertEqual(agent.memory.session_id, custom_session_id)
 
     def test_from_tools_without_session_id(self):
         """Test Agent.from_tools() without session_id (auto-generation)"""
@@ -90,7 +90,7 @@ class TestSessionMemoryManagement(unittest.TestCase):
         # Verify auto-generated session_id
         expected_pattern = f"{self.topic}:{date.today().isoformat()}"
         self.assertEqual(agent.session_id, expected_pattern)
-        self.assertEqual(agent.memory.chat_store_key, expected_pattern)
+        self.assertEqual(agent.memory.session_id, expected_pattern)
 
     def test_session_id_consistency_across_agents(self):
         """Test that agents with same session_id have consistent session_id attributes"""
@@ -118,9 +118,9 @@ class TestSessionMemoryManagement(unittest.TestCase):
         self.assertEqual(agent2.session_id, shared_session_id)
         self.assertEqual(agent1.session_id, agent2.session_id)
 
-        # Verify their memory instances also have the correct session_id (via chat_store_key)
-        self.assertEqual(agent1.memory.chat_store_key, shared_session_id)
-        self.assertEqual(agent2.memory.chat_store_key, shared_session_id)
+        # Verify their memory instances also have the correct session_id
+        self.assertEqual(agent1.memory.session_id, shared_session_id)
+        self.assertEqual(agent2.memory.session_id, shared_session_id)
 
         # Note: Each agent gets its own Memory instance (this is expected behavior)
         # In production, memory persistence happens through serialization/deserialization
@@ -204,7 +204,7 @@ class TestSessionMemoryManagement(unittest.TestCase):
 
         # Verify session_id is preserved
         self.assertEqual(restored_agent.session_id, custom_session_id)
-        self.assertEqual(restored_agent.memory.chat_store_key, custom_session_id)
+        self.assertEqual(restored_agent.memory.session_id, custom_session_id)
 
         # Verify memory is preserved
         restored_messages = restored_agent.memory.get()
@@ -231,7 +231,7 @@ class TestSessionMemoryManagement(unittest.TestCase):
 
         # Verify session_id is correct
         self.assertEqual(agent.session_id, custom_session_id)
-        self.assertEqual(agent.memory.chat_store_key, custom_session_id)
+        self.assertEqual(agent.memory.session_id, custom_session_id)
 
         # Verify chat history was loaded into memory
         messages = agent.memory.get()
