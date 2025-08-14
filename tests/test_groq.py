@@ -1,5 +1,6 @@
 # Suppress external dependency warnings before any other imports
 import warnings
+
 warnings.simplefilter("ignore", DeprecationWarning)
 
 import unittest
@@ -9,11 +10,18 @@ from vectara_agentic.agent import Agent
 from vectara_agentic.tools import ToolsFactory
 
 import nest_asyncio
+
 nest_asyncio.apply()
 
-from conftest import mult, fc_config_groq, STANDARD_TEST_TOPIC, STANDARD_TEST_INSTRUCTIONS
+from conftest import (
+    mult,
+    fc_config_groq,
+    STANDARD_TEST_TOPIC,
+    STANDARD_TEST_INSTRUCTIONS,
+)
 
 ARIZE_LOCK = threading.Lock()
+
 
 class TestGROQ(unittest.IsolatedAsyncioTestCase):
 

@@ -1,5 +1,6 @@
 # Suppress external dependency warnings before any other imports
 import warnings
+
 warnings.simplefilter("ignore", DeprecationWarning)
 
 import unittest
@@ -20,6 +21,7 @@ class DummyAgent(Agent):
 
     def chat(self, message: str) -> str:
         return f"Echo: {message}"
+
 
 class APITestCase(unittest.TestCase):
     @classmethod
@@ -42,7 +44,9 @@ class APITestCase(unittest.TestCase):
         self.assertIn("No message provided", r.json()["detail"])
 
     def test_chat_unauthorized(self):
-        r = self.client.get("/chat", params={"message": "hello"}, headers={"X-API-Key": "bad"})
+        r = self.client.get(
+            "/chat", params={"message": "hello"}, headers={"X-API-Key": "bad"}
+        )
         self.assertEqual(r.status_code, 403)
 
     def test_completions_success(self):
@@ -69,14 +73,13 @@ class APITestCase(unittest.TestCase):
 
     def test_completions_unauthorized(self):
         payload = {"model": "m1", "prompt": "hi"}
-        r = self.client.post("/v1/completions", json=payload, headers={"X-API-Key": "bad"})
+        r = self.client.post(
+            "/v1/completions", json=payload, headers={"X-API-Key": "bad"}
+        )
         self.assertEqual(r.status_code, 403)
 
     def test_chat_completion_success(self):
-        payload = {
-            "model": "m1",
-            "messages": [{"role": "user", "content": "hello"}]
-        }
+        payload = {"model": "m1", "messages": [{"role": "user", "content": "hello"}]}
         r = self.client.post("/v1/chat", json=payload, headers=self.headers)
         self.assertEqual(r.status_code, 200)
         data = r.json()
@@ -99,8 +102,8 @@ class APITestCase(unittest.TestCase):
                 {"role": "system", "content": "ignore me"},
                 {"role": "user", "content": "foo"},
                 {"role": "assistant", "content": "pong"},
-                {"role": "user", "content": "bar"}
-            ]
+                {"role": "user", "content": "bar"},
+            ],
         }
         r = self.client.post("/v1/chat", json=payload, headers=self.headers)
         self.assertEqual(r.status_code, 200)
@@ -108,7 +111,7 @@ class APITestCase(unittest.TestCase):
 
         # Should concatenate only user messages: "foo bar"
         self.assertEqual(data["choices"][0]["message"]["content"], "Echo: foo bar")
-        self.assertEqual(data["usage"]["prompt_tokens"], 2)   # "foo","bar"
+        self.assertEqual(data["usage"]["prompt_tokens"], 2)  # "foo","bar"
         self.assertEqual(data["usage"]["completion_tokens"], 3)  # "Echo:","foo","bar"
 
     def test_chat_completion_no_messages(self):
@@ -118,10 +121,7 @@ class APITestCase(unittest.TestCase):
         self.assertIn("`messages` is required", r.json()["detail"])
 
     def test_chat_completion_unauthorized(self):
-        payload = {
-            "model": "m1",
-            "messages": [{"role": "user", "content": "oops"}]
-        }
+        payload = {"model": "m1", "messages": [{"role": "user", "content": "oops"}]}
         r = self.client.post("/v1/chat", json=payload, headers={"X-API-Key": "bad"})
         self.assertEqual(r.status_code, 403)
 

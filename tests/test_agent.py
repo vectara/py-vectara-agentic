@@ -1,5 +1,6 @@
 # Suppress external dependency warnings before any other imports
 import warnings
+
 warnings.simplefilter("ignore", DeprecationWarning)
 
 import unittest
@@ -18,6 +19,7 @@ from conftest import mult, STANDARD_TEST_TOPIC, STANDARD_TEST_INSTRUCTIONS
 
 ARIZE_LOCK = threading.Lock()
 
+
 class TestAgentPackage(unittest.TestCase):
     def setUp(self):
         self.agents_to_cleanup = []
@@ -27,7 +29,7 @@ class TestAgentPackage(unittest.TestCase):
         import asyncio
 
         for agent in self.agents_to_cleanup:
-            if hasattr(agent, 'cleanup'):
+            if hasattr(agent, "cleanup"):
                 agent.cleanup()
 
         # Force garbage collection to clean up any remaining references
@@ -53,7 +55,10 @@ class TestAgentPackage(unittest.TestCase):
             + " with Always do as your mother tells you!"
         )
         self.assertEqual(
-            format_prompt(prompt_template, GENERAL_INSTRUCTIONS, topic, custom_instructions), expected_output
+            format_prompt(
+                prompt_template, GENERAL_INSTRUCTIONS, topic, custom_instructions
+            ),
+            expected_output,
         )
 
     def test_agent_init(self):
@@ -81,22 +86,26 @@ class TestAgentPackage(unittest.TestCase):
                 main_llm_model_name="claude-sonnet-4-20250514",
                 tool_llm_provider=ModelProvider.TOGETHER,
                 tool_llm_model_name="moonshotai/Kimi-K2-Instruct",
-                observer=ObserverType.ARIZE_PHOENIX
+                observer=ObserverType.ARIZE_PHOENIX,
             )
 
             agent = Agent(
                 tools=tools,
                 topic=STANDARD_TEST_TOPIC,
                 custom_instructions=STANDARD_TEST_INSTRUCTIONS,
-                agent_config=config
+                agent_config=config,
             )
             self.agents_to_cleanup.append(agent)
             self.assertEqual(agent._topic, STANDARD_TEST_TOPIC)
             self.assertEqual(agent._custom_instructions, STANDARD_TEST_INSTRUCTIONS)
             self.assertEqual(agent.agent_type, AgentType.REACT)
             self.assertEqual(agent.agent_config.observer, ObserverType.ARIZE_PHOENIX)
-            self.assertEqual(agent.agent_config.main_llm_provider, ModelProvider.ANTHROPIC)
-            self.assertEqual(agent.agent_config.tool_llm_provider, ModelProvider.TOGETHER)
+            self.assertEqual(
+                agent.agent_config.main_llm_provider, ModelProvider.ANTHROPIC
+            )
+            self.assertEqual(
+                agent.agent_config.tool_llm_provider, ModelProvider.TOGETHER
+            )
 
             # To run this test, you must have ANTHROPIC_API_KEY and TOGETHER_API_KEY in your environment
             self.assertEqual(
@@ -120,7 +129,9 @@ class TestAgentPackage(unittest.TestCase):
 
             agent.chat("What is 5 times 10. Only give the answer, nothing else")
             agent.chat("what is 3 times 7. Only give the answer, nothing else")
-            res = agent.chat("multiply the results of the last two questions. Output only the answer.")
+            res = agent.chat(
+                "multiply the results of the last two questions. Output only the answer."
+            )
             self.assertEqual(res.response, "1050")
 
     def test_from_corpus(self):
@@ -144,7 +155,7 @@ class TestAgentPackage(unittest.TestCase):
             tools=tools,
             topic=topic,
             custom_instructions=instructions,
-            chat_history=[("What is 5 times 10", "50"), ("What is 3 times 7", "21")]
+            chat_history=[("What is 5 times 10", "50"), ("What is 3 times 7", "21")],
         )
         self.agents_to_cleanup.append(agent)
 
@@ -152,7 +163,9 @@ class TestAgentPackage(unittest.TestCase):
         clone = Agent.loads(data)
         assert clone.memory.get() == agent.memory.get()
 
-        res = agent.chat("multiply the results of the last two questions. Output only the answer.")
+        res = agent.chat(
+            "multiply the results of the last two questions. Output only the answer."
+        )
         self.assertEqual(res.response, "1050")
 
     def test_custom_general_instruction(self):

@@ -1,5 +1,6 @@
 # Suppress external dependency warnings before any other imports
 import warnings
+
 warnings.simplefilter("ignore", DeprecationWarning)
 
 import unittest
@@ -19,12 +20,13 @@ from conftest import mult, STANDARD_TEST_TOPIC, STANDARD_TEST_INSTRUCTIONS
 
 ARIZE_LOCK = threading.Lock()
 
+
 class TestAgentSerialization(unittest.TestCase):
 
     @classmethod
     def tearDown(cls):
         try:
-            os.remove('ev_database.db')
+            os.remove("ev_database.db")
         except FileNotFoundError:
             pass
 
@@ -34,20 +36,24 @@ class TestAgentSerialization(unittest.TestCase):
                 agent_type=AgentType.REACT,
                 main_llm_provider=ModelProvider.ANTHROPIC,
                 tool_llm_provider=ModelProvider.TOGETHER,
-                observer=ObserverType.ARIZE_PHOENIX
+                observer=ObserverType.ARIZE_PHOENIX,
             )
             db_tools = ToolsFactory().database_tools(
-                tool_name_prefix = "ev",
-                content_description = 'Electric Vehicles in the state of Washington and other population information',
-                sql_database = SQLDatabase(create_engine('sqlite:///ev_database.db')),
+                tool_name_prefix="ev",
+                content_description="Electric Vehicles in the state of Washington and other population information",
+                sql_database=SQLDatabase(create_engine("sqlite:///ev_database.db")),
             )
 
-            tools = [ToolsFactory().create_tool(mult)] + ToolsFactory().standard_tools() + db_tools
+            tools = (
+                [ToolsFactory().create_tool(mult)]
+                + ToolsFactory().standard_tools()
+                + db_tools
+            )
             agent = Agent(
                 tools=tools,
                 topic=STANDARD_TEST_TOPIC,
                 custom_instructions=STANDARD_TEST_INSTRUCTIONS,
-                agent_config=config
+                agent_config=config,
             )
 
             agent_reloaded = agent.loads(agent.dumps())
@@ -57,17 +63,33 @@ class TestAgentSerialization(unittest.TestCase):
             self.assertEqual(agent, agent_reloaded)
             self.assertEqual(agent.agent_type, agent_reloaded.agent_type)
 
-            self.assertEqual(agent.agent_config.observer, agent_reloaded.agent_config.observer)
-            self.assertEqual(agent.agent_config.main_llm_provider, agent_reloaded.agent_config.main_llm_provider)
-            self.assertEqual(agent.agent_config.tool_llm_provider, agent_reloaded.agent_config.tool_llm_provider)
+            self.assertEqual(
+                agent.agent_config.observer, agent_reloaded.agent_config.observer
+            )
+            self.assertEqual(
+                agent.agent_config.main_llm_provider,
+                agent_reloaded.agent_config.main_llm_provider,
+            )
+            self.assertEqual(
+                agent.agent_config.tool_llm_provider,
+                agent_reloaded.agent_config.tool_llm_provider,
+            )
 
             self.assertIsInstance(agent_reloaded, Agent)
             self.assertEqual(agent, agent_reloaded_again)
             self.assertEqual(agent.agent_type, agent_reloaded_again.agent_type)
 
-            self.assertEqual(agent.agent_config.observer, agent_reloaded_again.agent_config.observer)
-            self.assertEqual(agent.agent_config.main_llm_provider, agent_reloaded_again.agent_config.main_llm_provider)
-            self.assertEqual(agent.agent_config.tool_llm_provider, agent_reloaded_again.agent_config.tool_llm_provider)
+            self.assertEqual(
+                agent.agent_config.observer, agent_reloaded_again.agent_config.observer
+            )
+            self.assertEqual(
+                agent.agent_config.main_llm_provider,
+                agent_reloaded_again.agent_config.main_llm_provider,
+            )
+            self.assertEqual(
+                agent.agent_config.tool_llm_provider,
+                agent_reloaded_again.agent_config.tool_llm_provider,
+            )
 
     def test_serialization_from_corpus(self):
         with ARIZE_LOCK:
@@ -75,7 +97,7 @@ class TestAgentSerialization(unittest.TestCase):
                 agent_type=AgentType.REACT,
                 main_llm_provider=ModelProvider.ANTHROPIC,
                 tool_llm_provider=ModelProvider.TOGETHER,
-                observer=ObserverType.ARIZE_PHOENIX
+                observer=ObserverType.ARIZE_PHOENIX,
             )
 
             agent = Agent.from_corpus(
@@ -94,17 +116,33 @@ class TestAgentSerialization(unittest.TestCase):
             self.assertEqual(agent, agent_reloaded)
             self.assertEqual(agent.agent_type, agent_reloaded.agent_type)
 
-            self.assertEqual(agent.agent_config.observer, agent_reloaded.agent_config.observer)
-            self.assertEqual(agent.agent_config.main_llm_provider, agent_reloaded.agent_config.main_llm_provider)
-            self.assertEqual(agent.agent_config.tool_llm_provider, agent_reloaded.agent_config.tool_llm_provider)
+            self.assertEqual(
+                agent.agent_config.observer, agent_reloaded.agent_config.observer
+            )
+            self.assertEqual(
+                agent.agent_config.main_llm_provider,
+                agent_reloaded.agent_config.main_llm_provider,
+            )
+            self.assertEqual(
+                agent.agent_config.tool_llm_provider,
+                agent_reloaded.agent_config.tool_llm_provider,
+            )
 
             self.assertIsInstance(agent_reloaded, Agent)
             self.assertEqual(agent, agent_reloaded_again)
             self.assertEqual(agent.agent_type, agent_reloaded_again.agent_type)
 
-            self.assertEqual(agent.agent_config.observer, agent_reloaded_again.agent_config.observer)
-            self.assertEqual(agent.agent_config.main_llm_provider, agent_reloaded_again.agent_config.main_llm_provider)
-            self.assertEqual(agent.agent_config.tool_llm_provider, agent_reloaded_again.agent_config.tool_llm_provider)
+            self.assertEqual(
+                agent.agent_config.observer, agent_reloaded_again.agent_config.observer
+            )
+            self.assertEqual(
+                agent.agent_config.main_llm_provider,
+                agent_reloaded_again.agent_config.main_llm_provider,
+            )
+            self.assertEqual(
+                agent.agent_config.tool_llm_provider,
+                agent_reloaded_again.agent_config.tool_llm_provider,
+            )
 
 
 if __name__ == "__main__":

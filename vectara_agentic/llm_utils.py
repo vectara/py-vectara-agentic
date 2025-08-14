@@ -87,6 +87,8 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
 
     Uses a cache based on configuration parameters to avoid repeated LLM instantiation.
     """
+    if config is None:
+        config = AgentConfig()
     # Check cache first
     cache_key = _create_llm_cache_key(role, config)
     if cache_key in _llm_cache:
@@ -112,7 +114,7 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             strict=False,
             max_tokens=max_tokens,
             pydantic_program_mode="openai",
-            additional_kwargs=additional_kwargs
+            additional_kwargs=additional_kwargs,
         )
     elif model_provider == ModelProvider.ANTHROPIC:
         llm = Anthropic(

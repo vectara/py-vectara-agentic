@@ -361,7 +361,9 @@ class TestToolsPackage(unittest.TestCase):
             "query (str): The search query to perform, in the form of a question", doc
         )
         self.assertIn("foo (int): how many foos (e.g., 1, 2, 3)", doc)
-        self.assertIn("bar (str | None, default='baz'): what bar to use (e.g., 'x', 'y')", doc)
+        self.assertIn(
+            "bar (str | None, default='baz'): what bar to use (e.g., 'x', 'y')", doc
+        )
         self.assertIn("Returns:", doc)
         self.assertIn("dict[str, Any]: A dictionary containing the result data.", doc)
 

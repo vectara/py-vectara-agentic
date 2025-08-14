@@ -66,6 +66,7 @@ def main():
 
     # Add tests directory to Python path for relative imports
     import os
+
     sys.path.insert(0, os.path.abspath("tests"))
 
     # Discover and run tests

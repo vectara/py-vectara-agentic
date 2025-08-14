@@ -12,7 +12,8 @@ import json
 import statistics
 import sys
 import os
-from typing import Dict, List, Tuple, Any
+import random
+from typing import Dict, List, Tuple, Any, Set
 from dataclasses import dataclass, asdict
 
 # Add the current directory to Python path to import vectara_agentic
@@ -26,6 +27,64 @@ from vectara_agentic._observability import setup_observer, shutdown_observer
 
 # Initialize observability once at startup to prevent repeated instrumentation
 _observability_initialized = False
+
+
+def validate_api_keys(models_to_test: List[Dict]) -> None:
+    """
+    Validate that all required API keys are present for the models being tested.
+
+    Args:
+        models_to_test: List of model configurations with provider and model info
+
+    Raises:
+        SystemExit: If any required API keys are missing
+    """
+    # Map providers to their required environment variables
+    provider_api_keys = {
+        ModelProvider.OPENAI: "OPENAI_API_KEY",
+        ModelProvider.ANTHROPIC: "ANTHROPIC_API_KEY",
+        ModelProvider.TOGETHER: "TOGETHER_API_KEY",
+        ModelProvider.GROQ: "GROQ_API_KEY",
+        ModelProvider.GEMINI: "GOOGLE_API_KEY",
+    }
+
+    required_keys = set()
+
+    # Collect unique providers from models to test
+    providers_in_use: Set[ModelProvider] = set()
+    for model_config in models_to_test:
+        providers_in_use.add(model_config["provider"])
+
+    # Add required API keys for each provider
+    for provider in providers_in_use:
+        api_key_name = provider_api_keys.get(provider)
+        if api_key_name:  # Skip providers that don't use env var API keys
+            required_keys.add(api_key_name)
+
+    # Check for missing API keys
+    missing_keys = []
+    for key in required_keys:
+        if not os.getenv(key):
+            missing_keys.append(key)
+
+    if missing_keys:
+        print("❌ ERROR: Missing required API keys for benchmark execution:")
+        print()
+        for key in sorted(missing_keys):
+            print(f"  • {key}")
+        print()
+        print("Please set these environment variables before running the benchmark.")
+        print("Providers being tested:")
+        for provider in sorted(providers_in_use, key=lambda p: p.value):
+            models_for_provider = [
+                m["model"] for m in models_to_test if m["provider"] == provider
+            ]
+            print(f"  • {provider.value}: {', '.join(models_for_provider)}")
+
+        sys.exit(1)
+
+    print("✅ All required API keys are present")
+    print(f"Found API keys for {len(required_keys)} required environment variables")
 
 
 @dataclass
@@ -65,9 +124,12 @@ class BenchmarkStats:
 class ModelBenchmark:
     """Benchmarking suite for different LLM models."""
 
-    def __init__(self, enable_observability: bool = False):
+    def __init__(
+        self, enable_observability: bool = False, max_concurrent_models: int = 2
+    ):
         # Test configurations
         self.enable_observability = enable_observability
+        self.max_concurrent_models = max_concurrent_models
         self.models_to_test = [
             # OpenAI models
             {"provider": ModelProvider.OPENAI, "model": "gpt-5-mini"},
@@ -111,6 +173,15 @@ class ModelBenchmark:
         self.iterations_per_test = 5
         self.results: List[BenchmarkResult] = []
 
+        # Provider-specific rate limits (requests per minute)
+        self.provider_rate_limits = {
+            ModelProvider.OPENAI: 100,
+            ModelProvider.ANTHROPIC: 100,
+            ModelProvider.TOGETHER: 80,
+            ModelProvider.GROQ: 50,  # Conservative for GROQ
+            ModelProvider.GEMINI: 60,
+        }
+
     def create_agent_config(
         self, provider: ModelProvider, model_name: str
     ) -> AgentConfig:
@@ -127,12 +198,336 @@ class ModelBenchmark:
             ),
         )
 
+    def analyze_customer_data(self, customer_data_json: str) -> dict:
+        """Analyze customer data for patterns and correlations."""
+        customers = json.loads(customer_data_json)
+
+        # Group by age groups
+        age_groups = {}
+        for customer in customers:
+            group = customer["age_group"]
+            if group not in age_groups:
+                age_groups[group] = {
+                    "count": 0,
+                    "total_spending": 0,
+                    "total_income": 0,
+                }
+
+            age_groups[group]["count"] += 1
+            age_groups[group]["total_spending"] += customer["purchase_history"]
+            age_groups[group]["total_income"] += customer["income"]
+
+        # Calculate averages
+        analysis = {}
+        for group, data in age_groups.items():
+            analysis[group] = {
+                "count": data["count"],
+                "avg_spending": round(data["total_spending"] / data["count"], 2),
+                "avg_income": round(data["total_income"] / data["count"], 2),
+                "spending_to_income_ratio": round(
+                    (data["total_spending"] / data["count"])
+                    / (data["total_income"] / data["count"])
+                    * 1000,
+                    4,
+                ),
+            }
+
+        return {
+            "total_customers": len(customers),
+            "age_group_analysis": analysis,
+            "overall_avg_spending": round(
+                sum(c["purchase_history"] for c in customers) / len(customers), 2
+            ),
+            "overall_avg_income": round(
+                sum(c["income"] for c in customers) / len(customers), 2
+            ),
+        }
+
+    def get_system_metrics(self) -> dict:
+        """Get current system performance metrics."""
+        import psutil
+        from datetime import datetime
+
+        try:
+            cpu_percent = psutil.cpu_percent(interval=1)
+            memory = psutil.virtual_memory()
+            disk = psutil.disk_usage("/")
+
+            return {
+                "cpu_usage_percent": cpu_percent,
+                "memory_usage_percent": memory.percent,
+                "memory_available_gb": round(memory.available / (1024**3), 2),
+                "disk_usage_percent": disk.percent,
+                "disk_free_gb": round(disk.free / (1024**3), 2),
+                "timestamp": datetime.now().isoformat(),
+            }
+        except Exception:
+            # Fallback with simulated data for testing
+            return {
+                "cpu_usage_percent": random.randint(20, 95),
+                "memory_usage_percent": random.randint(40, 95),
+                "memory_available_gb": random.randint(1, 16),
+                "disk_usage_percent": random.randint(30, 90),
+                "disk_free_gb": random.randint(10, 500),
+                "timestamp": datetime.now().isoformat(),
+                "note": "Simulated data - psutil unavailable",
+            }
+
+    def check_system_health(
+        self,
+        cpu_threshold: int = 80,
+        memory_threshold: int = 90,
+        disk_threshold: int = 85,
+    ) -> dict:
+        """Check system health against thresholds and generate alerts."""
+        metrics = self.get_system_metrics()
+        alerts = []
+        recommendations = []
+
+        if metrics["cpu_usage_percent"] > cpu_threshold:
+            alerts.append(
+                f"HIGH CPU USAGE: {metrics['cpu_usage_percent']}% (threshold: {cpu_threshold}%)"
+            )
+            recommendations.append(
+                "Consider closing unnecessary applications or upgrading CPU"
+            )
+
+        if metrics["memory_usage_percent"] > memory_threshold:
+            alerts.append(
+                f"HIGH MEMORY USAGE: {metrics['memory_usage_percent']}% (threshold: {memory_threshold}%)"
+            )
+            recommendations.append(
+                "Close memory-intensive applications or add more RAM"
+            )
+
+        if metrics["disk_usage_percent"] > disk_threshold:
+            alerts.append(
+                f"LOW DISK SPACE: {metrics['disk_usage_percent']}% used (threshold: {disk_threshold}%)"
+            )
+            recommendations.append("Clean up temporary files or expand disk storage")
+
+        health_status = (
+            "CRITICAL" if len(alerts) >= 2 else "WARNING" if alerts else "HEALTHY"
+        )
+
+        return {
+            "health_status": health_status,
+            "alerts": alerts,
+            "recommendations": recommendations,
+            "metrics": metrics,
+            "thresholds": {
+                "cpu": cpu_threshold,
+                "memory": memory_threshold,
+                "disk": disk_threshold,
+            },
+        }
+
+    def create_project_tasks(self, count: int = 10) -> str:
+        """Generate a list of software development tasks."""
+        task_types = [
+            "Implement user authentication system",
+            "Create REST API endpoints",
+            "Design database schema",
+            "Build responsive frontend components",
+            "Write unit tests",
+            "Set up CI/CD pipeline",
+            "Implement error handling",
+            "Create API documentation",
+            "Optimize database queries",
+            "Implement caching layer",
+            "Add logging and monitoring",
+            "Create user dashboard",
+            "Implement search functionality",
+            "Add data validation",
+            "Create admin panel",
+        ]
+
+        tasks = []
+        for i in range(count):
+            task = random.choice(task_types)
+            priority = random.choice(["High", "Medium", "Low"])
+            estimated_hours = random.randint(2, 24)
+
+            tasks.append(
+                {
+                    "task_id": f"TASK-{i+1:03d}",
+                    "title": f"{task} #{i+1}",
+                    "priority": priority,
+                    "estimated_hours": estimated_hours,
+                    "status": "Backlog",
+                    "assigned_to": None,
+                }
+            )
+
+        return json.dumps(tasks, indent=2)
+
+    def plan_sprint(self, tasks_json: str, sprint_capacity_hours: int = 80) -> dict:
+        """Organize tasks into a sprint with daily breakdowns."""
+        tasks = json.loads(tasks_json)
+
+        # Sort by priority and estimated hours
+        priority_order = {"High": 3, "Medium": 2, "Low": 1}
+        tasks.sort(
+            key=lambda x: (priority_order[x["priority"]], -x["estimated_hours"]),
+            reverse=True,
+        )
+
+        sprint_tasks = []
+        total_hours = 0
+
+        for task in tasks:
+            if total_hours + task["estimated_hours"] <= sprint_capacity_hours:
+                sprint_tasks.append(task)
+                total_hours += task["estimated_hours"]
+            else:
+                break
+
+        # Distribute across 2 weeks (10 working days)
+        daily_breakdown = []
+        remaining_hours = total_hours
+        days_remaining = 10
+
+        for day in range(1, 11):
+            if days_remaining > 0:
+                day_hours = min(
+                    8,
+                    remaining_hours // days_remaining
+                    + (1 if remaining_hours % days_remaining else 0),
+                )
+                daily_breakdown.append(
+                    {
+                        "day": day,
+                        "planned_hours": day_hours,
+                        "remaining_capacity": 8 - day_hours,
+                    }
+                )
+                remaining_hours -= day_hours
+                days_remaining -= 1
+
+        return {
+            "sprint_summary": {
+                "total_tasks": len(sprint_tasks),
+                "total_planned_hours": total_hours,
+                "sprint_capacity": sprint_capacity_hours,
+                "utilization_percent": round(
+                    (total_hours / sprint_capacity_hours) * 100, 1
+                ),
+            },
+            "selected_tasks": sprint_tasks,
+            "daily_breakdown": daily_breakdown,
+            "backlog_remaining": len(tasks) - len(sprint_tasks),
+        }
+
+    def create_formatted_report(
+        self, title: str, data: dict, report_type: str = "summary"
+    ) -> str:
+        """Create a formatted text report from structured data."""
+        from datetime import datetime
+
+        report_lines = []
+        report_lines.append("=" * 60)
+        report_lines.append(f"{title.upper()}")
+        report_lines.append("=" * 60)
+        report_lines.append(
+            f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+        report_lines.append(f"Report Type: {report_type.title()}")
+        report_lines.append("")
+
+        def format_dict(d, indent=0):
+            lines = []
+            for key, value in d.items():
+                prefix = "  " * indent
+                if isinstance(value, dict):
+                    lines.append(f"{prefix}{key.replace('_', ' ').title()}:")
+                    lines.extend(format_dict(value, indent + 1))
+                elif isinstance(value, list):
+                    lines.append(f"{prefix}{key.replace('_', ' ').title()}:")
+                    for i, item in enumerate(value):
+                        if isinstance(item, dict):
+                            lines.append(f"{prefix}  Item {i+1}:")
+                            lines.extend(format_dict(item, indent + 2))
+                        else:
+                            lines.append(f"{prefix}  - {item}")
+                else:
+                    lines.append(f"{prefix}{key.replace('_', ' ').title()}: {value}")
+            return lines
+
+        report_lines.extend(format_dict(data))
+        report_lines.append("")
+        report_lines.append("=" * 60)
+
+        return "\n".join(report_lines)
+
+    def search_information(self, query: str, max_results: int = 5) -> dict:
+        """Simulate information search with structured results."""
+        from datetime import datetime
+
+        # Simulated search results for testing
+        simulated_results = [
+            {
+                "title": f"Research Paper: {query} - Latest Developments",
+                "source": "Journal of Advanced Computing",
+                "summary": f"Recent breakthrough in {query} showing promising results in error reduction and scalability improvements.",
+                "relevance_score": random.randint(80, 95),
+                "publication_date": "2024-11-15",
+            },
+            {
+                "title": f"Technical Review: {query} Implementation Challenges",
+                "source": "Tech Innovation Quarterly",
+                "summary": f"Comprehensive analysis of current {query} methodologies and their practical applications.",
+                "relevance_score": random.randint(75, 90),
+                "publication_date": "2024-10-22",
+            },
+            {
+                "title": f"Industry Report: {query} Market Trends",
+                "source": "Technology Research Institute",
+                "summary": f"Market analysis and future projections for {query} adoption across industries.",
+                "relevance_score": random.randint(70, 85),
+                "publication_date": "2024-09-30",
+            },
+        ]
+
+        return {
+            "query": query,
+            "total_results": len(simulated_results),
+            "results": simulated_results[:max_results],
+            "search_timestamp": datetime.now().isoformat(),
+        }
+
+    def synthesize_research(self, search_results: dict) -> dict:
+        """Synthesize research findings into structured summary."""
+        from datetime import datetime
+
+        results = search_results["results"]
+
+        key_findings = []
+        technical_approaches = []
+        citations = []
+
+        for i, result in enumerate(results, 1):
+            key_findings.append(f"Finding {i}: {result['summary']}")
+            technical_approaches.append(
+                f"Approach {i}: Methodology described in '{result['title']}'"
+            )
+            citations.append(
+                f"[{i}] {result['title']} - {result['source']} ({result['publication_date']})"
+            )
+
+        return {
+            "research_topic": search_results["query"],
+            "sources_analyzed": len(results),
+            "key_findings": key_findings,
+            "technical_approaches": technical_approaches,
+            "citations": citations,
+            "confidence_level": "High" if len(results) >= 3 else "Medium",
+            "synthesis_date": datetime.now().isoformat(),
+        }
+
     def create_test_tools(self) -> List:
         """Create an advanced set of tools for realistic agent testing."""
         import random
         import json
-        import psutil
-        from datetime import datetime
 
         tools_factory = ToolsFactory()
 
@@ -255,330 +650,6 @@ class ModelBenchmark:
 
             return json.dumps(customers, indent=2)
 
-        def analyze_customer_data(customer_data_json: str) -> dict:
-            """Analyze customer data for patterns and correlations."""
-            customers = json.loads(customer_data_json)
-
-            # Group by age groups
-            age_groups = {}
-            for customer in customers:
-                group = customer["age_group"]
-                if group not in age_groups:
-                    age_groups[group] = {
-                        "count": 0,
-                        "total_spending": 0,
-                        "total_income": 0,
-                    }
-
-                age_groups[group]["count"] += 1
-                age_groups[group]["total_spending"] += customer["purchase_history"]
-                age_groups[group]["total_income"] += customer["income"]
-
-            # Calculate averages
-            analysis = {}
-            for group, data in age_groups.items():
-                analysis[group] = {
-                    "count": data["count"],
-                    "avg_spending": round(data["total_spending"] / data["count"], 2),
-                    "avg_income": round(data["total_income"] / data["count"], 2),
-                    "spending_to_income_ratio": round(
-                        (data["total_spending"] / data["count"])
-                        / (data["total_income"] / data["count"])
-                        * 1000,
-                        4,
-                    ),
-                }
-
-            return {
-                "total_customers": len(customers),
-                "age_group_analysis": analysis,
-                "overall_avg_spending": round(
-                    sum(c["purchase_history"] for c in customers) / len(customers), 2
-                ),
-                "overall_avg_income": round(
-                    sum(c["income"] for c in customers) / len(customers), 2
-                ),
-            }
-
-        # System Monitoring Tools
-        def get_system_metrics() -> dict:
-            """Get current system performance metrics."""
-            try:
-                cpu_percent = psutil.cpu_percent(interval=1)
-                memory = psutil.virtual_memory()
-                disk = psutil.disk_usage("/")
-
-                return {
-                    "cpu_usage_percent": cpu_percent,
-                    "memory_usage_percent": memory.percent,
-                    "memory_available_gb": round(memory.available / (1024**3), 2),
-                    "disk_usage_percent": disk.percent,
-                    "disk_free_gb": round(disk.free / (1024**3), 2),
-                    "timestamp": datetime.now().isoformat(),
-                }
-            except Exception:
-                # Fallback with simulated data for testing
-                return {
-                    "cpu_usage_percent": random.randint(20, 95),
-                    "memory_usage_percent": random.randint(40, 95),
-                    "memory_available_gb": random.randint(1, 16),
-                    "disk_usage_percent": random.randint(30, 90),
-                    "disk_free_gb": random.randint(10, 500),
-                    "timestamp": datetime.now().isoformat(),
-                    "note": "Simulated data - psutil unavailable",
-                }
-
-        def check_system_health(
-            cpu_threshold: int = 80,
-            memory_threshold: int = 90,
-            disk_threshold: int = 85,
-        ) -> dict:
-            """Check system health against thresholds and generate alerts."""
-            metrics = get_system_metrics()
-            alerts = []
-            recommendations = []
-
-            if metrics["cpu_usage_percent"] > cpu_threshold:
-                alerts.append(
-                    f"HIGH CPU USAGE: {metrics['cpu_usage_percent']}% (threshold: {cpu_threshold}%)"
-                )
-                recommendations.append(
-                    "Consider closing unnecessary applications or upgrading CPU"
-                )
-
-            if metrics["memory_usage_percent"] > memory_threshold:
-                alerts.append(
-                    f"HIGH MEMORY USAGE: {metrics['memory_usage_percent']}% (threshold: {memory_threshold}%)"
-                )
-                recommendations.append(
-                    "Close memory-intensive applications or add more RAM"
-                )
-
-            if metrics["disk_usage_percent"] > disk_threshold:
-                alerts.append(
-                    f"LOW DISK SPACE: {metrics['disk_usage_percent']}% used (threshold: {disk_threshold}%)"
-                )
-                recommendations.append(
-                    "Clean up temporary files or expand disk storage"
-                )
-
-            health_status = (
-                "CRITICAL" if len(alerts) >= 2 else "WARNING" if alerts else "HEALTHY"
-            )
-
-            return {
-                "health_status": health_status,
-                "alerts": alerts,
-                "recommendations": recommendations,
-                "metrics": metrics,
-                "thresholds": {
-                    "cpu": cpu_threshold,
-                    "memory": memory_threshold,
-                    "disk": disk_threshold,
-                },
-            }
-
-        # Project Management Tools
-        def create_project_tasks(count: int = 10) -> str:
-            """Generate a list of software development tasks."""
-            task_types = [
-                "Implement user authentication system",
-                "Create REST API endpoints",
-                "Design database schema",
-                "Build responsive frontend components",
-                "Write unit tests",
-                "Set up CI/CD pipeline",
-                "Implement error handling",
-                "Create API documentation",
-                "Optimize database queries",
-                "Implement caching layer",
-                "Add logging and monitoring",
-                "Create user dashboard",
-                "Implement search functionality",
-                "Add data validation",
-                "Create admin panel",
-            ]
-
-            tasks = []
-            for i in range(count):
-                task = random.choice(task_types)
-                priority = random.choice(["High", "Medium", "Low"])
-                estimated_hours = random.randint(2, 24)
-
-                tasks.append(
-                    {
-                        "task_id": f"TASK-{i+1:03d}",
-                        "title": f"{task} #{i+1}",
-                        "priority": priority,
-                        "estimated_hours": estimated_hours,
-                        "status": "Backlog",
-                        "assigned_to": None,
-                    }
-                )
-
-            return json.dumps(tasks, indent=2)
-
-        def plan_sprint(tasks_json: str, sprint_capacity_hours: int = 80) -> dict:
-            """Organize tasks into a sprint with daily breakdowns."""
-            tasks = json.loads(tasks_json)
-
-            # Sort by priority and estimated hours
-            priority_order = {"High": 3, "Medium": 2, "Low": 1}
-            tasks.sort(
-                key=lambda x: (priority_order[x["priority"]], -x["estimated_hours"]),
-                reverse=True,
-            )
-
-            sprint_tasks = []
-            total_hours = 0
-
-            for task in tasks:
-                if total_hours + task["estimated_hours"] <= sprint_capacity_hours:
-                    sprint_tasks.append(task)
-                    total_hours += task["estimated_hours"]
-                else:
-                    break
-
-            # Distribute across 2 weeks (10 working days)
-            daily_breakdown = []
-            remaining_hours = total_hours
-            days_remaining = 10
-
-            for day in range(1, 11):
-                if days_remaining > 0:
-                    day_hours = min(
-                        8,
-                        remaining_hours // days_remaining
-                        + (1 if remaining_hours % days_remaining else 0),
-                    )
-                    daily_breakdown.append(
-                        {
-                            "day": day,
-                            "planned_hours": day_hours,
-                            "remaining_capacity": 8 - day_hours,
-                        }
-                    )
-                    remaining_hours -= day_hours
-                    days_remaining -= 1
-
-            return {
-                "sprint_summary": {
-                    "total_tasks": len(sprint_tasks),
-                    "total_planned_hours": total_hours,
-                    "sprint_capacity": sprint_capacity_hours,
-                    "utilization_percent": round(
-                        (total_hours / sprint_capacity_hours) * 100, 1
-                    ),
-                },
-                "selected_tasks": sprint_tasks,
-                "daily_breakdown": daily_breakdown,
-                "backlog_remaining": len(tasks) - len(sprint_tasks),
-            }
-
-        # Reporting Tools
-        def create_formatted_report(
-            title: str, data: dict, report_type: str = "summary"
-        ) -> str:
-            """Create a formatted text report from structured data."""
-            report_lines = []
-            report_lines.append("=" * 60)
-            report_lines.append(f"{title.upper()}")
-            report_lines.append("=" * 60)
-            report_lines.append(
-                f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-            )
-            report_lines.append(f"Report Type: {report_type.title()}")
-            report_lines.append("")
-
-            def format_dict(d, indent=0):
-                lines = []
-                for key, value in d.items():
-                    prefix = "  " * indent
-                    if isinstance(value, dict):
-                        lines.append(f"{prefix}{key.replace('_', ' ').title()}:")
-                        lines.extend(format_dict(value, indent + 1))
-                    elif isinstance(value, list):
-                        lines.append(f"{prefix}{key.replace('_', ' ').title()}:")
-                        for i, item in enumerate(value):
-                            if isinstance(item, dict):
-                                lines.append(f"{prefix}  Item {i+1}:")
-                                lines.extend(format_dict(item, indent + 2))
-                            else:
-                                lines.append(f"{prefix}  - {item}")
-                    else:
-                        lines.append(
-                            f"{prefix}{key.replace('_', ' ').title()}: {value}"
-                        )
-                return lines
-
-            report_lines.extend(format_dict(data))
-            report_lines.append("")
-            report_lines.append("=" * 60)
-
-            return "\n".join(report_lines)
-
-        # Research Tools
-        def search_information(query: str, max_results: int = 5) -> dict:
-            """Simulate information search with structured results."""
-            # Simulated search results for testing
-            simulated_results = [
-                {
-                    "title": f"Research Paper: {query} - Latest Developments",
-                    "source": "Journal of Advanced Computing",
-                    "summary": f"Recent breakthrough in {query} showing promising results in error reduction and scalability improvements.",
-                    "relevance_score": random.randint(80, 95),
-                    "publication_date": "2024-11-15",
-                },
-                {
-                    "title": f"Technical Review: {query} Implementation Challenges",
-                    "source": "Tech Innovation Quarterly",
-                    "summary": f"Comprehensive analysis of current {query} methodologies and their practical applications.",
-                    "relevance_score": random.randint(75, 90),
-                    "publication_date": "2024-10-22",
-                },
-                {
-                    "title": f"Industry Report: {query} Market Trends",
-                    "source": "Technology Research Institute",
-                    "summary": f"Market analysis and future projections for {query} adoption across industries.",
-                    "relevance_score": random.randint(70, 85),
-                    "publication_date": "2024-09-30",
-                },
-            ]
-
-            return {
-                "query": query,
-                "total_results": len(simulated_results),
-                "results": simulated_results[:max_results],
-                "search_timestamp": datetime.now().isoformat(),
-            }
-
-        def synthesize_research(search_results: dict) -> dict:
-            """Synthesize research findings into structured summary."""
-            results = search_results["results"]
-
-            key_findings = []
-            technical_approaches = []
-            citations = []
-
-            for i, result in enumerate(results, 1):
-                key_findings.append(f"Finding {i}: {result['summary']}")
-                technical_approaches.append(
-                    f"Approach {i}: Methodology described in '{result['title']}'"
-                )
-                citations.append(
-                    f"[{i}] {result['title']} - {result['source']} ({result['publication_date']})"
-                )
-
-            return {
-                "research_topic": search_results["query"],
-                "sources_analyzed": len(results),
-                "key_findings": key_findings,
-                "technical_approaches": technical_approaches,
-                "citations": citations,
-                "confidence_level": "High" if len(results) >= 3 else "Medium",
-                "synthesis_date": datetime.now().isoformat(),
-            }
-
         # Create and return all tools
         return [
             # Financial Analysis
@@ -586,19 +657,50 @@ class ModelBenchmark:
             tools_factory.create_tool(project_investment_growth, vhc_eligible=False),
             # Data Analysis
             tools_factory.create_tool(generate_customer_dataset, vhc_eligible=False),
-            tools_factory.create_tool(analyze_customer_data, vhc_eligible=False),
+            tools_factory.create_tool(self.analyze_customer_data, vhc_eligible=False),
             # System Monitoring
-            tools_factory.create_tool(get_system_metrics, vhc_eligible=False),
-            tools_factory.create_tool(check_system_health, vhc_eligible=False),
+            tools_factory.create_tool(self.get_system_metrics, vhc_eligible=False),
+            tools_factory.create_tool(self.check_system_health, vhc_eligible=False),
             # Project Management
-            tools_factory.create_tool(create_project_tasks, vhc_eligible=False),
-            tools_factory.create_tool(plan_sprint, vhc_eligible=False),
+            tools_factory.create_tool(self.create_project_tasks, vhc_eligible=False),
+            tools_factory.create_tool(self.plan_sprint, vhc_eligible=False),
             # Reporting
-            tools_factory.create_tool(create_formatted_report, vhc_eligible=False),
+            tools_factory.create_tool(self.create_formatted_report, vhc_eligible=False),
             # Research
-            tools_factory.create_tool(search_information, vhc_eligible=False),
-            tools_factory.create_tool(synthesize_research, vhc_eligible=False),
+            tools_factory.create_tool(self.search_information, vhc_eligible=False),
+            tools_factory.create_tool(self.synthesize_research, vhc_eligible=False),
         ]
+
+    def _calculate_provider_delay(self, provider: ModelProvider) -> float:
+        """Calculate appropriate delay based on provider rate limits."""
+        base_delay = 60.0 / self.provider_rate_limits.get(
+            provider, 60
+        )  # seconds between requests
+        # Add jitter to prevent thundering herd
+        jitter = random.uniform(0.5, 1.5)
+        return base_delay * jitter * 2  # Extra conservative multiplier
+
+    async def _retry_with_backoff(
+        self, func, max_retries: int = 3, base_delay: float = 1.0
+    ):
+        """Retry function with exponential backoff on rate limit errors."""
+        for attempt in range(max_retries):
+            try:
+                return await func()
+            except Exception as e:
+                error_str = str(e).lower()
+                if "rate limit" in error_str or "429" in error_str:
+                    if attempt == max_retries - 1:
+                        raise  # Last attempt, re-raise the error
+
+                    # Calculate backoff delay
+                    delay = base_delay * (2**attempt) + random.uniform(0, 1)
+                    print(
+                        f"    ⏳ Rate limit hit, retrying in {delay:.1f}s (attempt {attempt + 1}/{max_retries})"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    raise  # Non-rate-limit error, don't retry
 
     async def measure_streaming_response(
         self, agent: Agent, prompt: str
@@ -702,14 +804,15 @@ class ModelBenchmark:
             )
 
     async def run_benchmarks(self):
-        """Run all benchmark combinations."""
+        """Run all benchmark combinations with parallel execution."""
         global _observability_initialized
 
         print("Starting model performance benchmarks...")
         print(
             f"Testing {len(self.models_to_test)} models across {len(self.test_scenarios)} scenarios"
         )
-        print(f"Running {self.iterations_per_test} iterations per combination\n")
+        print(f"Running {self.iterations_per_test} iterations per combination")
+        print(f"Max concurrent models: {self.max_concurrent_models}\n")
 
         # Setup observability once if enabled and not already initialized
         if self.enable_observability and not _observability_initialized:
@@ -723,47 +826,116 @@ class ModelBenchmark:
             else:
                 print("⚠️  Arize Phoenix observability setup failed\n")
 
-        total_tests = (
-            len(self.models_to_test)
-            * len(self.test_scenarios)
-            * self.iterations_per_test
-        )
-        current_test = 0
+        # Create semaphore to limit concurrent model testing
+        model_semaphore = asyncio.Semaphore(self.max_concurrent_models)
 
+        # Create tasks for all model benchmarks
+        tasks = []
         for model_config in self.models_to_test:
+            task = asyncio.create_task(
+                self._run_model_benchmark(model_config, model_semaphore)
+            )
+            tasks.append(task)
+
+        # Execute all model benchmarks in parallel
+        print("🚀 Starting parallel benchmark execution...\n")
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def _run_model_benchmark(
+        self, model_config: Dict, semaphore: asyncio.Semaphore
+    ):
+        """Run all benchmarks for a single model."""
+        async with semaphore:
             provider = model_config["provider"]
             model_name = model_config["model"]
 
             print(f"\n{'='*60}")
-            print(f"Testing: {provider.value} - {model_name}")
+            print(f"Starting: {provider.value} - {model_name}")
             print(f"{'='*60}")
 
+            # Run all scenarios for this model sequentially to avoid rate limits
             for test_name, test_config in self.test_scenarios.items():
-                print(f"\nRunning {test_name}: {test_config['description']}")
-
-                for iteration in range(self.iterations_per_test):
-                    current_test += 1
-                    progress = (current_test / total_tests) * 100
-                    print(
-                        f"  Iteration {iteration + 1}/{self.iterations_per_test} ({progress:.1f}% complete)"
-                    )
-
-                    result = await self.run_single_benchmark(
+                try:
+                    await self._run_scenario_benchmark(
                         provider, model_name, test_name, test_config
                     )
-                    self.results.append(result)
+                except Exception as e:
+                    print(f"❌ Error in {model_name} - {test_name}: {e}")
 
-                    if result.error:
-                        print(f"    ERROR: {result.error}")
-                    else:
-                        print(
-                            f"    Time: {result.total_response_time:.2f}s, "
-                            f"First token: {result.first_token_latency:.2f}s, "
-                            f"Speed: {result.tokens_per_second:.1f} chars/sec"
-                        )
+            print(f"✅ Completed: {provider.value} - {model_name}")
 
-                    # Small delay between tests
-                    await asyncio.sleep(1)
+    async def _run_scenario_benchmark(
+        self,
+        provider: ModelProvider,
+        model_name: str,
+        test_name: str,
+        test_config: Dict[str, Any],
+    ):
+        """Run all iterations for a single test scenario sequentially."""
+        print(
+            f"\n🔄 Running {model_name}/{test_name}: {test_config['description']}"
+        )
+
+        iteration_results = []
+
+        # Run iterations sequentially to avoid rate limits
+        for iteration in range(self.iterations_per_test):
+            iteration_num = iteration + 1
+            try:
+                # Use retry with backoff for rate limit handling
+                async def run_benchmark():
+                    return await self.run_single_benchmark(
+                        provider, model_name, test_name, test_config
+                    )
+
+                result = await self._retry_with_backoff(
+                    run_benchmark, max_retries=3, base_delay=2.0
+                )
+                iteration_results.append(result)
+
+                if result.error:
+                    print(
+                        f"    ❌ {model_name}/{test_name} Iteration {iteration_num}: {result.error}"
+                    )
+                else:
+                    print(
+                        f"    ✅ {model_name}/{test_name} Iteration {iteration_num}: "
+                        f"{result.total_response_time:.2f}s, "
+                        f"first token: {result.first_token_latency:.2f}s, "
+                        f"{result.tokens_per_second:.1f} chars/sec"
+                    )
+
+            except Exception as e:
+                print(f"    ❌ {model_name}/{test_name} Iteration {iteration_num}: {e}")
+                # Create error result
+                error_result = BenchmarkResult(
+                    model_name=model_name,
+                    provider=provider.value,
+                    test_type=test_name,
+                    first_token_latency=-1,
+                    total_response_time=-1,
+                    response_length=0,
+                    tokens_per_second=0,
+                    error=str(e),
+                )
+                iteration_results.append(error_result)
+
+            # Add delay between iterations based on provider
+            if iteration_num < self.iterations_per_test:
+                delay = self._calculate_provider_delay(provider)
+                await asyncio.sleep(delay)
+
+        # Add all results to the main results list
+        self.results.extend(iteration_results)
+
+        # Calculate success rate for this scenario
+        successful = len([r for r in iteration_results if r.error is None])
+        success_rate = (successful / len(iteration_results)) * 100
+        print(
+            f"    📊 {model_name}/{test_name} complete: {successful}/{len(iteration_results)} successful ({success_rate:.1f}%)"
+        )
+
+        return iteration_results
 
     def calculate_statistics(self) -> List[BenchmarkStats]:
         """Calculate aggregated statistics from results."""
@@ -909,7 +1081,17 @@ async def main():
 
     # Check if observability should be enabled via environment variable
     enable_observability = os.getenv("ENABLE_OBSERVABILITY", "false").lower() == "true"
-    benchmark = ModelBenchmark(enable_observability=enable_observability)
+
+    # Allow configuring concurrency via environment variable
+    max_concurrent_models = int(os.getenv("MAX_CONCURRENT_MODELS", "5"))
+
+    benchmark = ModelBenchmark(
+        enable_observability=enable_observability,
+        max_concurrent_models=max_concurrent_models,
+    )
+
+    # Validate that all required API keys are present before running benchmarks
+    validate_api_keys(benchmark.models_to_test)
 
     try:
         await benchmark.run_benchmarks()
