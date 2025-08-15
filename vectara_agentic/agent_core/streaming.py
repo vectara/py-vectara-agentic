@@ -43,11 +43,8 @@ def get_event_id(event) -> str:
         return event.tool_id
 
     # If neither exists, raise an exception
-    event_type = type(event).__name__
-    raise ValueError(
-        f"Event ID required but not provided by LlamaIndex for {event_type} event"
-    )
-
+    import uuid
+    return uuid.uuid4()
 
 class StreamingResponseAdapter:
     """
