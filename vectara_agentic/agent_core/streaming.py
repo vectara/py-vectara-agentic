@@ -9,6 +9,7 @@ import asyncio
 import logging
 import json
 import traceback
+import uuid
 
 from typing import Callable, Any, Dict, AsyncIterator
 
@@ -29,10 +30,7 @@ def get_event_id(event) -> str:
         event: The event object from LlamaIndex
 
     Returns:
-        str: Event ID from the event
-
-    Raises:
-        ValueError: If event_id or tool_id is not present
+        str: Event ID from the event, or creates a new one if it does not exist
     """
     # Check for direct event_id first
     if hasattr(event, "event_id") and event.event_id:
@@ -43,8 +41,7 @@ def get_event_id(event) -> str:
         return event.tool_id
 
     # If neither exists, raise an exception
-    import uuid
-    return uuid.uuid4()
+    return str(uuid.uuid4())
 
 class StreamingResponseAdapter:
     """

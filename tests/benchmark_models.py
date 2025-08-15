@@ -526,9 +526,6 @@ class ModelBenchmark:
 
     def create_test_tools(self) -> List:
         """Create an advanced set of tools for realistic agent testing."""
-        import random
-        import json
-
         tools_factory = ToolsFactory()
 
         # Financial Analysis Tools
