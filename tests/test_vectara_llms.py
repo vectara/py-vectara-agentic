@@ -1,5 +1,6 @@
 # Suppress external dependency warnings before any other imports
 import warnings
+
 warnings.simplefilter("ignore", DeprecationWarning)
 
 import unittest
@@ -20,8 +21,7 @@ class TestLLMPackage(unittest.TestCase):
 
     def test_vectara_openai(self):
         vec_factory = VectaraToolFactory(
-            vectara_corpus_key=vectara_corpus_key,
-            vectara_api_key=vectara_api_key
+            vectara_corpus_key=vectara_corpus_key, vectara_api_key=vectara_api_key
         )
 
         self.assertEqual(vectara_corpus_key, vec_factory.vectara_corpus_key)

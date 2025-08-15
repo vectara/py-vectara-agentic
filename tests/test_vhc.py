@@ -1,5 +1,6 @@
 # Suppress external dependency warnings before any other imports
 import warnings
+
 warnings.simplefilter("ignore", DeprecationWarning)
 
 import unittest
@@ -10,6 +11,7 @@ from vectara_agentic.tools import ToolsFactory
 from vectara_agentic.types import ModelProvider
 
 import nest_asyncio
+
 nest_asyncio.apply()
 
 statements = [
@@ -20,6 +22,8 @@ statements = [
     "Chocolate is the best ice cream flavor.",
 ]
 st_inx = 0
+
+
 def get_statement() -> str:
     "Generate next statement"
     global st_inx
@@ -34,7 +38,8 @@ fc_config = AgentConfig(
     tool_llm_provider=ModelProvider.OPENAI,
 )
 
-vectara_api_key = 'zqt_UXrBcnI2UXINZkrv4g1tQPhzj02vfdtqYJIDiA'
+vectara_api_key = "zqt_UXrBcnI2UXINZkrv4g1tQPhzj02vfdtqYJIDiA"
+
 
 class TestVHC(unittest.TestCase):
 
@@ -59,7 +64,7 @@ class TestVHC(unittest.TestCase):
         vhc_corrections = vhc_res.get("corrections", [])
         self.assertTrue(
             len(vhc_corrections) >= 0 and len(vhc_corrections) <= 2,
-            "Corrections should be between 0 and 2"
+            "Corrections should be between 0 and 2",
         )
 
 

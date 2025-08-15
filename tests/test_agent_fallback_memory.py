@@ -70,7 +70,7 @@ class TestAgentFallbackMemoryConsistency(unittest.TestCase):
 
         # Verify session_id consistency
         # Memory is managed by the main Agent class
-        self.assertEqual(agent.memory.chat_store_key, self.session_id)
+        self.assertEqual(agent.memory.session_id, self.session_id)
 
     def test_memory_sync_during_agent_switching(self):
         """Test that memory remains consistent when switching between main and fallback agents"""
@@ -219,13 +219,13 @@ class TestAgentFallbackMemoryConsistency(unittest.TestCase):
 
         # Verify main agent session_id consistency
         self.assertEqual(agent.session_id, self.session_id)
-        self.assertEqual(agent.memory.chat_store_key, self.session_id)
+        self.assertEqual(agent.memory.session_id, self.session_id)
 
         # Verify session_id consistency across all agents
         # Memory is managed by the main Agent class
-        self.assertEqual(agent.memory.chat_store_key, self.session_id)
+        self.assertEqual(agent.memory.session_id, self.session_id)
         self.assertEqual(
-            agent.memory.chat_store_key, self.session_id
+            agent.memory.session_id, self.session_id
         )  # Both access same memory
 
     def test_agent_recreation_on_switch(self):

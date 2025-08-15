@@ -1,5 +1,6 @@
 # Suppress external dependency warnings before any other imports
 import warnings
+
 warnings.simplefilter("ignore", DeprecationWarning)
 
 import os
@@ -16,19 +17,25 @@ from vectara_agentic.tools import ToolsFactory
 
 FLASK_PORT = 5002
 
+
 class TestFallback(unittest.TestCase):
 
     @classmethod
     def setUp(cls):
         # Start the Flask server as a subprocess
         cls.flask_process = subprocess.Popen(
-            ['flask', 'run', f'--port={FLASK_PORT}'],
-            env={**os.environ, 'FLASK_APP': 'tests.endpoint:app', 'FLASK_ENV': 'development'},
-            stdout=None, stderr=None,
+            ["flask", "run", f"--port={FLASK_PORT}"],
+            env={
+                **os.environ,
+                "FLASK_APP": "tests.endpoint:app",
+                "FLASK_ENV": "development",
+            },
+            stdout=None,
+            stderr=None,
         )
         # Wait for the server to start
         timeout = 10
-        url = f'http://127.0.0.1:{FLASK_PORT}/'
+        url = f"http://127.0.0.1:{FLASK_PORT}/"
         for _ in range(timeout):
             try:
                 requests.get(url)
@@ -62,9 +69,13 @@ class TestFallback(unittest.TestCase):
         # Set fallback agent config to OpenAI agent
         fallback_config = AgentConfig()
 
-        agent = Agent(agent_config=config, tools=tools, topic=topic,
-                      custom_instructions=custom_instructions,
-                      fallback_agent_config=fallback_config)
+        agent = Agent(
+            agent_config=config,
+            tools=tools,
+            topic=topic,
+            custom_instructions=custom_instructions,
+            fallback_agent_config=fallback_config,
+        )
 
         # To run this test, you must have OPENAI_API_KEY in your environment
         res = agent.chat(

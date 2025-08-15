@@ -13,8 +13,7 @@ from typing import Dict, Any, List, Optional, Callable
 
 import cloudpickle as pickle
 from pydantic import Field, create_model, BaseModel
-from llama_index.core.memory import ChatMemoryBuffer
-from llama_index.core.storage.chat_store import SimpleChatStore
+from llama_index.core.memory import Memory
 from llama_index.core.llms import ChatMessage
 from llama_index.core.tools import FunctionTool
 
@@ -23,8 +22,7 @@ from ..tools import VectaraTool
 from ..types import ToolType
 from .utils.schemas import get_field_type
 
-
-def restore_memory_from_dict(data: Dict[str, Any], session_id: str, token_limit: int = 65536) -> ChatMemoryBuffer:
+def restore_memory_from_dict(data: Dict[str, Any], session_id: str, token_limit: int = 65536) -> Memory:
     """
     Restore agent memory from serialized dictionary data.
 
@@ -36,12 +34,10 @@ def restore_memory_from_dict(data: Dict[str, Any], session_id: str, token_limit:
         token_limit: Token limit for the memory instance
 
     Returns:
-        ChatMemoryBuffer: Restored memory instance
+        Memory: Restored memory instance
     """
-    chat_store = SimpleChatStore()
-    mem = ChatMemoryBuffer.from_defaults(
-        chat_store=chat_store,
-        chat_store_key=session_id,
+    mem = Memory.from_defaults(
+        session_id=session_id,
         token_limit=token_limit
     )
 

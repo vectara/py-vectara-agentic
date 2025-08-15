@@ -38,6 +38,46 @@ def wrap_callback_fn(callback):
     return new_callback
 
 
+def _extract_content_from_response(response) -> str:
+    """
+    Extract text content from various LLM response formats.
+
+    Handles different provider response objects and extracts the text content consistently.
+
+    Args:
+        response: Response object from LLM provider
+
+    Returns:
+        str: Extracted text content
+    """
+    # Handle case where response is a string
+    if isinstance(response, str):
+        return response
+
+    # Handle ChatMessage objects with blocks (Anthropic, etc.)
+    if hasattr(response, "blocks") and response.blocks:
+        text_parts = []
+        for block in response.blocks:
+            if hasattr(block, "text"):
+                text_parts.append(block.text)
+        return "".join(text_parts)
+
+    # Handle responses with content attribute
+    if hasattr(response, "content"):
+        return str(response.content)
+
+    # Handle responses with message attribute that has content
+    if hasattr(response, "message") and hasattr(response.message, "content"):
+        return str(response.message.content)
+
+    # Handle delta attribute for streaming responses
+    if hasattr(response, "delta"):
+        return str(response.delta)
+
+    # Fallback to string conversion
+    return str(response)
+
+
 class AgentCallbackHandler(BaseCallbackHandler):
     """
     Callback handler to track agent status
@@ -151,26 +191,36 @@ class AgentCallbackHandler(BaseCallbackHandler):
     def _handle_event(
         self, event_type: CBEventType, payload: Dict[str, Any], event_id: str
     ) -> None:
-        if event_type == CBEventType.LLM:
-            self._handle_llm(payload, event_id)
-        elif event_type == CBEventType.FUNCTION_CALL:
-            self._handle_function_call(payload, event_id)
-        elif event_type == CBEventType.AGENT_STEP:
-            self._handle_agent_step(payload, event_id)
-        else:
-            pass
+        try:
+            if event_type == CBEventType.LLM:
+                self._handle_llm(payload, event_id)
+            elif event_type == CBEventType.FUNCTION_CALL:
+                self._handle_function_call(payload, event_id)
+            elif event_type == CBEventType.AGENT_STEP:
+                self._handle_agent_step(payload, event_id)
+            else:
+                pass
+        except Exception as e:
+            logging.error(f"Exception in callback handler: {e}")
+            logging.error(f"Traceback: {traceback.format_exc()}")
+            # Continue execution to prevent callback failures from breaking the agent
 
     async def _ahandle_event(
         self, event_type: CBEventType, payload: Dict[str, Any], event_id: str
     ) -> None:
-        if event_type == CBEventType.LLM:
-            await self._ahandle_llm(payload, event_id)
-        elif event_type == CBEventType.FUNCTION_CALL:
-            await self._ahandle_function_call(payload, event_id)
-        elif event_type == CBEventType.AGENT_STEP:
-            await self._ahandle_agent_step(payload, event_id)
-        else:
-            pass
+        try:
+            if event_type == CBEventType.LLM:
+                await self._ahandle_llm(payload, event_id)
+            elif event_type == CBEventType.FUNCTION_CALL:
+                await self._ahandle_function_call(payload, event_id)
+            elif event_type == CBEventType.AGENT_STEP:
+                await self._ahandle_agent_step(payload, event_id)
+            else:
+                pass
+        except Exception as e:
+            logging.error(f"Exception in async callback handler: {e}")
+            logging.error(f"Traceback: {traceback.format_exc()}")
+            # Continue execution to prevent callback failures from breaking the agent
 
     # Synchronous handlers
     def _handle_llm(
@@ -182,17 +232,21 @@ class AgentCallbackHandler(BaseCallbackHandler):
             response = payload.get(EventPayload.RESPONSE)
             if response and str(response) not in ["None", "assistant: None"]:
                 if self.fn:
+                    # Convert response to consistent dict format
+                    content = _extract_content_from_response(response)
                     self.fn(
                         status_type=AgentStatusType.AGENT_UPDATE,
-                        msg=response,
+                        msg={"content": content},
                         event_id=event_id,
                     )
         elif EventPayload.PROMPT in payload:
             prompt = payload.get(EventPayload.PROMPT)
             if self.fn:
+                # Convert prompt to consistent dict format
+                content = str(prompt) if prompt else ""
                 self.fn(
                     status_type=AgentStatusType.AGENT_UPDATE,
-                    msg=prompt,
+                    msg={"content": content},
                     event_id=event_id,
                 )
         else:
@@ -253,24 +307,28 @@ class AgentCallbackHandler(BaseCallbackHandler):
             response = payload.get(EventPayload.RESPONSE)
             if response and str(response) not in ["None", "assistant: None"]:
                 if self.fn:
+                    # Convert response to consistent dict format
+                    content = _extract_content_from_response(response)
                     if inspect.iscoroutinefunction(self.fn):
                         await self.fn(
                             status_type=AgentStatusType.AGENT_UPDATE,
-                            msg=response,
+                            msg={"content": content},
                             event_id=event_id,
                         )
                     else:
                         self.fn(
                             status_type=AgentStatusType.AGENT_UPDATE,
-                            msg=response,
+                            msg={"content": content},
                             event_id=event_id,
                         )
         elif EventPayload.PROMPT in payload:
             prompt = payload.get(EventPayload.PROMPT)
             if self.fn:
+                # Convert prompt to consistent dict format
+                content = str(prompt) if prompt else ""
                 self.fn(
                     status_type=AgentStatusType.AGENT_UPDATE,
-                    msg=prompt,
+                    msg={"content": content},
                     event_id=event_id,
                 )
 

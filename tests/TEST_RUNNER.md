@@ -11,7 +11,7 @@ python tests/run_tests.py
 
 ### Run specific test file:
 ```bash
-python tests/run_tests.py test_groq.py
+python tests/run_tests.py test_agent.py
 ```
 
 ### Run with verbose output:

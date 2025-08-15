@@ -7,6 +7,7 @@ import unittest
 
 import sys
 import os
+
 sys.path.insert(0, os.path.dirname(__file__))
 
 from conftest import (
@@ -24,6 +25,7 @@ from conftest import (
 )
 from vectara_agentic.agent import Agent
 from vectara_agentic.tools import ToolsFactory
+
 
 class TestAgentType(unittest.TestCase, AgentTestMixin):
 

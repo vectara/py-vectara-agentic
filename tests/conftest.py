@@ -101,9 +101,9 @@ react_config_anthropic = AgentConfig(
 react_config_gemini = AgentConfig(
     agent_type=AgentType.REACT,
     main_llm_provider=ModelProvider.GEMINI,
-    main_llm_model_name="models/gemini-2.5-flash",
+    main_llm_model_name="models/gemini-2.5-flash-lite",
     tool_llm_provider=ModelProvider.GEMINI,
-    tool_llm_model_name="models/gemini-2.5-flash",
+    tool_llm_model_name="models/gemini-2.5-flash-lite",
 )
 
 react_config_together = AgentConfig(
@@ -112,11 +112,18 @@ react_config_together = AgentConfig(
     tool_llm_provider=ModelProvider.TOGETHER,
 )
 
+react_config_openai = AgentConfig(
+    agent_type=AgentType.REACT,
+    main_llm_provider=ModelProvider.OPENAI,
+    tool_llm_provider=ModelProvider.OPENAI,
+)
+
 react_config_groq = AgentConfig(
     agent_type=AgentType.REACT,
     main_llm_provider=ModelProvider.GROQ,
     tool_llm_provider=ModelProvider.GROQ,
 )
+
 
 # Private LLM configurations
 private_llm_react_config = AgentConfig(
@@ -161,14 +168,6 @@ def is_rate_limited(response_text: str) -> bool:
         "rate limit",
         "quota exceeded",
         "usage limit",
-        # GROQ-specific
-        "tokens per day",
-        "TPD",
-        "service tier",
-        "on_demand",
-        "deepseek-r1-distill-llama-70b",
-        "Upgrade to Dev Tier",
-        "console.groq.com/settings/billing",
         # OpenAI-specific
         "requests per minute",
         "RPM",
@@ -188,6 +187,9 @@ def is_rate_limited(response_text: str) -> bool:
         # Additional rate limit patterns
         "Limit.*Used.*Requested",
         "Need more tokens",
+        # Provider failure patterns
+        "failure can't be resolved after",
+        "Got empty message",
     ]
 
     response_lower = response_text.lower()
@@ -279,10 +281,10 @@ class AgentTestMixin:
             provider: Provider name for error messages
 
         Usage:
-            with self.with_provider_fallback("GROQ"):
+            with self.with_provider_fallback("OpenAI"):
                 response = agent.chat("test")
 
-            with self.with_provider_fallback("GROQ"):
+            with self.with_provider_fallback("OpenAI"):
                 async for chunk in agent.astream_chat("test"):
                     pass
 

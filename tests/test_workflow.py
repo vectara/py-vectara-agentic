@@ -1,5 +1,6 @@
 # Suppress external dependency warnings before any other imports
 import warnings
+
 warnings.simplefilter("ignore", DeprecationWarning)
 
 import unittest
@@ -7,8 +8,12 @@ import unittest
 from vectara_agentic.agent import Agent
 from vectara_agentic.agent_config import AgentConfig
 from vectara_agentic.tools import ToolsFactory
-from vectara_agentic.sub_query_workflow import SubQuestionQueryWorkflow, SequentialSubQuestionsWorkflow
+from vectara_agentic.sub_query_workflow import (
+    SubQuestionQueryWorkflow,
+    SequentialSubQuestionsWorkflow,
+)
 from conftest import mult, add, STANDARD_TEST_TOPIC, WORKFLOW_TEST_INSTRUCTIONS
+
 
 class TestWorkflowPackage(unittest.IsolatedAsyncioTestCase):
 
@@ -18,8 +23,8 @@ class TestWorkflowPackage(unittest.IsolatedAsyncioTestCase):
             tools=tools,
             topic=STANDARD_TEST_TOPIC,
             custom_instructions=WORKFLOW_TEST_INSTRUCTIONS,
-            agent_config = AgentConfig(),
-            workflow_cls = SubQuestionQueryWorkflow,
+            agent_config=AgentConfig(),
+            workflow_cls=SubQuestionQueryWorkflow,
         )
 
         inputs = SubQuestionQueryWorkflow.InputsModel(
@@ -41,8 +46,8 @@ class TestWorkflowPackage(unittest.IsolatedAsyncioTestCase):
             tools=tools,
             topic=STANDARD_TEST_TOPIC,
             custom_instructions=WORKFLOW_TEST_INSTRUCTIONS,
-            agent_config = AgentConfig(),
-            workflow_cls = SequentialSubQuestionsWorkflow,
+            agent_config=AgentConfig(),
+            workflow_cls=SequentialSubQuestionsWorkflow,
         )
 
         inputs = SequentialSubQuestionsWorkflow.InputsModel(
@@ -50,6 +55,7 @@ class TestWorkflowPackage(unittest.IsolatedAsyncioTestCase):
         )
         res = await agent.run(inputs=inputs, verbose=True)
         self.assertIn("22", res.response)
+
 
 class TestWorkflowFailure(unittest.IsolatedAsyncioTestCase):
 
@@ -59,9 +65,9 @@ class TestWorkflowFailure(unittest.IsolatedAsyncioTestCase):
             tools=tools,
             topic=STANDARD_TEST_TOPIC,
             custom_instructions=WORKFLOW_TEST_INSTRUCTIONS,
-            agent_config = AgentConfig(),
-            workflow_cls = SubQuestionQueryWorkflow,
-            workflow_timeout = 1
+            agent_config=AgentConfig(),
+            workflow_cls=SubQuestionQueryWorkflow,
+            workflow_timeout=1,
         )
 
         inputs = SubQuestionQueryWorkflow.InputsModel(
@@ -76,9 +82,9 @@ class TestWorkflowFailure(unittest.IsolatedAsyncioTestCase):
             tools=tools,
             topic=STANDARD_TEST_TOPIC,
             custom_instructions=WORKFLOW_TEST_INSTRUCTIONS,
-            agent_config = AgentConfig(),
-            workflow_cls = SequentialSubQuestionsWorkflow,
-            workflow_timeout = 1
+            agent_config=AgentConfig(),
+            workflow_cls=SequentialSubQuestionsWorkflow,
+            workflow_timeout=1,
         )
 
         inputs = SequentialSubQuestionsWorkflow.InputsModel(
