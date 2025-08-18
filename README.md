@@ -26,17 +26,17 @@
 
 ## 📑 Table of Contents
 
-- [Overview](#-overview)
-- [Quick Start](#-quick-start)
-- [Using Tools](#using-tools)
-- [Streaming & Real-time Responses](#streaming--real-time-responses)
-- [Advanced Usage: Workflows](#advanced-usage-workflows)
-- [Configuration](#️-configuration)
-- [Migrating from v0.3.x](#-migrating-from-v03x)
-- [Contributing](#-contributing)
-- [License](#-license)
+- [✨ Overview](#overview)
+- [🚀 Quick Start](#quick-start)
+- [🗒️ Agent Instructions](#agent-instructions)
+- [🧰 Defining Tools](#defining-tools)
+- [🌊 Streaming & Real-time Responses](#streaming--real-time-responses)
+- [🔍 Vectara Hallucination Correction (VHC)](#vectara-hallucination-correction-vhc)
+- [🔄 Advanced Usage: Workflows](#advanced-usage-workflows)
+- [🛠️ Configuration](#configuration)
+- [📝 Migrating from v0.3.x](#migrating-from-v03x)
 
-## ✨ Overview
+## Overview
 
 `vectara-agentic` is a Python library for developing powerful AI assistants and agents using Vectara and Agentic-RAG. It leverages the LlamaIndex Agent framework and provides helper functions to quickly create tools that connect to Vectara corpora.
 
@@ -85,7 +85,7 @@ Check out our example AI assistants:
 pip install vectara-agentic
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 Let's see how we create a simple AI assistant to answer questions about financial data ingested into Vectara, using `vectara-agentic`. 
 
@@ -140,7 +140,7 @@ To learn about additional arguments `create_rag_tool`, please see the full [docs
 In addition to RAG tools or search tools, you can generate additional tools the agent can use. These could be mathematical tools, tools 
 that call other APIs to get more information, or any other type of tool.
 
-See [Agent Tools](#️-agent-tools-at-a-glance) for more information.
+See [Agent Tools](agent-tools-at-a-glance) for more information.
 
 ### 4. Create your agent
 
@@ -246,7 +246,7 @@ The agent will combine both the general instructions and your custom instruction
 
 It is not recommended to change the general instructions, but it is possible as well to override them with the optional `general_instructions` parameter. If you do change them, your agent may not work as intended, so be careful if overriding these instructions.
 
-## 🧰 Defining Tools
+## Defining Tools
 
 ### Vectara tools
 
@@ -300,7 +300,7 @@ The Vectara search tool allows the agent to list documents that match a query.
 This can be helpful to the agent to answer queries like "how many documents discuss the iPhone?" or other
 similar queries that require a response in terms of a list of matching documents.
 
-### 🛠️ Agent Tools at a Glance
+### Agent Tools at a Glance
 
 `vectara-agentic` provides a few tools out of the box (see `ToolsCatalog` for details):
 
@@ -496,7 +496,7 @@ Built-in formatters include `format_as_table`, `format_as_json`, and `format_as_
 
 The human-readable format, if available, is used when using Vectara Hallucination Correction.
 
-## 🌊 Streaming & Real-time Responses
+## Streaming & Real-time Responses
 
 `vectara-agentic` provides powerful streaming capabilities for real-time response generation, ideal for interactive applications and long-form content.
 
@@ -546,7 +546,7 @@ async for chunk in stream_response.async_response_gen():
 
 For detailed examples including FastAPI integration, Streamlit apps, and decision guidelines, see our [comprehensive streaming documentation](https://vectara.github.io/py-vectara-agentic/latest/usage/#streaming-chat-methods).
 
-## 🔍 Vectara Hallucination Correction (VHC)
+## Vectara Hallucination Correction (VHC)
 
 `vectara-agentic` provides built-in support for Vectara Hallucination Correction (VHC), which analyzes agent responses and corrects any detected hallucinations based on the factual content retrieved by VHC-eligible tools.
 
@@ -604,7 +604,7 @@ agent = Agent(
 
 This helps catch errors where your instructions reference tools that aren't available to the agent.
 
-## 🔄 Advanced Usage: Workflows
+## Advanced Usage: Workflows
 
 In addition to standard chat interactions, `vectara-agentic` supports custom workflows via the `run()` method. 
 Workflows allow you to structure multi-step interactions where inputs and outputs are validated using Pydantic models.
@@ -775,7 +775,7 @@ The workflow works in two steps:
   - You need to implement complex business logic
   - You want to integrate with external systems or APIs in a specific way
 
-## 🛠️ Configuration
+## Configuration
 
 ### Configuring Vectara-agentic
 
@@ -843,7 +843,7 @@ agent = Agent(
 )
 ```
 
-## 🚀 Migrating from v0.3.x
+## Migrating from v0.3.x
 
 If you're upgrading from v0.3.x, please note the following breaking changes in v0.4.0:
 
