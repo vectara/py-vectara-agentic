@@ -513,7 +513,8 @@ The `agent_progress_callback` is an optional `Callable` function that can serve 
 variety of purposes for your assistant. It is a callback function that
 is managed by the agent, and it will be called anytime the agent is
 updated, such as when calling a tool, or when receiving a response from
-a tool.
+a tool. This works with both regular chat methods (`chat()`, `achat()`) and 
+streaming methods (`stream_chat()`, `astream_chat()`).
 
 In our example, we will use it to log the actions of our agent so users
 can see the steps the agent is taking as it answers their questions.
@@ -679,9 +680,9 @@ final_response = await stream_response.aget_response()
 print(f"Analysis complete: {final_response.response}")
 ```
 
-### Tool Call Streaming with Progress Callbacks
+### Tool Call Progress Tracking
 
-When agents use tools (like RAG retrieval, calculations, or external APIs), you can track these operations in real-time during streaming using `agent_progress_callback`:
+When agents use tools (like RAG retrieval, calculations, or external APIs), you can track these operations in real-time using `agent_progress_callback` with both streaming and non-streaming methods:
 
 ```python
 from vectara_agentic import AgentStatusType
@@ -701,12 +702,17 @@ agent = Agent(
     agent_progress_callback=tool_progress_tracker
 )
 
-# Stream with real-time tool visibility
+# With streaming - see tool calls AND streaming response
 stream_response = await agent.astream_chat(
     "Analyze Apple's financial performance and calculate growth rates"
 )
 
-# You'll see tool calls as they happen:
+# With regular chat - see tool calls, then get final response  
+response = await agent.achat(
+    "Analyze Apple's financial performance and calculate growth rates"
+)
+
+# You'll see tool calls as they happen in both cases:
 # 🔧 Calling tool: query_financial_data
 #    Arguments: {"query": "Apple financial performance"}
 # 📊 Tool 'query_financial_data' completed

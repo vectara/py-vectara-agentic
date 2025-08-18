@@ -24,7 +24,7 @@ from ..types import AgentResponse, AgentStatusType
 
 def get_event_id(event) -> str:
     """
-    Get event ID from LlamaIndex event, raising exception if not present.
+    Get event ID from LlamaIndex event.
 
     Args:
         event: The event object from LlamaIndex

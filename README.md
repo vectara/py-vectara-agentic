@@ -174,7 +174,7 @@ agent = Agent(
 
 The `topic` parameter helps identify the agent's area of expertise, while `custom_instructions` lets you customize how the agent behaves and presents information. The agent will combine these with its default general instructions to determine its complete behavior.
 
-The `agent_progress_callback` argument is an optional function that will be called when various Agent events occur, and can be used to track agent steps.
+The `agent_progress_callback` argument is an optional function that will be called when various Agent events occur (tool calls, tool outputs, etc.), and can be used to track agent steps in real-time. This works with both regular chat methods (`chat()`, `achat()`) and streaming methods (`stream_chat()`, `astream_chat()`).
 
 ### 5. Run a chat interaction
 
@@ -227,7 +227,8 @@ print(f"\nFinal response: {final_response.response}")
 > 1. Both `chat()` and `achat()` return `AgentResponse` objects. Access the text with `.response` or use `str()`.
 > 2. Streaming methods return `AgentStreamingResponse` objects that provide both real-time chunks and final responses.
 > 3. For advanced use-cases, explore other `AgentResponse` properties like `sources` and `metadata`.
-> 4. Streaming is ideal for long responses and real-time user interfaces.
+> 4. Streaming is ideal for long responses and real-time user interfaces. See [Streaming & Real-time Responses](#streaming--real-time-responses) for detailed examples.
+> 5. The `agent_progress_callback` works with both regular chat methods (`chat()`, `achat()`) and streaming methods to track tool calls in real-time.
 
 ## Agent Instructions
 
@@ -520,9 +521,9 @@ final_response = stream_response.get_response()
 print(f"\nSources consulted: {len(final_response.sources)}")
 ```
 
-### Tool Call Streaming
+### Tool Call Progress Tracking
 
-During streaming, you can track tool calls in real-time with `agent_progress_callback`:
+You can track tool calls and outputs in real-time with `agent_progress_callback` - this works with both regular chat and streaming methods:
 
 ```python
 from vectara_agentic import AgentStatusType
@@ -538,10 +539,14 @@ agent = Agent(
     agent_progress_callback=tool_tracker
 )
 
-# See tool calls as they happen, plus streaming response
+# With streaming - see tool calls as they happen, plus streaming response
 stream_response = await agent.astream_chat("Analyze Apple's finances")
 async for chunk in stream_response.async_response_gen():
     print(chunk, end="", flush=True)
+
+# With regular chat - see tool calls as they happen, then get final response
+response = await agent.achat("Analyze Apple's finances") 
+print(response.response)
 ```
 
 For detailed examples including FastAPI integration, Streamlit apps, and decision guidelines, see our [comprehensive streaming documentation](https://vectara.github.io/py-vectara-agentic/latest/usage/#streaming-chat-methods).
