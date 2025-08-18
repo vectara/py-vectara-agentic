@@ -23,7 +23,7 @@ provider_to_default_model_name = {
     ModelProvider.GROQ: "openai/gpt-oss-20b",
     ModelProvider.BEDROCK: "us.anthropic.claude-sonnet-4-20250514-v1:0",
     ModelProvider.COHERE: "command-a-03-2025",
-    ModelProvider.GEMINI: "models/gemini-2.5-flash",
+    ModelProvider.GEMINI: "models/gemini-2.5-flash-lite",
 }
 
 DEFAULT_MODEL_PROVIDER = ModelProvider.OPENAI
@@ -87,6 +87,8 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
 
     Uses a cache based on configuration parameters to avoid repeated LLM instantiation.
     """
+    if config is None:
+        config = AgentConfig()
     # Check cache first
     cache_key = _create_llm_cache_key(role, config)
     if cache_key in _llm_cache:
@@ -112,7 +114,7 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             strict=False,
             max_tokens=max_tokens,
             pydantic_program_mode="openai",
-            additional_kwargs=additional_kwargs
+            additional_kwargs=additional_kwargs,
         )
     elif model_provider == ModelProvider.ANTHROPIC:
         llm = Anthropic(

@@ -7,12 +7,11 @@ for managing asynchronous agent interactions with proper synchronization.
 
 import asyncio
 import logging
-import uuid
 import json
 import traceback
+import uuid
 
 from typing import Callable, Any, Dict, AsyncIterator
-from collections import OrderedDict
 
 from llama_index.core.agent.workflow import (
     ToolCall,
@@ -20,58 +19,28 @@ from llama_index.core.agent.workflow import (
     AgentInput,
     AgentOutput,
 )
-from ..types import AgentResponse
+from ..types import AgentResponse, AgentStatusType
 
-class ToolEventTracker:
+
+def get_event_id(event) -> str:
     """
-    Tracks event IDs for tool calls to ensure consistent pairing of tool calls and outputs.
+    Get event ID from LlamaIndex event.
 
-    This class maintains a mapping between tool identifiers and event IDs to ensure
-    that related tool call and tool output events share the same event_id for proper
-    frontend grouping.
+    Args:
+        event: The event object from LlamaIndex
+
+    Returns:
+        str: Event ID from the event, or creates a new one if it does not exist
     """
+    # Check for direct event_id first
+    if hasattr(event, "event_id") and event.event_id:
+        return event.event_id
 
-    def __init__(self):
-        self.event_ids = OrderedDict()  # tool_call_id -> event_id mapping
-        self.fallback_counter = 0  # For events without identifiable tool_ids
+    # Check for tool_id for tool-related events
+    if hasattr(event, "tool_id") and event.tool_id:
+        return event.tool_id
 
-    def get_event_id(self, event) -> str:
-        """
-        Get a consistent event ID for a tool event.
-
-        Args:
-            event: The tool event object
-
-        Returns:
-            str: Consistent event ID for this tool execution
-        """
-        # Try to get tool_id from the event first
-        tool_id = getattr(event, "tool_id", None)
-
-        # If we have a tool_id, use it directly (any format from any LLM provider)
-        if tool_id:
-            pass  # We already have tool_id, just use it
-        # If no tool_id, try to derive one from tool_name (for LlamaIndex events)
-        elif hasattr(event, "tool_name") and event.tool_name:
-            tool_id = f"{event.tool_name}_{self.fallback_counter}"
-            self.fallback_counter += 1
-        # If still no tool_id, create a generic one based on event type
-        else:
-            event_type = type(event).__name__
-            tool_id = f"{event_type.lower()}_{self.fallback_counter}"
-            self.fallback_counter += 1
-
-        # Get or create event_id for this tool_id
-        if tool_id not in self.event_ids:
-            self.event_ids[tool_id] = str(uuid.uuid4())
-
-        return self.event_ids[tool_id]
-
-    def clear_old_entries(self, max_entries: int = 100):
-        """Clear old entries to prevent unbounded memory growth."""
-        while len(self.event_ids) > max_entries // 2:
-            self.event_ids.popitem(last=False)  # Remove oldest entry
-
+    return str(uuid.uuid4())
 
 class StreamingResponseAdapter:
     """
@@ -284,7 +253,6 @@ class FunctionCallingStreamHandler:
         self.prompt = prompt
         self.final_response_container = {"resp": None}
         self.stream_complete_event = asyncio.Event()
-        self.event_tracker = ToolEventTracker()
 
     async def process_stream_events(self) -> AsyncIterator[str]:
         """
@@ -299,16 +267,22 @@ class FunctionCallingStreamHandler:
         async for ev in self.handler.stream_events():
             # Store tool outputs for VHC regardless of progress callback
             if isinstance(ev, ToolCallResult):
-                if hasattr(self.agent_instance, '_add_tool_output'):
+                if hasattr(self.agent_instance, "_add_tool_output"):
                     # pylint: disable=W0212
-                    self.agent_instance._add_tool_output(ev.tool_name, str(ev.tool_output))
+                    self.agent_instance._add_tool_output(
+                        ev.tool_name, str(ev.tool_output)
+                    )
 
             # Handle progress callbacks if available
             if self.agent_instance.agent_progress_callback:
                 # Only track events that are actual tool-related events
                 if self._is_tool_related_event(ev):
-                    event_id = self.event_tracker.get_event_id(ev)
-                    await self._handle_progress_callback(ev, event_id)
+                    try:
+                        event_id = get_event_id(ev)
+                        await self._handle_progress_callback(ev, event_id)
+                    except ValueError as e:
+                        logging.warning(f"Skipping event due to missing ID: {e}")
+                        continue
 
             # Process streaming text events
             if hasattr(ev, "__class__") and "AgentStream" in str(ev.__class__):
@@ -335,16 +309,25 @@ class FunctionCallingStreamHandler:
         try:
             self.final_response_container["resp"] = await self.handler
         except Exception as e:
-            logging.error(f"🔍 [STREAM_ERROR] Error processing stream events: {e}")
-            logging.error(f"🔍 [STREAM_ERROR] Full traceback: {traceback.format_exc()}")
-            self.final_response_container["resp"] = AgentResponse(
-                response="Response completion Error",
-                source_nodes=[],
-                metadata={}
-            )
+            error_str = str(e).lower()
+            if "rate limit" in error_str or "429" in error_str:
+                logging.error(f"🔍 [RATE_LIMIT_ERROR] Rate limit exceeded: {e}")
+                self.final_response_container["resp"] = AgentResponse(
+                    response="Rate limit exceeded. Please try again later.",
+                    source_nodes=[],
+                    metadata={"error_type": "rate_limit", "original_error": str(e)},
+                )
+            else:
+                logging.error(f"🔍 [STREAM_ERROR] Error processing stream events: {e}")
+                logging.error(
+                    f"🔍 [STREAM_ERROR] Full traceback: {traceback.format_exc()}"
+                )
+                self.final_response_container["resp"] = AgentResponse(
+                    response="Response completion Error",
+                    source_nodes=[],
+                    metadata={"error_type": "general", "original_error": str(e)},
+                )
         finally:
-            # Clean up event tracker to prevent memory leaks
-            self.event_tracker.clear_old_entries()
             # Signal that stream processing is complete
             self.stream_complete_event.set()
 
@@ -380,9 +363,6 @@ class FunctionCallingStreamHandler:
 
     async def _handle_progress_callback(self, event, event_id: str):
         """Handle progress callback events for different event types with proper context propagation."""
-        # Import here to avoid circular imports
-        from ..types import AgentStatusType
-
         try:
             if isinstance(event, ToolCall):
                 # Check if callback is async or sync
@@ -456,6 +436,207 @@ class FunctionCallingStreamHandler:
     ) -> "StreamingResponseAdapter":
         """
         Create a StreamingResponseAdapter with proper post-processing.
+
+        Args:
+            user_metadata: User metadata dictionary to update
+
+        Returns:
+            StreamingResponseAdapter: Configured streaming adapter
+        """
+        post_process_task = create_stream_post_processing_task(
+            self.stream_complete_event,
+            self.final_response_container,
+            self.prompt,
+            self.agent_instance,
+            user_metadata,
+        )
+
+        return StreamingResponseAdapter(
+            async_response_gen=self.process_stream_events,
+            response="",  # will be filled post-stream
+            metadata={},
+            post_process_task=post_process_task,
+        )
+
+
+class ReActStreamHandler:
+    """
+    Handles streaming for ReAct agents with proper event processing.
+
+    ReAct agents use a workflow-based approach and emit ToolCall/ToolCallResult events
+    that need to be captured and converted to progress callbacks.
+    """
+
+    def __init__(self, agent_instance, handler, prompt: str):
+        self.agent_instance = agent_instance
+        self.handler = handler
+        self.prompt = prompt
+        self.final_response_container = {"resp": None}
+        self.stream_complete_event = asyncio.Event()
+
+    async def process_stream_events(self) -> AsyncIterator[str]:
+        """
+        Process streaming events from ReAct workflow and yield text tokens.
+
+        Yields:
+            str: Text tokens from the streaming response
+        """
+        async for event in self.handler.stream_events():
+            # Store tool outputs for VHC regardless of progress callback
+            if isinstance(event, ToolCallResult):
+                if hasattr(self.agent_instance, "_add_tool_output"):
+                    # pylint: disable=W0212
+                    self.agent_instance._add_tool_output(
+                        event.tool_name, str(event.tool_output)
+                    )
+            # Handle progress callbacks if available - this is the key missing piece!
+            if self.agent_instance.agent_progress_callback:
+                # Only track events that are actual tool-related events
+                if self._is_tool_related_event(event):
+                    try:
+                        # Get event ID from LlamaIndex event
+                        event_id = get_event_id(event)
+
+                        # Handle different types of workflow events using same logic as achat method
+                        if isinstance(event, ToolCall):
+                            # Check if callback is async or sync
+                            if asyncio.iscoroutinefunction(
+                                self.agent_instance.agent_progress_callback
+                            ):
+                                await self.agent_instance.agent_progress_callback(
+                                    status_type=AgentStatusType.TOOL_CALL,
+                                    msg={
+                                        "tool_name": event.tool_name,
+                                        "arguments": json.dumps(event.tool_kwargs),
+                                    },
+                                    event_id=event_id,
+                                )
+                            else:
+                                self.agent_instance.agent_progress_callback(
+                                    status_type=AgentStatusType.TOOL_CALL,
+                                    msg={
+                                        "tool_name": event.tool_name,
+                                        "arguments": json.dumps(event.tool_kwargs),
+                                    },
+                                    event_id=event_id,
+                                )
+                        elif isinstance(event, ToolCallResult):
+                            # Check if callback is async or sync
+                            if asyncio.iscoroutinefunction(
+                                self.agent_instance.agent_progress_callback
+                            ):
+                                await self.agent_instance.agent_progress_callback(
+                                    status_type=AgentStatusType.TOOL_OUTPUT,
+                                    msg={
+                                        "tool_name": event.tool_name,
+                                        "content": str(event.tool_output),
+                                    },
+                                    event_id=event_id,
+                                )
+                            else:
+                                self.agent_instance.agent_progress_callback(
+                                    status_type=AgentStatusType.TOOL_OUTPUT,
+                                    msg={
+                                        "tool_name": event.tool_name,
+                                        "content": str(event.tool_output),
+                                    },
+                                    event_id=event_id,
+                                )
+                        elif isinstance(event, AgentInput):
+                            if asyncio.iscoroutinefunction(
+                                self.agent_instance.agent_progress_callback
+                            ):
+                                await self.agent_instance.agent_progress_callback(
+                                    status_type=AgentStatusType.AGENT_UPDATE,
+                                    msg={"content": f"Agent input: {event.input}"},
+                                    event_id=event_id,
+                                )
+                            else:
+                                self.agent_instance.agent_progress_callback(
+                                    status_type=AgentStatusType.AGENT_UPDATE,
+                                    msg={"content": f"Agent input: {event.input}"},
+                                    event_id=event_id,
+                                )
+                        elif isinstance(event, AgentOutput):
+                            if asyncio.iscoroutinefunction(
+                                self.agent_instance.agent_progress_callback
+                            ):
+                                await self.agent_instance.agent_progress_callback(
+                                    status_type=AgentStatusType.AGENT_UPDATE,
+                                    msg={"content": f"Agent output: {event.response}"},
+                                    event_id=event_id,
+                                )
+                            else:
+                                self.agent_instance.agent_progress_callback(
+                                    status_type=AgentStatusType.AGENT_UPDATE,
+                                    msg={"content": f"Agent output: {event.response}"},
+                                    event_id=event_id,
+                                )
+                    except ValueError as e:
+                        logging.warning(f"Skipping event due to missing ID: {e}")
+                        continue
+                    except Exception as e:
+                        logging.error(f"Exception in ReAct progress callback: {e}")
+                        logging.error(f"Traceback: {traceback.format_exc()}")
+                        # Continue execution despite callback errors
+
+            # For ReAct agents, we typically don't have streaming text like function calling
+            # ReAct usually processes in steps and then provides complete responses
+            # So we just yield empty strings to maintain streaming interface
+            yield ""
+
+        # When stream is done, await the handler to get the final response
+        try:
+            self.final_response_container["resp"] = await self.handler
+        except Exception as e:
+            logging.error(
+                f"🔍 [REACT_STREAM_ERROR] Error processing ReAct stream events: {e}"
+            )
+            logging.error(
+                f"🔍 [REACT_STREAM_ERROR] Full traceback: {traceback.format_exc()}"
+            )
+            self.final_response_container["resp"] = AgentResponse(
+                response="ReAct Response completion Error", source_nodes=[], metadata={}
+            )
+        finally:
+            # Signal that stream processing is complete
+            self.stream_complete_event.set()
+
+    def _is_tool_related_event(self, event) -> bool:
+        """
+        Determine if an event is actually tool-related and should be tracked.
+
+        This should only return True for events that represent actual tool calls or tool outputs,
+        not for streaming text deltas or other LLM response events.
+
+        Args:
+            event: The stream event to check
+
+        Returns:
+            bool: True if this event should be tracked for tool purposes
+        """
+        # Track explicit tool events from LlamaIndex workflow
+        if isinstance(event, (ToolCall, ToolCallResult)):
+            return True
+
+        has_tool_id = hasattr(event, "tool_id") and event.tool_id
+        has_delta = hasattr(event, "delta") and event.delta
+        has_tool_name = hasattr(event, "tool_name") and event.tool_name
+
+        # We're not seeing ToolCall/ToolCallResult events in the stream, so let's be more liberal
+        # but still avoid streaming deltas
+        if (has_tool_id or has_tool_name) and not has_delta:
+            return True
+
+        # Everything else (streaming deltas, agent outputs, workflow events, etc.)
+        # should NOT be tracked as tool events
+        return False
+
+    def create_streaming_response(
+        self, user_metadata: Dict[str, Any]
+    ) -> "StreamingResponseAdapter":
+        """
+        Create a StreamingResponseAdapter for ReAct agents with proper post-processing.
 
         Args:
             user_metadata: User metadata dictionary to update

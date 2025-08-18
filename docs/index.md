@@ -207,7 +207,7 @@ Defaults:
 
 1.  For `OPENAI`, the default is `gpt-4.1-mini`.
 2.  For `ANTHROPIC`, the default is `claude-sonnet-4-20250514`.
-3.  For `GEMINI`, the default is `gemini-2.5-flash`.
+3.  For `GEMINI`, the default is `gemini-2.5-flash-lite`.
 4.  For `TOGETHER.AI`, the default is `deepseek-ai/DeepSeek-V3`.
 5.  For `COHERE`, the default is `command-a-03-2025`.
 6.  For `BEDROCK`, the default is `us.anthropic.claude-sonnet-4-20250514-v1:0`.

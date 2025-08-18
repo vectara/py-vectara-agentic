@@ -26,16 +26,17 @@
 
 ## 📑 Table of Contents
 
-- [Overview](#-overview)
-- [Quick Start](#-quick-start)
-- [Using Tools](#using-tools)
-- [Advanced Usage: Workflows](#advanced-usage-workflows)
-- [Configuration](#️-configuration)
-- [Migrating from v0.3.x](#-migrating-from-v03x)
-- [Contributing](#-contributing)
-- [License](#-license)
+- [✨ Overview](#overview)
+- [🚀 Quick Start](#quick-start)
+- [🗒️ Agent Instructions](#agent-instructions)
+- [🧰 Defining Tools](#defining-tools)
+- [🌊 Streaming & Real-time Responses](#streaming--real-time-responses)
+- [🔍 Vectara Hallucination Correction (VHC)](#vectara-hallucination-correction-vhc)
+- [🔄 Advanced Usage: Workflows](#advanced-usage-workflows)
+- [🛠️ Configuration](#configuration)
+- [📝 Migrating from v0.3.x](#migrating-from-v03x)
 
-## ✨ Overview
+## Overview
 
 `vectara-agentic` is a Python library for developing powerful AI assistants and agents using Vectara and Agentic-RAG. It leverages the LlamaIndex Agent framework and provides helper functions to quickly create tools that connect to Vectara corpora.
 
@@ -84,7 +85,7 @@ Check out our example AI assistants:
 pip install vectara-agentic
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 Let's see how we create a simple AI assistant to answer questions about financial data ingested into Vectara, using `vectara-agentic`. 
 
@@ -107,7 +108,7 @@ A RAG tool calls the full Vectara RAG pipeline to provide summarized responses t
 ```python
 from pydantic import BaseModel, Field
 
-years = list(range(2020, 2024))
+years = list(range(2020, 2025))
 tickers = {
     "AAPL": "Apple Computer",
     "GOOG": "Google",
@@ -139,7 +140,7 @@ To learn about additional arguments `create_rag_tool`, please see the full [docs
 In addition to RAG tools or search tools, you can generate additional tools the agent can use. These could be mathematical tools, tools 
 that call other APIs to get more information, or any other type of tool.
 
-See [Agent Tools](#️-agent-tools-at-a-glance) for more information.
+See [Agent Tools](#agent-tools-at-a-glance) for more information.
 
 ### 4. Create your agent
 
@@ -173,26 +174,67 @@ agent = Agent(
 
 The `topic` parameter helps identify the agent's area of expertise, while `custom_instructions` lets you customize how the agent behaves and presents information. The agent will combine these with its default general instructions to determine its complete behavior.
 
-The `agent_progress_callback` argument is an optional function that will be called when various Agent events occur, and can be used to track agent steps.
+The `agent_progress_callback` argument is an optional function that will be called when various Agent events occur (tool calls, tool outputs, etc.), and can be used to track agent steps in real-time. This works with both regular chat methods (`chat()`, `achat()`) and streaming methods (`stream_chat()`, `astream_chat()`).
 
 ### 5. Run a chat interaction
 
+You have multiple ways to interact with your agent:
+
+**Standard Chat (synchronous)**
 ```python
 res = agent.chat("What was the revenue for Apple in 2021?")
 print(res.response)
 ```
 
+**Async Chat**
+```python
+res = await agent.achat("What was the revenue for Apple in 2021?")
+print(res.response)
+```
+
+**Streaming Chat with AgentStreamingResponse**
+```python
+# Synchronous streaming
+stream_response = agent.stream_chat("What was the revenue for Apple in 2021?")
+
+# Option 1: Process stream manually
+async for chunk in stream_response.async_response_gen():
+    print(chunk, end="", flush=True)
+
+# Option 2: Get final response without streaming
+# (Note: stream still executes, just not processed chunk by chunk)
+
+# Get final response after streaming
+final_response = stream_response.get_response()
+print(f"\nFinal response: {final_response.response}")
+```
+
+**Async Streaming Chat**
+```python
+# Asynchronous streaming
+stream_response = await agent.astream_chat("What was the revenue for Apple in 2021?")
+
+# Process chunks manually
+async for chunk in stream_response.async_response_gen():
+    print(chunk, end="", flush=True)
+
+# Get final response after streaming  
+final_response = await stream_response.aget_response()
+print(f"\nFinal response: {final_response.response}")
+```
+
 > **Note:** 
-> 1. `vectara-agentic` also supports `achat()` as well as two streaming variants `stream_chat()` and `astream_chat()`.
-> 2. The response types from `chat()` and `achat()` are of type `AgentResponse`. If you just need the actual string
->    response it's available as the `response` variable, or just use `str()`. For advanced use-cases you can look 
->    at other `AgentResponse` variables [such as `sources`](https://github.com/run-llama/llama_index/blob/659f9faaafbecebb6e6c65f42143c0bf19274a37/llama-index-core/llama_index/core/chat_engine/types.py#L53).
+> 1. Both `chat()` and `achat()` return `AgentResponse` objects. Access the text with `.response` or use `str()`.
+> 2. Streaming methods return `AgentStreamingResponse` objects that provide both real-time chunks and final responses.
+> 3. For advanced use-cases, explore other `AgentResponse` properties like `sources` and `metadata`.
+> 4. Streaming is ideal for long responses and real-time user interfaces. See [Streaming & Real-time Responses](#streaming--real-time-responses) for detailed examples.
+> 5. The `agent_progress_callback` works with both regular chat methods (`chat()`, `achat()`) and streaming methods to track tool calls in real-time.
 
 ## Agent Instructions
 
-When creating an agent, it already comes with a set of general base instructions, designed carefully to enhance its operation and improve how the agent works.
+When creating an agent, it already comes with a set of general base instructions, designed to enhance its operation and improve how the agent works.
 
-In addition, you can add `custom_instructions` that are specific to your use case that customize how the agent behaves.
+In addition, you can add `custom_instructions` that are specific to your use case to customize how the agent behaves.
 
 When writing custom instructions:
 - Focus on behavior and presentation rather than tool usage (that's what tool descriptions are for)
@@ -205,7 +247,7 @@ The agent will combine both the general instructions and your custom instruction
 
 It is not recommended to change the general instructions, but it is possible as well to override them with the optional `general_instructions` parameter. If you do change them, your agent may not work as intended, so be careful if overriding these instructions.
 
-## 🧰 Defining Tools
+## Defining Tools
 
 ### Vectara tools
 
@@ -259,7 +301,7 @@ The Vectara search tool allows the agent to list documents that match a query.
 This can be helpful to the agent to answer queries like "how many documents discuss the iPhone?" or other
 similar queries that require a response in terms of a list of matching documents.
 
-### 🛠️ Agent Tools at a Glance
+### Agent Tools at a Glance
 
 `vectara-agentic` provides a few tools out of the box (see `ToolsCatalog` for details):
 
@@ -407,7 +449,7 @@ mult_tool = ToolsFactory().create_tool(mult_func)
 
 #### VHC Eligibility
 
-When creating tools, you can control whether they participate in Vectara Hallucination Correction, by using the `vhc_eligible` parameter:
+When creating tools, you can control whether their output is eligible for Vectara Hallucination Correction, by using the `vhc_eligible` parameter:
 
 ```python
 # Tool that provides factual data - should participate in VHC
@@ -455,7 +497,61 @@ Built-in formatters include `format_as_table`, `format_as_json`, and `format_as_
 
 The human-readable format, if available, is used when using Vectara Hallucination Correction.
 
-## 🔍 Vectara Hallucination Correction (VHC)
+## Streaming & Real-time Responses
+
+`vectara-agentic` provides powerful streaming capabilities for real-time response generation, ideal for interactive applications and long-form content.
+
+### Why Use Streaming?
+
+- **Better User Experience**: Users see responses as they're generated instead of waiting for completion
+- **Real-time Feedback**: Perfect for chat interfaces, web applications, and interactive demos  
+- **Progress Visibility**: Combined with callbacks, users can see both tool usage and response generation
+- **Reduced Perceived Latency**: Streaming makes applications feel faster and more responsive
+
+### Quick Streaming Example
+
+```python
+# Create streaming response
+stream_response = agent.stream_chat("Analyze the financial performance of tech companies in 2022")
+async for chunk in stream_response.async_response_gen():
+    print(chunk, end="", flush=True)  # Update your UI here
+
+# Get complete response with metadata after streaming completes
+final_response = stream_response.get_response()
+print(f"\nSources consulted: {len(final_response.sources)}")
+```
+
+### Tool Call Progress Tracking
+
+You can track tool calls and outputs in real-time with `agent_progress_callback` - this works with both regular chat and streaming methods:
+
+```python
+from vectara_agentic import AgentStatusType
+
+def tool_tracker(status_type, msg, event_id):
+    if status_type == AgentStatusType.TOOL_CALL:
+        print(f"🔧 Using {msg['tool_name']} with {msg['arguments']}")
+    elif status_type == AgentStatusType.TOOL_OUTPUT:
+        print(f"📊 {msg['tool_name']} completed")
+
+agent = Agent(
+    tools=[your_tools],
+    agent_progress_callback=tool_tracker
+)
+
+# With streaming - see tool calls as they happen, plus streaming response
+stream_response = await agent.astream_chat("Analyze Apple's finances")
+async for chunk in stream_response.async_response_gen():
+    print(chunk, end="", flush=True)
+
+# With regular chat - see tool calls as they happen, then get final response
+response = await agent.achat("Analyze Apple's finances") 
+print(response.response)
+```
+
+For detailed examples including FastAPI integration, Streamlit apps, and decision guidelines, see our [comprehensive streaming documentation](https://vectara.github.io/py-vectara-agentic/latest/usage/#streaming-chat-methods).
+
+## Vectara Hallucination Correction (VHC)
 
 `vectara-agentic` provides built-in support for Vectara Hallucination Correction (VHC), which analyzes agent responses and corrects any detected hallucinations based on the factual content retrieved by VHC-eligible tools.
 
@@ -513,7 +609,7 @@ agent = Agent(
 
 This helps catch errors where your instructions reference tools that aren't available to the agent.
 
-## 🔄 Advanced Usage: Workflows
+## Advanced Usage: Workflows
 
 In addition to standard chat interactions, `vectara-agentic` supports custom workflows via the `run()` method. 
 Workflows allow you to structure multi-step interactions where inputs and outputs are validated using Pydantic models.
@@ -684,7 +780,7 @@ The workflow works in two steps:
   - You need to implement complex business logic
   - You want to integrate with external systems or APIs in a specific way
 
-## 🛠️ Configuration
+## Configuration
 
 ### Configuring Vectara-agentic
 
@@ -715,7 +811,7 @@ The `AgentConfig` object may include the following items:
 - `main_llm_provider` and `tool_llm_provider`: the LLM provider for main agent and for the tools. Valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI` (default: `OPENAI`).
 
 > **Note:** Fireworks AI support has been removed. If you were using Fireworks, please migrate to one of the supported providers listed above.
-- `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider: OpenAI uses gpt-4.1-mini, Gemini uses gemini-2.5-flash).
+- `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider: OpenAI uses gpt-4.1-mini, Gemini uses gemini-2.5-flash-lite).
 - `observer`: the observer type; should be `ARIZE_PHOENIX` or if undefined no observation framework will be used.
 - `endpoint_api_key`: a secret key if using the API endpoint option (defaults to `dev-api-key`)
 
@@ -752,7 +848,7 @@ agent = Agent(
 )
 ```
 
-## 🚀 Migrating from v0.3.x
+## Migrating from v0.3.x
 
 If you're upgrading from v0.3.x, please note the following breaking changes in v0.4.0:
 

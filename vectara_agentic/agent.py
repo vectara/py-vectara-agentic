@@ -22,8 +22,8 @@ from dotenv import load_dotenv
 # Runtime imports for components used at module level
 from llama_index.core.llms import MessageRole, ChatMessage
 from llama_index.core.callbacks import CallbackManager
-from llama_index.core.memory import ChatMemoryBuffer
-from llama_index.core.storage.chat_store import SimpleChatStore
+from llama_index.core.memory import Memory
+
 
 # Heavy llama_index imports moved to TYPE_CHECKING for lazy loading
 if TYPE_CHECKING:
@@ -53,6 +53,7 @@ from .agent_config import AgentConfig
 # Import utilities from agent core modules
 from .agent_core.streaming import (
     FunctionCallingStreamHandler,
+    ReActStreamHandler,
     execute_post_stream_processing,
 )
 from .agent_core.factory import create_agent_from_config, create_agent_from_corpus
@@ -168,11 +169,8 @@ class Agent:
             or f"{topic}:{date.today().isoformat()}"
         )
 
-        chat_store = SimpleChatStore()
-        self.memory = ChatMemoryBuffer.from_defaults(
-            chat_store=chat_store,
-            chat_store_key=self.session_id,
-            token_limit=65536
+        self.memory = Memory.from_defaults(
+            session_id=self.session_id, token_limit=65536
         )
         if chat_history:
             msgs = []
@@ -491,6 +489,14 @@ class Agent:
             # Clear the main agent so it gets recreated with current memory
             self._agent = None
 
+    def _reset_agent_state(self) -> None:
+        """
+        Reset agent state to recover from workflow runtime errors.
+        Clears both agent instances to force recreation with fresh state.
+        """
+        self._agent = None
+        self._fallback_agent = None
+
     def report(self, detailed: bool = False) -> None:
         """
         Get a report from the agent.
@@ -546,11 +552,14 @@ class Agent:
             AgentResponse: The response from the agent.
         """
         try:
-            _ = asyncio.get_running_loop()
-        except RuntimeError:
+            loop = asyncio.get_running_loop()
+            if hasattr(loop, "_nest_level"):
+                return asyncio.run(self.achat(prompt))
+        except (RuntimeError, ImportError):
+            # No running loop or nest_asyncio not available
             return asyncio.run(self.achat(prompt))
 
-        # We are inside a running loop (Jupyter, uvicorn, etc.)
+        # We are inside a running loop without nest_asyncio
         raise RuntimeError(
             "Use `await agent.achat(...)` inside an event loop (e.g. Jupyter)."
         )
@@ -565,8 +574,8 @@ class Agent:
         Returns:
             AgentResponse: The response from the agent.
         """
-        if not prompt:
-            return AgentResponse(response="")
+        if not prompt or not prompt.strip():
+            return AgentResponse(response="Please provide a valid prompt.")
 
         max_attempts = 4 if self.fallback_agent_config else 2
         attempt = 0
@@ -593,14 +602,12 @@ class Agent:
 
                     # Listen to workflow events if progress callback is set
                     if self.agent_progress_callback:
-                        # Create event tracker for consistent event ID generation
-                        from .agent_core.streaming import ToolEventTracker
-
-                        event_tracker = ToolEventTracker()
+                        # Import the event ID utility function
+                        from .agent_core.streaming import get_event_id
 
                         async for event in handler.stream_events():
                             # Use consistent event ID tracking to ensure tool calls and outputs are paired
-                            event_id = event_tracker.get_event_id(event)
+                            event_id = get_event_id(event)
 
                             # Handle different types of workflow events using same logic as FunctionCallingStreamHandler
                             from llama_index.core.agent.workflow import (
@@ -831,6 +838,27 @@ class Agent:
                         base=streaming_adapter, metadata=user_meta
                     )
 
+                # Deal with ReAct agent type
+                elif self._get_current_agent_type() == AgentType.REACT:
+                    from llama_index.core.workflow import Context
+
+                    # Create context and pass memory to the workflow agent
+                    ctx = Context(current_agent)
+
+                    handler = current_agent.run(
+                        user_msg=prompt, memory=self.memory, ctx=ctx
+                    )
+
+                    # Create a streaming adapter for ReAct with event handling
+                    react_stream_handler = ReActStreamHandler(self, handler, prompt)
+                    streaming_adapter = react_stream_handler.create_streaming_response(
+                        user_meta
+                    )
+
+                    return AgentStreamingResponse(
+                        base=streaming_adapter, metadata=user_meta
+                    )
+
                 #
                 # For other agent types, use the standard async chat method
                 #
@@ -870,16 +898,20 @@ class Agent:
     def _add_tool_output(self, tool_name: str, content: str):
         """Add a tool output to the current collection for VHC."""
         tool_output = {
-            'status_type': 'TOOL_OUTPUT',
-            'content': content,
-            'tool_name': tool_name
+            "status_type": "TOOL_OUTPUT",
+            "content": content,
+            "tool_name": tool_name,
         }
         self._current_tool_outputs.append(tool_output)
-        logging.info(f"🔧 [TOOL_STORAGE] Added tool output from '{tool_name}': {len(content)} chars")
+        logging.info(
+            f"🔧 [TOOL_STORAGE] Added tool output from '{tool_name}': {len(content)} chars"
+        )
 
     def _get_stored_tool_outputs(self) -> List[dict]:
         """Get the stored tool outputs from the current query."""
-        logging.info(f"🔧 [TOOL_STORAGE] Retrieved {len(self._current_tool_outputs)} stored tool outputs")
+        logging.info(
+            f"🔧 [TOOL_STORAGE] Retrieved {len(self._current_tool_outputs)} stored tool outputs"
+        )
         return self._current_tool_outputs.copy()
 
     async def acompute_vhc(self) -> Dict[str, Any]:
@@ -926,7 +958,9 @@ class Agent:
         )
 
         if not last_response:
-            logging.info("🔍 [VHC_AGENT] Returning early - no last assistant response found")
+            logging.info(
+                "🔍 [VHC_AGENT] Returning early - no last assistant response found"
+            )
             return {"corrected_text": None, "corrections": []}
 
         # Update stored response for caching
@@ -944,7 +978,9 @@ class Agent:
             f"🔍 [VHC_AGENT] acompute_vhc called with vectara_api_key={'set' if self.vectara_api_key else 'None'}"
         )
         if not self.vectara_api_key:
-            logging.info("🔍 [VHC_AGENT] No vectara_api_key - returning early with None")
+            logging.info(
+                "🔍 [VHC_AGENT] No vectara_api_key - returning early with None"
+            )
             return {"corrected_text": None, "corrections": []}
 
         # Compute VHC using existing library function
@@ -953,7 +989,9 @@ class Agent:
         try:
             # Use stored tool outputs from current query
             stored_tool_outputs = self._get_stored_tool_outputs()
-            logging.info(f"🔧 [VHC_AGENT] Using {len(stored_tool_outputs)} stored tool outputs for VHC")
+            logging.info(
+                f"🔧 [VHC_AGENT] Using {len(stored_tool_outputs)} stored tool outputs for VHC"
+            )
 
             corrected_text, corrections = analyze_hallucinations(
                 query=self._last_query,
@@ -1111,9 +1149,9 @@ class Agent:
         """Clean up resources used by the agent."""
         from ._observability import shutdown_observer
 
-        if hasattr(self, 'agent') and hasattr(self.agent, '_llm'):
+        if hasattr(self, "agent") and hasattr(self.agent, "_llm"):
             llm = self.agent._llm
-            if hasattr(llm, 'client') and hasattr(llm.client, 'close'):
+            if hasattr(llm, "client") and hasattr(llm.client, "close"):
                 try:
                     if asyncio.iscoroutinefunction(llm.client.close):
                         asyncio.run(llm.client.close())

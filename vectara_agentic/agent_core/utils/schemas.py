@@ -78,8 +78,8 @@ def get_field_type(field_schema: dict) -> Any:
     # If only "items" is present (implies array by some conventions, but less standard)
     # Or if it's a schema with other keywords like 'properties' (implying object)
     # For simplicity, if no "type" or "anyOf" at this point, default to Any or add more specific handling.
-    # If 'properties' in field_schema or 'additionalProperties' in field_schema, it's likely an object.
-    if "properties" in field_schema or "additionalProperties" in field_schema:
+    # If 'properties' in field_schema, it's likely an object.
+    if "properties" in field_schema:
         # This path might need to reconstruct a nested Pydantic model if you encounter such schemas.
         # For now, treating as 'dict' or 'Any' might be a simpler placeholder.
         return dict  # Or Any, or more sophisticated object reconstruction.

@@ -513,7 +513,8 @@ The `agent_progress_callback` is an optional `Callable` function that can serve 
 variety of purposes for your assistant. It is a callback function that
 is managed by the agent, and it will be called anytime the agent is
 updated, such as when calling a tool, or when receiving a response from
-a tool.
+a tool. This works with both regular chat methods (`chat()`, `achat()`) and 
+streaming methods (`stream_chat()`, `astream_chat()`).
 
 In our example, we will use it to log the actions of our agent so users
 can see the steps the agent is taking as it answers their questions.
@@ -540,7 +541,7 @@ explicitly specify the configuration of your agent, including the following:
 - `main_llm_provider` and `tool_llm_provider`: the LLM provider for main agent and for the tools. Valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI` (default: `OPENAI`).
 
 > **Note:** Fireworks AI support has been removed. If you were using Fireworks, please migrate to one of the supported providers listed above.
-- `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider: OpenAI uses gpt-4.1-mini, Gemini uses gemini-2.5-flash).
+- `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider: OpenAI uses gpt-4.1-mini, Gemini uses gemini-2.5-flash-lite).
 - `observer`: the observer type; should be `ARIZE_PHOENIX` or if undefined no observation framework will be used.
 - `endpoint_api_key`: a secret key if using the API endpoint option (defaults to `dev-api-key`)
 
@@ -628,20 +629,314 @@ code](https://huggingface.co/spaces/vectara/finance-assistant/tree/main)
 and [demo](https://huggingface.co/spaces/vectara/finance-assistant) for
 this app on Hugging Face.
 
-## Other Chat Options
-The standard `chat()` method will run synchronously, so your application
-will wait until the agent finishes generating its response before making
-any other function calls. If you would prefer to run your queries
-asynchronously with your application, you can use the `achat()` method.
+## Chat Interaction Methods
 
-The `chat()` function also returns the response as a single string,
-which could be a lengthy text. If you would prefer to stream the
-agent's response by chunks, you can use the `stream_chat()` method (or
-`astream_chat()` method to run asynchronously). This will return an
-`AgentStreamingResponse` object. If you want to directly print out the
-response, you can use the `print_response_stream()` method. If you need
-to yield the chunks in some other way for your application, you can
-obtain the generator object by accessing the `chat_stream` member.
+`vectara-agentic` provides multiple ways to interact with your agent depending on your needs:
+
+### Standard Chat Methods
+
+**Synchronous Chat**
+```python
+# Simple chat that blocks until complete
+response = agent.chat("What was Apple's revenue in 2022?")
+print(response.response)
+```
+
+**Asynchronous Chat**
+```python
+# Non-blocking chat for async applications
+response = await agent.achat("What was Apple's revenue in 2022?")  
+print(response.response)
+```
+
+Both methods return an `AgentResponse` object with the complete response text and metadata.
+
+### Streaming Chat Methods
+
+For better user experience with long responses, use streaming methods that provide real-time updates:
+
+**Synchronous Streaming**
+```python
+stream_response = agent.stream_chat("Compare Apple and Google's revenue growth over 5 years")
+async for chunk in stream_response.async_response_gen():
+    print(chunk, end="", flush=True)
+    
+# Get final response with metadata after streaming
+final_response = stream_response.get_response()
+print(f"\nSources used: {len(final_response.sources)}")
+```
+
+**Asynchronous Streaming**
+```python
+stream_response = await agent.astream_chat("Analyze market trends for tech companies")
+
+# Process chunks asynchronously
+async for chunk in stream_response.async_response_gen():
+    # Update async UI components
+    await update_ui_async(chunk)
+    
+# Get final response asynchronously
+final_response = await stream_response.aget_response() 
+print(f"Analysis complete: {final_response.response}")
+```
+
+### Tool Call Progress Tracking
+
+When agents use tools (like RAG retrieval, calculations, or external APIs), you can track these operations in real-time using `agent_progress_callback` with both streaming and non-streaming methods:
+
+```python
+from vectara_agentic import AgentStatusType
+
+def tool_progress_tracker(status_type, msg, event_id):
+    """Track tool calls and outputs during streaming"""
+    if status_type == AgentStatusType.TOOL_CALL:
+        print(f"🔧 Calling tool: {msg['tool_name']}")
+        print(f"   Arguments: {msg['arguments']}")
+    elif status_type == AgentStatusType.TOOL_OUTPUT:
+        print(f"📊 Tool '{msg['tool_name']}' completed")
+        print(f"   Result: {msg['content'][:100]}...")
+
+# Create agent with progress tracking
+agent = Agent(
+    tools=[vectara_tools, calculation_tools],
+    agent_progress_callback=tool_progress_tracker
+)
+
+# With streaming - see tool calls AND streaming response
+stream_response = await agent.astream_chat(
+    "Analyze Apple's financial performance and calculate growth rates"
+)
+
+# With regular chat - see tool calls, then get final response  
+response = await agent.achat(
+    "Analyze Apple's financial performance and calculate growth rates"
+)
+
+# You'll see tool calls as they happen in both cases:
+# 🔧 Calling tool: query_financial_data
+#    Arguments: {"query": "Apple financial performance"}
+# 📊 Tool 'query_financial_data' completed
+#    Result: Apple Inc. reported revenue of $394.33 billion...
+# 🔧 Calling tool: calculate_growth_rate
+#    Arguments: {"current": 394.33, "previous": 365.82}
+
+async for chunk in stream_response.async_response_gen():
+    print(chunk, end="", flush=True)  # Response text streams here
+
+final_response = await stream_response.aget_response()
+```
+
+### AgentStreamingResponse Features
+
+The `AgentStreamingResponse` object provides several useful capabilities:
+
+1. **Real-time streaming**: Get response chunks as they're generated
+2. **Tool call visibility**: Combined with progress callbacks, see tool usage in real-time
+3. **Final response access**: Retrieve the complete response and metadata after streaming
+4. **Flexible consumption**: Choose between automatic printing or manual processing
+5. **Async/sync compatibility**: Works in both synchronous and asynchronous contexts
+
+### When to Use Each Method
+
+- **Use `chat()` or `achat()`** for:
+  - Simple, short queries
+  - Batch processing scenarios
+  - When you only need the final result
+
+- **Use `stream_chat()` or `astream_chat()`** for:
+  - Long-running queries that generate substantial responses
+  - Interactive UIs where users want to see progress
+  - Web applications with real-time updates
+  - Better perceived performance and user engagement
+
+### Combining Streaming with Callbacks
+
+You can use both streaming and progress callbacks together for comprehensive monitoring:
+
+```python
+def progress_callback(status_type, msg, event_id):
+    print(f"[{status_type.value}] {msg}")
+
+agent = Agent(
+    tools=[...],
+    topic="financial reports", 
+    custom_instructions="...",
+    agent_progress_callback=progress_callback  # Track tool calls
+)
+
+# This will show both tool progress AND streaming response
+stream_response = agent.stream_chat("What were Apple's key financial metrics in 2022?")
+async for chunk in stream_response.async_response_gen():
+    print(chunk, end="", flush=True)
+```
+
+This approach gives you visibility into both the agent's internal tool usage and the streaming response generation.
+
+### Practical Examples: Callbacks vs Streaming
+
+Here are real-world scenarios showing when to use callbacks, streaming, or both:
+
+#### Example 1: Simple Chat Application
+
+**Callback-Only Approach** (good for debugging/logging):
+```python
+def simple_progress_callback(status_type, msg, event_id):
+    if status_type == AgentStatusType.TOOL_CALL:
+        print(f"🔧 Using tool: {msg['tool_name']}")
+    elif status_type == AgentStatusType.TOOL_OUTPUT:
+        print(f"📊 Tool result ready")
+
+agent = Agent(
+    tools=[ask_finance],
+    topic="financial reports",
+    agent_progress_callback=simple_progress_callback
+)
+
+# User sees tool usage but waits for complete response
+response = agent.chat("What was Apple's revenue growth in 2022?")
+print(f"Final answer: {response.response}")
+```
+
+**Streaming-Only Approach** (best for user experience):
+```python
+agent = Agent(tools=[ask_finance], topic="financial reports")
+
+# User sees response as it's generated
+stream_response = agent.stream_chat("What was Apple's revenue growth in 2022?")
+async for chunk in stream_response.async_response_gen():
+    print(chunk, end="", flush=True)
+```
+
+**Combined Approach** (best of both worlds):
+```python
+def detailed_progress_callback(status_type, msg, event_id):
+    if status_type == AgentStatusType.TOOL_CALL:
+        print(f"🔍 Searching for: {msg.get('arguments', '')}")
+
+agent = Agent(
+    tools=[ask_finance],
+    topic="financial reports", 
+    agent_progress_callback=detailed_progress_callback
+)
+
+# User sees both tool progress AND streaming response
+stream_response = agent.stream_chat("What was Apple's revenue growth in 2022?")
+async for chunk in stream_response.async_response_gen():
+    print(chunk, end="", flush=True)
+```
+
+#### Example 2: Web Application with Real-time Updates
+
+**FastAPI with Server-Sent Events:**
+```python
+from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
+
+app = FastAPI()
+
+@app.get("/chat/stream")
+async def stream_chat_endpoint(query: str):
+    async def generate_response():
+        stream_response = await agent.astream_chat(query)
+        
+        async for chunk in stream_response.async_response_gen():
+            # Send each chunk as SSE
+            yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+            
+        # Send final metadata when complete
+        final_response = await stream_response.aget_response()
+        yield f"data: {json.dumps({'done': True, 'sources': len(final_response.sources)})}\n\n"
+    
+    return StreamingResponse(generate_response(), media_type="text/plain")
+```
+
+**Streamlit with Progress Updates:**
+```python
+import streamlit as st
+
+def streamlit_progress_callback(status_type, msg, event_id):
+    if status_type == AgentStatusType.TOOL_CALL:
+        st.info(f"Using tool: {msg['tool_name']}")
+
+# Show progress in sidebar
+with st.sidebar:
+    st.header("Agent Activity")
+    
+agent = Agent(
+    tools=[ask_finance],
+    topic="financial reports",
+    agent_progress_callback=streamlit_progress_callback
+)
+
+if user_query := st.chat_input("Ask about financial data"):
+    with st.chat_message("assistant"):
+        # Stream response directly to chat
+        stream_response = agent.stream_chat(user_query)
+        response_placeholder = st.empty()
+        
+        full_response = ""
+        async for chunk in stream_response.async_response_gen():
+            full_response += chunk
+            response_placeholder.markdown(full_response + "▌")
+            
+        response_placeholder.markdown(full_response)
+```
+
+#### Example 3: Batch Processing vs Interactive
+
+**Batch Processing** (callbacks for monitoring):
+```python
+def batch_progress_callback(status_type, msg, event_id):
+    # Log to file for batch processing audit
+    logging.info(f"{status_type.value}: {msg}")
+
+questions = [
+    "What was Apple's 2022 revenue?",
+    "How did Google perform in 2022?", 
+    "Compare Amazon's growth to Microsoft's"
+]
+
+agent = Agent(
+    tools=[ask_finance],
+    topic="financial reports",
+    agent_progress_callback=batch_progress_callback
+)
+
+results = []
+for question in questions:
+    response = agent.chat(question)  # No streaming needed
+    results.append({"question": question, "answer": response.response})
+```
+
+**Interactive Session** (streaming for engagement):
+```python
+import time
+
+agent = Agent(tools=[ask_finance], topic="financial reports")
+
+print("Financial Assistant (type 'quit' to exit)")
+while True:
+    user_input = input("\n💬 Ask me about financial data: ")
+    if user_input.lower() == 'quit':
+        break
+        
+    print("\n🤖 Assistant:")
+    stream_response = agent.stream_chat(user_input)
+    async for chunk in stream_response.async_response_gen():
+    print(chunk, end="", flush=True)
+    print("\n" + "─" * 50)
+```
+
+#### Key Decision Guidelines
+
+| Scenario | Callbacks | Streaming | Both |
+|----------|-----------|-----------|------|
+| **Debug/Development** | ✅ Essential | ❌ Optional | ✅ Recommended |
+| **Batch Processing** | ✅ For logging | ❌ Unnecessary | ❓ Maybe |
+| **Interactive UI** | ❓ Background | ✅ Essential | ✅ Ideal |  
+| **Web APIs** | ❓ For logging | ✅ For SSE | ✅ Best UX |
+| **Long Responses** | ❓ Background | ✅ Essential | ✅ Optimal |
+| **Short Responses** | ✅ Sufficient | ❓ Overkill | ❓ Optional |
 
 ## Using Workflows
 
