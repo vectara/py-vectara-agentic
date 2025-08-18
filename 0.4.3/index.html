@@ -1,0 +1,720 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://vectara.github.io/py-vectara-agentic/0.4.3/">
+      
+      
+      
+        <link rel="next" href="installation/">
+      
+      
+      <link rel="icon" href="assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.17">
+    
+    
+      
+        <title>Vectara Agentic Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.7e37652d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#getting-started" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="." title="Vectara Agentic Documentation" class="md-header__button md-logo" aria-label="Vectara Agentic Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Vectara Agentic Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Home
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="." title="Vectara Agentic Documentation" class="md-nav__button md-logo" aria-label="Vectara Agentic Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Vectara Agentic Documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="." class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#introduction" class="md-nav__link">
+    <span class="md-ellipsis">
+      Introduction
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#agent-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      Agent Architecture
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#basic-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      Basic Example
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#try-it-yourself" class="md-nav__link">
+    <span class="md-ellipsis">
+      Try it Yourself
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Install
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Usage
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Tools
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="endpoint/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Endpoint
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    API Reference
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#introduction" class="md-nav__link">
+    <span class="md-ellipsis">
+      Introduction
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#agent-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      Agent Architecture
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#basic-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      Basic Example
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#try-it-yourself" class="md-nav__link">
+    <span class="md-ellipsis">
+      Try it Yourself
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="getting-started">Getting Started</h1>
+<h2 id="introduction">Introduction</h2>
+<p><strong>What is Agentic RAG?</strong></p>
+<p>Agentic RAG combines retrieval-augmented-generation (RAG) with autonomous agents. While standard RAG retrieves relevant facts and generates responses, Agentic RAG uses an LLM to "manage" the process through reasoning, planning, and tool usage.</p>
+<p>With vanilla RAG, Vectara receives a user query, retrieves the most
+relevant facts from your data, and uses an LLM to generate the most
+accurate response based on those facts. (Unfamiliar with RAG? Check out
+this <a href="https://vectara.com/retrieval-augmented-generation/">page</a> to
+learn more!)</p>
+<p>Agentic RAG leverages an LLM to "manage" the process of answering the
+user query via reasoning, planning, and a provided set of "tools".
+Since a "manager" LLM-powered agent is in charge, it is smart enough
+to analyze the user query and properly call tools to obtain a
+comprehensive response to a complex user query.</p>
+<p>For example:</p>
+<ul>
+<li>The agent can rephrase the user query to fit a certain style, role,
+    or persona.</li>
+<li>The agent can break the query down into multiple (simpler)
+    sub-queries and call the RAG query tool for each sub-query, then
+    combine the responses to come up with a comprehensive response.</li>
+<li>The agent can identify filtering criteria in the user query and use
+    them to filter the results when using RAG query tool.</li>
+</ul>
+<p>The main tool used in vectara-agentic is the <code>Vectara RAG query tool</code>,
+which queries a Vectara corpus and returns the most relevant response.
+By using a RAG-based agent, you mitigate some of the issues with pure
+LLMs, particularly hallucinations and explainability.</p>
+<p>Another important tool that can be used to query a Vectara corpus is the
+<code>Vectara search tool</code>, which queries a Vectara corpus for the most
+relevant search results and documents that match a query.</p>
+<p>Additional tools give your application superpowers to retrieve
+up-to-date information, access enterprise specific data via APIs, make
+SQL queries to a database, or even perform actions such as creating a
+calendar event or sending an email.</p>
+<p>Let's demonstrate the advantage of Agentic RAG via a simple example.</p>
+<p>Imagine that you have ingested into Vectara all your Google Drive files,
+JIRA tickets, and product documentation. You build an Agentic RAG
+application using these tools:</p>
+<ol>
+<li>A JIRA RAG query tool</li>
+<li>A Google Drive RAG query tool</li>
+<li>A product docs RAG query tool</li>
+<li>A tool that can issue SQL queries against an internal database
+    containing customer support data</li>
+</ol>
+<p>Consider the query: "What is the top issue reported by customers in the
+last 3 months? Who is working to solve it?"</p>
+<p>A standard RAG pipeline would try to match this entire query to the most
+relevant facts in your data, and generate a response. It may fail to
+distinguish the query as two separate questions, and given the
+complexity, may fail to produce a good response.</p>
+<p>An Agentic RAG assistant would recognize the complexity of the user
+query, and decide to act in two steps. First it will form a query with
+its SQL tool to identify the top issue reported by customers in the last
+3 months, and then it will call the JIRA tool to identify who is working
+on that issue from the first query.</p>
+<p><strong>What is vectara-agentic?</strong></p>
+<p>Vectara-agentic is a Python package for building Agentic RAG applications powered by Vectara. It:</p>
+<ul>
+<li>Provides a simple API to define tools, including Vectara RAG tool and Vectara search tool.</li>
+<li>Includes pre-built tools for various domains (legal, finance, etc).</li>
+<li>Integrates with multiple LLM providers (OpenAI, Anthropic, Gemini, Together.AI, Cohere, Bedrock, and GROQ).</li>
+<li>Supports advanced workflows for complex queries.</li>
+</ul>
+<h2 id="agent-architecture">Agent Architecture</h2>
+<p><img alt="vectara-agent architecture" src="img/diagram1.png" /></p>
+<p>Vectara-agentic follows a typical agentic RAG architecture. It consists
+of the following components:</p>
+<ul>
+<li>One or more RAG tools for making queries to corpora in Vectara.</li>
+<li>A set of additional tools that the agent can use to retrieve
+    information, process data, or perform actions.</li>
+<li>A central LLM, or agent (based on <code>FunctionCalling</code> or <code>ReAct</code> agent type) that manages the process of interpreting
+    the user query, creating and executing a plan to collect information
+    needed to respond to that query, and crafting a final response.</li>
+</ul>
+<h2 id="basic-example">Basic Example</h2>
+<p>Here's a simple example creating an agent with a single RAG tool:</p>
+<pre><code class="language-python">from vectara_agentic.agent import Agent
+from vectara_agentic.tools import VectaraToolFactory
+from pydantic import Field, BaseModel
+
+import os
+from dotenv import load_dotenv
+
+load_dotenv(override=True)
+
+api_key = str(os.environ['VECTARA_API_KEY'])
+corpus_key = str(os.environ['VECTARA_CORPUS_KEY'])
+
+vec_factory = VectaraToolFactory(
+  vectara_api_key = api_key, 
+  vectara_corpus_key = corpus_key
+)
+
+ask_pet_policy_tool = vec_factory.create_rag_tool(
+    tool_name = &quot;ask_pet_policy&quot;,
+    tool_description = &quot;Responds to questions about Vectara's pet policy.&quot;,
+    summary_num_results = 10,
+    n_sentences_before = 3,
+    n_sentences_after = 3,
+    mmr_diversity_bias = 0.1,
+    include_citations = False
+)
+
+agent = Agent(
+    tools = [ask_pet_policy_tool],
+    topic = &quot;Vectara Pet Policy&quot;
+)
+
+agent.chat(&quot;What is Vectara's pet policy?&quot;)
+</code></pre>
+<p>When we run this code, we get the following response:</p>
+<blockquote>
+<p>Vectara's pet policy does not allow common household pets like cats
+and dogs on their campuses. Instead, they welcome a select group of
+exotic creatures that reflect their innovative spirit and core values.
+Additionally, birds are not only permitted but encouraged in their
+workspace as part of their unique approach.</p>
+</blockquote>
+<p>In the above code, we defined a single RAG tool (<code>ask_pet_policy_tool</code>)
+for our <code>Agent</code> class, and then created an AI assistant with this tool.</p>
+<p>The above code demonstrates the typical flow for instantiating your
+<code>Agent</code> object when you are defining more than one tool, only in this
+case it only used a single tool. Since making a simple assistant like
+this with just one RAG tool is a common need, we have provided a single
+function that does all of this at once called <code>from_corpus()</code>.</p>
+<p>Here's how you can create a simple assistant that uses a single RAG
+tool for asking questions about Medicare:</p>
+<pre><code class="language-python">agent = Agent.from_corpus(
+  vectara_corpus_key=corpus_key,
+  vectara_api_key=api_key,
+  data_description=&quot;medical plan benefits and pricing&quot;,
+  assistant_specialty=&quot;Medicare&quot;,
+  tool_name=&quot;ask_medicare&quot;,
+)
+</code></pre>
+<h2 id="try-it-yourself">Try it Yourself</h2>
+<ol>
+<li><a href="https://console.vectara.com/signup/?utm_source=github&amp;utm_medium=code&amp;utm_term=DevRel&amp;utm_content=vectara-agentic&amp;utm_campaign=github-code-DevRel-vectara-agentic">Create a Vectara account</a></li>
+<li>Set up environment variables:</li>
+</ol>
+<p><strong>Vectara Corpus:</strong></p>
+<p><code>VECTARA_CORPUS_KEY</code>: The corpus key for the corpus that contains the
+Vectara pet policy. You can download the <a href="https://github.com/vectara/example-notebooks/blob/main/data/pet_policy.pdf">Pet Policy PDF
+file</a>
+and add it to a new or existing Vectara corpus.</p>
+<p><code>VECTARA_API_KEY</code>: An API key that can perform queries on this corpus.</p>
+<p><strong>Agent type, LLMs and model names:</strong></p>
+<p><code>VECTARA_AGENTIC_AGENT_TYPE</code>: Agent type, either FUNCTION_CALLING (default) or REACT.</p>
+<blockquote>
+<p><strong>note:</strong> OPENAI agent type has been removed; use FUNCTION_CALLING agent type when using OpenAI as the agent's LLM provider (see <code>VECTARA_AGENTIC_MAIN_LLM_PROVIDER</code> below).</p>
+</blockquote>
+<p><code>VECTARA_AGENTIC_MAIN_LLM_PROVIDER</code>: The LLM used for the agent, either
+OPENAI (default), ANTHROPIC, GEMINI, TOGETHER, COHERE, BEDROCK, or GROQ.</p>
+<p><code>VECTARA_AGENTIC_TOOL_LLM_PROVIDER</code>: The LLM used for the agent tools,
+either OPENAI (default), ANTHROPIC, GEMINI, TOGETHER, COHERE, BEDROCK,
+or GROQ.</p>
+<p><code>OPENAI_API_KEY</code>, <code>ANTHROPIC_API_KEY</code>, <code>GOOGLE_API_KEY</code>,
+<code>TOGETHER_API_KEY</code>, <code>COHERE_API_KEY</code>, <code>BEDROCK_API_KEY</code>, or <code>GROQ_API_KEY</code>: Your API key for the agent or tool LLM, if you
+choose to use these services.</p>
+<blockquote>
+<p><strong>Note:</strong> Fireworks AI support has been removed. If you were using Fireworks, please migrate to one of the supported providers listed above.</p>
+</blockquote>
+<p>With any LLM provider choice, you can also specify the model type to use
+via these environment variables:</p>
+<p><code>VECTARA_AGENTIC_MAIN_MODEL_NAME</code>: specifies the model name for the main
+LLM provider.</p>
+<p><code>VECTARA_AGENTIC_TOOL_MODEL_NAME</code>: specifies the model name for the tool
+LLM provider.</p>
+<p>Defaults:</p>
+<ol>
+<li>For <code>OPENAI</code>, the default is <code>gpt-4.1-mini</code>.</li>
+<li>For <code>ANTHROPIC</code>, the default is <code>claude-sonnet-4-20250514</code>.</li>
+<li>For <code>GEMINI</code>, the default is <code>gemini-2.5-flash-lite</code>.</li>
+<li>For <code>TOGETHER.AI</code>, the default is <code>deepseek-ai/DeepSeek-V3</code>.</li>
+<li>For <code>COHERE</code>, the default is <code>command-a-03-2025</code>.</li>
+<li>For <code>BEDROCK</code>, the default is <code>us.anthropic.claude-sonnet-4-20250514-v1:0</code>.</li>
+<li>For <code>GROQ</code>, the default is <code>openai/gpt-oss-20b</code>.</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": ".", "features": [], "search": "assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="assets/javascripts/bundle.92b07e13.min.js"></script>
+      
+    
+  </body>
+</html>
