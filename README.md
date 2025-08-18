@@ -140,7 +140,7 @@ To learn about additional arguments `create_rag_tool`, please see the full [docs
 In addition to RAG tools or search tools, you can generate additional tools the agent can use. These could be mathematical tools, tools 
 that call other APIs to get more information, or any other type of tool.
 
-See [Agent Tools](agent-tools-at-a-glance) for more information.
+See [Agent Tools](#agent-tools-at-a-glance) for more information.
 
 ### 4. Create your agent
 

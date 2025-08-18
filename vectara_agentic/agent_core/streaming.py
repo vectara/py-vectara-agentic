@@ -40,7 +40,6 @@ def get_event_id(event) -> str:
     if hasattr(event, "tool_id") and event.tool_id:
         return event.tool_id
 
-    # If neither exists, raise an exception
     return str(uuid.uuid4())
 
 class StreamingResponseAdapter:
