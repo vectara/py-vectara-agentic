@@ -370,6 +370,7 @@ class VectaraToolFactory:
         save_history: bool = False,
         fcs_threshold: float = 0.0,
         return_direct: bool = False,
+        return_human_readable_output: bool = False,
         verbose: bool = False,
         vectara_base_url: str = "https://api.vectara.io",
         vectara_verify_ssl: bool = True,
@@ -432,6 +433,7 @@ class VectaraToolFactory:
             fcs_threshold (float, optional): A threshold for factual consistency.
                 If set above 0, the tool notifies the calling agent that it "cannot respond" if FCS is too low.
             return_direct (bool, optional): Whether the agent should return the tool's response directly.
+            return_human_readable_output (bool, optional): Whether to return the output in a human-readable format.
             verbose (bool, optional): Whether to print verbose output.
             vectara_base_url (str, optional): The base URL for the Vectara API.
             vectara_verify_ssl (bool, optional): Whether to verify SSL certificates for the Vectara API.
@@ -536,20 +538,6 @@ class VectaraToolFactory:
                 kwargs["query"] = query
                 return {"text": msg, "metadata": {"args": args, "kwargs": kwargs}}
 
-            # Extract citation metadata
-            pattern = r"\[(\d+)\]"
-            matches = re.findall(pattern, response.response)
-            citation_numbers = sorted(set(int(match) for match in matches))
-            citation_metadata = {}
-            for citation_number in citation_numbers:
-                metadata = {
-                    k: v
-                    for k, v in response.source_nodes[
-                        citation_number - 1
-                    ].metadata.items()
-                    if k not in keys_to_ignore
-                }
-                citation_metadata[str(citation_number)] = metadata
             fcs = 0.0
             fcs_str = response.metadata["fcs"] if "fcs" in response.metadata else "0.0"
             if fcs_str and is_float(fcs_str):
@@ -560,16 +548,67 @@ class VectaraToolFactory:
                         "text": msg,
                         "metadata": {"args": args, "kwargs": kwargs, "fcs": fcs},
                     }
-            if fcs:
-                citation_metadata["fcs"] = fcs
-            res = {"text": response.response, "metadata": citation_metadata}
+                
+            # Add source nodes to tool output
+            if ((not return_human_readable_output) and
+                include_citations and
+                (citations_url_pattern is not None) and
+                (citation_text_pattern is not None)):
+                response_text = str(response.response)
+                citation_metadata = {}
 
-            # Create human-readable output with citation formatting
-            def format_rag_response(result):
-                text = result["text"]
-                return text
+                doc_ids = set()
 
-            return create_human_readable_output(res, format_rag_response)
+                for node in response.source_nodes:
+                    node = node.node
+                    node_id = node.id_
+                    if node_id not in doc_ids:
+                        node_text = node.text_resource.text if hasattr(node, 'text_resource') else getattr(node, 'text', '')
+                        node_metadata = getattr(node, 'metadata', {})
+
+                        try:
+                            template_data = {}
+                            class Metadata:
+                                def __init__(self, data):
+                                    for key, value in data.items():
+                                        setattr(self, key, value)
+                            doc_data = node_metadata.get('document', {})
+                            template_data['doc'] = Metadata(doc_data)
+                            
+                            part_data = {k: v for k, v in node_metadata.items() if k != 'document'}
+                            template_data['part'] = Metadata(part_data)
+
+                            formatted_citation_text = citation_text_pattern.format(**template_data)
+                            formatted_citation_url = citations_url_pattern.format(**template_data)
+                            expected_citation = f"[{formatted_citation_text}]({formatted_citation_url})"
+
+                            if expected_citation in response_text:
+                                citation_metadata[node_id] = {
+                                    'text': node_text,
+                                    'metadata': node_metadata,
+                                    'score': getattr(node, 'score', None)
+                                }
+
+                            doc_ids.add(node_id)
+
+                        except Exception as e:
+                            continue
+                
+                if fcs:
+                    citation_metadata["fcs"] = fcs
+                res = {"text": response.response, "metadata": citation_metadata}
+            else:
+                res = {"text": response.response}
+
+            # Create human-readable output
+            if return_human_readable_output:
+                def format_rag_response(result):
+                    text = result["text"]
+                    return text
+            
+                return create_human_readable_output(res, format_rag_response)
+
+            return res
 
         class RagToolBaseParams(BaseModel):
             """Model for the base parameters of the RAG tool."""

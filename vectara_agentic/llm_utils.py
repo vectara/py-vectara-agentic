@@ -28,6 +28,8 @@ provider_to_default_model_name = {
 
 DEFAULT_MODEL_PROVIDER = ModelProvider.OPENAI
 
+GEMINI_CONTEXT_WINDOW = 1000000
+
 # Manual cache for LLM instances to handle mutable AgentConfig objects
 _llm_cache = {}
 
@@ -134,6 +136,7 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             temperature=0,
             is_function_calling_model=True,
             max_tokens=max_tokens,
+            context_window=GEMINI_CONTEXT_WINDOW,
         )
     elif model_provider == ModelProvider.TOGETHER:
         try:
