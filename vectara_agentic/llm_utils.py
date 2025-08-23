@@ -142,11 +142,13 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             raise ImportError(
                 "together not available. Install with: pip install llama-index-llms-together"
             ) from e
+        additional_kwargs = {"reasoning_effort": "low"} if model_name.startswith("gpt-oss") else {}
         llm = TogetherLLM(
             model=model_name,
             temperature=0,
             is_function_calling_model=True,
             max_tokens=max_tokens,
+            additional_kwargs=additional_kwargs,
         )
     elif model_provider == ModelProvider.GROQ:
         try:
