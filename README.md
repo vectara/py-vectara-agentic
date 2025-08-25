@@ -795,7 +795,7 @@ agent_config = AgentConfig(
     main_llm_provider = ModelProvider.ANTHROPIC,
     main_llm_model_name = 'claude-3-5-sonnet-20241022',
     tool_llm_provider = ModelProvider.TOGETHER,
-    tool_llm_model_name = 'meta-llama/Llama-3.3-70B-Instruct-Turbo'
+    tool_llm_model_name = 'deepseek-ai/DeepSeek-V3'
 )
 
 agent = Agent(

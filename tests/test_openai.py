@@ -8,31 +8,32 @@ import threading
 
 from vectara_agentic.agent import Agent
 from vectara_agentic.tools import ToolsFactory
+from vectara_agentic.agent_config import AgentConfig
+from vectara_agentic.types import AgentType, ModelProvider
 
 import nest_asyncio
 
 nest_asyncio.apply()
 
 from conftest import (
-    fc_config_together,
+    fc_config_openai,
     mult,
     STANDARD_TEST_TOPIC,
     STANDARD_TEST_INSTRUCTIONS,
 )
-from vectara_agentic.agent_config import AgentConfig
-from vectara_agentic.types import AgentType, ModelProvider
 
 
 ARIZE_LOCK = threading.Lock()
 
 
-class TestTogether(unittest.IsolatedAsyncioTestCase):
+class TestOpenAI(unittest.IsolatedAsyncioTestCase):
 
     async def test_multiturn(self):
+        """Test multi-turn conversation with default OpenAI model."""
         with ARIZE_LOCK:
             tools = [ToolsFactory().create_tool(mult)]
             agent = Agent(
-                agent_config=fc_config_together,
+                agent_config=fc_config_openai,
                 tools=tools,
                 topic=STANDARD_TEST_TOPIC,
                 custom_instructions=STANDARD_TEST_INSTRUCTIONS,
@@ -67,69 +68,92 @@ class TestTogether(unittest.IsolatedAsyncioTestCase):
 
             self.assertEqual(response3.response, "1050")
 
-    async def test_qwen3_coder(self):
-        """Test Qwen3-Coder-480B-A35B-Instruct-FP8 model with Together AI provider."""
+    async def test_gpt_4o(self):
+        """Test GPT-4o model with OpenAI provider."""
         with ARIZE_LOCK:
-            # Create config specifically for Qwen3-Coder
-            qwen_config = AgentConfig(
+            config = AgentConfig(
                 agent_type=AgentType.FUNCTION_CALLING,
-                main_llm_provider=ModelProvider.TOGETHER,
-                main_llm_model_name="Qwen/Qwen3-235B-A22B-fp8-tput",
-                tool_llm_provider=ModelProvider.TOGETHER,
-                tool_llm_model_name="Qwen/Qwen3-235B-A22B-fp8-tput",
+                main_llm_provider=ModelProvider.OPENAI,
+                main_llm_model_name="gpt-4o",
+                tool_llm_provider=ModelProvider.OPENAI,
+                tool_llm_model_name="gpt-4o",
             )
 
             tools = [ToolsFactory().create_tool(mult)]
             agent = Agent(
-                agent_config=qwen_config,
+                agent_config=config,
                 tools=tools,
                 topic=STANDARD_TEST_TOPIC,
                 custom_instructions=STANDARD_TEST_INSTRUCTIONS,
             )
 
-            # Test simple multiplication: 7 * 9 = 63
+            # Test simple multiplication: 4 * 3 = 12
             stream = await agent.astream_chat(
-                "What is 7 times 9? Only give the answer, nothing else"
+                "What is 4 times 3? Only give the answer, nothing else"
             )
-            # Consume the stream
             async for chunk in stream.async_response_gen():
                 pass
             response = await stream.aget_response()
 
-            # Verify the response contains the correct answer
-            self.assertIn("63", response.response)
+            self.assertIn("12", response.response)
 
-    async def test_llama4_scout(self):
-        """Test Llama-4-Scout-17B-16E-Instruct model with Together AI provider."""
+    async def test_gpt_4_1(self):
+        """Test GPT-4.1 model with OpenAI provider."""
         with ARIZE_LOCK:
-            # Create config specifically for Llama 4 Scout
-            llama4_config = AgentConfig(
+            config = AgentConfig(
                 agent_type=AgentType.FUNCTION_CALLING,
-                main_llm_provider=ModelProvider.TOGETHER,
-                main_llm_model_name="meta-llama/Llama-4-Scout-17B-16E-Instruct",
-                tool_llm_provider=ModelProvider.TOGETHER,
-                tool_llm_model_name="meta-llama/Llama-4-Scout-17B-16E-Instruct",
+                main_llm_provider=ModelProvider.OPENAI,
+                main_llm_model_name="gpt-4.1",
+                tool_llm_provider=ModelProvider.OPENAI,
+                tool_llm_model_name="gpt-4.1",
             )
 
             tools = [ToolsFactory().create_tool(mult)]
             agent = Agent(
-                agent_config=llama4_config,
+                agent_config=config,
                 tools=tools,
                 topic=STANDARD_TEST_TOPIC,
                 custom_instructions=STANDARD_TEST_INSTRUCTIONS,
             )
 
-            # Test simple multiplication: 8 * 6 = 48
+            # Test simple multiplication: 6 * 2 = 12
             stream = await agent.astream_chat(
-                "What is 8 times 6? Only give the answer, nothing else"
+                "What is 6 times 2? Only give the answer, nothing else"
             )
-            # Consume the stream
             async for chunk in stream.async_response_gen():
                 pass
             response = await stream.aget_response()
 
-            # Verify the response contains the correct answer
-            self.assertIn("48", response.response)
+            self.assertIn("12", response.response)
+
+    async def test_gpt_5_minimal_reasoning(self):
+        """Test GPT-5 model with minimal reasoning effort."""
+        with ARIZE_LOCK:
+            config = AgentConfig(
+                agent_type=AgentType.FUNCTION_CALLING,
+                main_llm_provider=ModelProvider.OPENAI,
+                main_llm_model_name="gpt-5",
+                tool_llm_provider=ModelProvider.OPENAI,
+                tool_llm_model_name="gpt-5",
+            )
+
+            tools = [ToolsFactory().create_tool(mult)]
+            agent = Agent(
+                agent_config=config,
+                tools=tools,
+                topic=STANDARD_TEST_TOPIC,
+                custom_instructions=STANDARD_TEST_INSTRUCTIONS,
+            )
+
+            # Test simple multiplication: 5 * 5 = 25
+            stream = await agent.astream_chat(
+                "What is 5 times 5? Only give the answer, nothing else"
+            )
+            async for chunk in stream.async_response_gen():
+                pass
+            response = await stream.aget_response()
+
+            self.assertIn("25", response.response)
 
 
 if __name__ == "__main__":
