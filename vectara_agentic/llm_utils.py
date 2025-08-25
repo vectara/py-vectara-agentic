@@ -156,11 +156,18 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             raise ImportError(
                 "google_genai not available. Install with: pip install llama-index-llms-google-genai"
             ) from e
+        import google.genai.types as types
+        generation_config = types.GenerateContentConfig(
+            temperature=0.0,
+            seed=123,
+            max_output_tokens=max_tokens,
+        )
         llm = GoogleGenAI(
             model=model_name,
             temperature=0,
             is_function_calling_model=True,
             max_tokens=max_tokens,
+            generation_config=generation_config,
             context_window=1_000_000,
         )
     elif model_provider == ModelProvider.TOGETHER:

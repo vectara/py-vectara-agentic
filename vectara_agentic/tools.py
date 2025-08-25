@@ -461,7 +461,7 @@ class VectaraToolFactory:
             vectara_base_url=vectara_base_url,
             vectara_verify_ssl=vectara_verify_ssl,
         )
-        vectara.vectara_api_timeout = 30
+        vectara.vectara_api_timeout = 60
         keys_to_ignore = ["lang", "offset", "len"]
 
         # Dynamically generate the RAG function
