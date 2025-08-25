@@ -555,6 +555,7 @@ class VectaraToolFactory:
                 response_text = str(response.response)
                 citation_metadata = []
 
+                # Converts a dictionary to an object with .<field> access
                 def to_obj(data):
                     return type('obj', (object,), data)()
 
