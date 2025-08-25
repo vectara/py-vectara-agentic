@@ -550,7 +550,6 @@ class VectaraToolFactory:
 
             # Add source nodes to tool output
             if ((not return_human_readable_output) and
-                include_citations and
                 (citations_url_pattern is not None) and
                 (citation_text_pattern is not None)):
                 response_text = str(response.response)
