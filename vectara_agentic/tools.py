@@ -7,8 +7,9 @@ import re
 import importlib
 import os
 import asyncio
-
 from typing import Callable, List, Dict, Any, Optional, Union
+
+from retrying import retry
 from pydantic import BaseModel, Field
 
 from llama_index.core.tools import FunctionTool
@@ -63,6 +64,18 @@ LI_packages = {
         }
     },
 }
+
+
+@retry(stop_max_attempt_number=3, wait_exponential_multiplier=1000, wait_exponential_max=10000)
+def _query_with_retry(vectara_query_engine, query):
+    """Execute Vectara query with automatic retry on timeout/failure."""
+    return vectara_query_engine.query(query)
+
+
+@retry(stop_max_attempt_number=3, wait_exponential_multiplier=1000, wait_exponential_max=10000)
+def _retrieve_with_retry(vectara_retriever, query):
+    """Execute Vectara retrieve with automatic retry on timeout/failure."""
+    return vectara_retriever.retrieve(query)
 
 
 class VectaraToolFactory:
@@ -165,6 +178,7 @@ class VectaraToolFactory:
             vectara_base_url=vectara_base_url,
             vectara_verify_ssl=vectara_verify_ssl,
         )
+        vectara.vectara_api_timeout = 10
 
         # Dynamically generate the search function
         def search_function(*args: Any, **kwargs: Any) -> list[dict]:
@@ -220,7 +234,7 @@ class VectaraToolFactory:
                 x_source_str="vectara-agentic",
                 verbose=verbose,
             )
-            response = vectara_retriever.retrieve(query)
+            response = _retrieve_with_retry(vectara_retriever, query)
 
             if len(response) == 0:
                 msg = "Vectara Tool failed to retrieve any results for the query."
@@ -447,6 +461,7 @@ class VectaraToolFactory:
             vectara_base_url=vectara_base_url,
             vectara_verify_ssl=vectara_verify_ssl,
         )
+        vectara.vectara_api_timeout = 30
         keys_to_ignore = ["lang", "offset", "len"]
 
         # Dynamically generate the RAG function
@@ -522,7 +537,7 @@ class VectaraToolFactory:
                 x_source_str="vectara-agentic",
                 verbose=verbose,
             )
-            response = vectara_query_engine.query(query)
+            response = _query_with_retry(vectara_query_engine, query)
 
             if len(response.source_nodes) == 0:
                 msg = (

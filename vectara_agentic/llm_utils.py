@@ -35,6 +35,7 @@ models_to_max_tokens = {
     'deepseek-ai/deepseek-v3': 8192,
     'models/gemini-2.5-flash': 65536,
     'models/gemini-2.5-flash-lite': 65536,
+    'models/gemini-2.5-pro': 65536,
     'openai/gpt-oss-20b': 128000,
     'openai/gpt-oss-120b': 128000,
     'us.anthropic.claude-sonnet-4-20250514-v1:0': 65536,
