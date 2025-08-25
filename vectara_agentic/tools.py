@@ -555,6 +555,9 @@ class VectaraToolFactory:
                 response_text = str(response.response)
                 citation_metadata = []
 
+                def to_obj(data):
+                    return type('obj', (object,), data)()
+
                 for source_node in response.source_nodes:
                     node = source_node.node
                     node_id = node.id_
@@ -569,8 +572,6 @@ class VectaraToolFactory:
 
                     try:
                         template_data = {}
-                        def to_obj(data):
-                            return type('obj', (object,), data)()
 
                         doc_data = node_metadata.get('document', {})
                         template_data['doc'] = to_obj(doc_data)
