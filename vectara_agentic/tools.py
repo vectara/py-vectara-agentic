@@ -553,58 +553,51 @@ class VectaraToolFactory:
                 (computed_citations_url_pattern is not None) and
                 (computed_citations_text_pattern is not None)):
                 response_text = str(response.response)
-                citation_metadata = {}
-
-                doc_ids = set()
+                citation_metadata = []
 
                 for source_node in response.source_nodes:
                     node = source_node.node
                     node_id = node.id_
-                    if node_id not in doc_ids:
-                        node_text = (
-                            node.text_resource.text if hasattr(node, 'text_resource')
-                            else getattr(node, 'text', '')
-                        )
-                        node_metadata = getattr(node, 'metadata', {})
+                    node_text = (
+                        node.text_resource.text if hasattr(node, 'text_resource')
+                        else getattr(node, 'text', '')
+                    )
+                    node_metadata = getattr(node, 'metadata', {})
+                    for key in keys_to_ignore:
+                        if key in node_metadata:
+                            del node_metadata[key]
 
-                        try:
-                            template_data = {}
+                    try:
+                        template_data = {}
+                        def to_obj(data):
+                            return type('obj', (object,), data)()
 
-                            class Metadata:
-                                """
-                                A class that holds document and part metadata for retrieved search results.
-                                """
-                                def __init__(self, data):
-                                    for key, value in data.items():
-                                        setattr(self, key, value)
-                            doc_data = node_metadata.get('document', {})
-                            template_data['doc'] = Metadata(doc_data)
+                        doc_data = node_metadata.get('document', {})
+                        template_data['doc'] = to_obj(doc_data)
 
-                            part_data = {k: v for k, v in node_metadata.items()
-                                         if k not in keys_to_ignore + ['document']}
-                            template_data['part'] = Metadata(part_data)
+                        part_data = {k: v for k, v in node_metadata.items() if k != 'document'}
+                        template_data['part'] = to_obj(part_data)
 
-                            formatted_citation_text = computed_citations_text_pattern.format(**template_data)
-                            formatted_citation_url = computed_citations_url_pattern.format(**template_data)
-                            expected_citation = f"[{formatted_citation_text}]({formatted_citation_url})"
+                        formatted_citation_text = computed_citations_text_pattern.format(**template_data)
+                        formatted_citation_url = computed_citations_url_pattern.format(**template_data)
+                        expected_citation = f"[{formatted_citation_text}]({formatted_citation_url})"
 
-                            if expected_citation in response_text:
-                                citation_metadata[node_id] = {
-                                    'text': node_text,
-                                    'metadata': node_metadata,
-                                    'score': getattr(node, 'score', None)
-                                }
+                        if expected_citation in response_text:
+                            citation_metadata.append({
+                                'doc_id': node_id,
+                                'text': node_text,
+                                'metadata': node_metadata,
+                                'score': getattr(node, 'score', None)
+                            })
 
-                            doc_ids.add(node_id)
+                    except Exception as e:
+                        if verbose:
+                            print(f"Could not format citation for search result {node_id}: {e}")
+                        continue
 
-                        except Exception as e:
-                            if verbose:
-                                print(f"Could not format citation for search result {node_id}: {e}")
-                            continue
-
+                res = {"text": response.response, "citations": citation_metadata}
                 if fcs:
-                    citation_metadata["fcs"] = fcs
-                res = {"text": response.response, "metadata": citation_metadata}
+                    res["fcs"] = fcs
             else:
                 res = {"text": response.response}
 
