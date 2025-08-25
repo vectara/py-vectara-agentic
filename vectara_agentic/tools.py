@@ -474,7 +474,7 @@ class VectaraToolFactory:
                 )
                 return {"text": msg, "metadata": {"args": args, "kwargs": kwargs}}
 
-            citations_url_pattern = (
+            computed_citations_url_pattern = (
                 (
                     citation_url_pattern
                     if citation_url_pattern is not None
@@ -483,6 +483,8 @@ class VectaraToolFactory:
                 if include_citations
                 else None
             )
+            computed_citations_text_pattern = citation_text_pattern if include_citations else None
+
             vectara_query_engine = vectara.as_query_engine(
                 summary_enabled=True,
                 similarity_top_k=summary_num_results,
@@ -515,10 +517,8 @@ class VectaraToolFactory:
                 frequency_penalty=frequency_penalty,
                 presence_penalty=presence_penalty,
                 citations_style="markdown" if include_citations else None,
-                citations_url_pattern=citations_url_pattern,
-                citations_text_pattern=(
-                    citation_text_pattern if include_citations else None
-                ),
+                citations_url_pattern=computed_citations_url_pattern,
+                citations_text_pattern=computed_citations_text_pattern,
                 save_history=save_history,
                 x_source_str="vectara-agentic",
                 verbose=verbose,
@@ -550,15 +550,15 @@ class VectaraToolFactory:
 
             # Add source nodes to tool output
             if ((not return_human_readable_output) and
-                (citations_url_pattern is not None) and
-                (citation_text_pattern is not None)):
+                (computed_citations_url_pattern is not None) and
+                (computed_citations_text_pattern is not None)):
                 response_text = str(response.response)
                 citation_metadata = {}
 
                 doc_ids = set()
 
-                for node in response.source_nodes:
-                    node = node.node
+                for source_node in response.source_nodes:
+                    node = source_node.node
                     node_id = node.id_
                     if node_id not in doc_ids:
                         node_text = (
@@ -584,8 +584,8 @@ class VectaraToolFactory:
                                          if k not in keys_to_ignore + ['document']}
                             template_data['part'] = Metadata(part_data)
 
-                            formatted_citation_text = citation_text_pattern.format(**template_data)
-                            formatted_citation_url = citations_url_pattern.format(**template_data)
+                            formatted_citation_text = computed_citations_text_pattern.format(**template_data)
+                            formatted_citation_url = computed_citations_url_pattern.format(**template_data)
                             expected_citation = f"[{formatted_citation_text}]({formatted_citation_url})"
 
                             if expected_citation in response_text:
