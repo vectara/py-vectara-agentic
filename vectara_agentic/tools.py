@@ -3,7 +3,6 @@ This module contains the ToolsFactory class for creating agent tools.
 """
 
 import inspect
-import re
 import importlib
 import os
 import asyncio
@@ -548,7 +547,7 @@ class VectaraToolFactory:
                         "text": msg,
                         "metadata": {"args": args, "kwargs": kwargs, "fcs": fcs},
                     }
-                
+
             # Add source nodes to tool output
             if ((not return_human_readable_output) and
                 include_citations and
@@ -563,19 +562,27 @@ class VectaraToolFactory:
                     node = node.node
                     node_id = node.id_
                     if node_id not in doc_ids:
-                        node_text = node.text_resource.text if hasattr(node, 'text_resource') else getattr(node, 'text', '')
+                        node_text = (
+                            node.text_resource.text if hasattr(node, 'text_resource')
+                            else getattr(node, 'text', '')
+                        )
                         node_metadata = getattr(node, 'metadata', {})
 
                         try:
                             template_data = {}
+
                             class Metadata:
+                                """
+                                A class that holds document and part metadata for retrieved search results.
+                                """
                                 def __init__(self, data):
                                     for key, value in data.items():
                                         setattr(self, key, value)
                             doc_data = node_metadata.get('document', {})
                             template_data['doc'] = Metadata(doc_data)
-                            
-                            part_data = {k: v for k, v in node_metadata.items() if k != 'document'}
+
+                            part_data = {k: v for k, v in node_metadata.items()
+                                         if k not in keys_to_ignore + ['document']}
                             template_data['part'] = Metadata(part_data)
 
                             formatted_citation_text = citation_text_pattern.format(**template_data)
@@ -592,8 +599,10 @@ class VectaraToolFactory:
                             doc_ids.add(node_id)
 
                         except Exception as e:
+                            if verbose:
+                                print(f"Could not format citation for search result {node_id}: {e}")
                             continue
-                
+
                 if fcs:
                     citation_metadata["fcs"] = fcs
                 res = {"text": response.response, "metadata": citation_metadata}
@@ -605,7 +614,7 @@ class VectaraToolFactory:
                 def format_rag_response(result):
                     text = result["text"]
                     return text
-            
+
                 return create_human_readable_output(res, format_rag_response)
 
             return res
