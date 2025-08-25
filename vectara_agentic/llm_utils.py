@@ -23,7 +23,7 @@ provider_to_default_model_name = {
     ModelProvider.GROQ: "openai/gpt-oss-20b",
     ModelProvider.BEDROCK: "us.anthropic.claude-sonnet-4-20250514-v1:0",
     ModelProvider.COHERE: "command-a-03-2025",
-    ModelProvider.GEMINI: "models/gemini-2.5-flash",
+    ModelProvider.GEMINI: "models/gemini-2.5-flash-lite",
 }
 
 models_to_max_tokens = {
