@@ -23,7 +23,7 @@ provider_to_default_model_name = {
     ModelProvider.GROQ: "openai/gpt-oss-20b",
     ModelProvider.BEDROCK: "us.anthropic.claude-sonnet-4-20250514-v1:0",
     ModelProvider.COHERE: "command-a-03-2025",
-    ModelProvider.GEMINI: "models/gemini-2.5-flash-lite",
+    ModelProvider.GEMINI: "models/gemini-2.5-flash",
 }
 
 models_to_max_tokens = {
@@ -179,9 +179,12 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             raise ImportError(
                 "together not available. Install with: pip install llama-index-llms-together"
             ) from e
-        additional_kwargs = (
-            {"reasoning_effort": "low"} if model_name.startswith("gpt-oss") else {}
-        )
+        additional_kwargs = {"seed": 42}
+        if model_name in [
+            "deepseek-ai/DeepSeek-V3.1", "openai/gpt-oss-120b", 
+            "deepseek-ai/DeepSeek-R1", "Qwen/Qwen3-235B-A22B-Thinking-2507"
+        ]:
+            additional_kwargs['reasoning_effort'] = "low"
         llm = TogetherLLM(
             model=model_name,
             temperature=0,
