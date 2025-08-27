@@ -55,8 +55,7 @@ def get_max_tokens(model_name: str, model_provider: str) -> int:
         ModelProvider.COHERE,
     ]:
         # Try exact match first (case-insensitive)
-        model_name_lc = model_name.lower()
-        max_tokens = models_to_max_tokens.get(model_name_lc, 16384)
+        max_tokens = models_to_max_tokens.get(model_name, 16384)
     else:
         max_tokens = 8192
     return max_tokens
