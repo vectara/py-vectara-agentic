@@ -8,6 +8,8 @@ import threading
 
 from vectara_agentic.agent import Agent
 from vectara_agentic.tools import ToolsFactory
+from vectara_agentic.agent_config import AgentConfig
+from vectara_agentic.types import AgentType, ModelProvider
 
 import nest_asyncio
 
@@ -63,6 +65,38 @@ class TestGROQ(unittest.IsolatedAsyncioTestCase):
             response3 = await stream3.aget_response()
 
             self.assertEqual(response3.response, "1050")
+
+    async def test_gpt_oss_120b(self):
+        """Test GPT-OSS-120B model with GROQ provider."""
+        with ARIZE_LOCK:
+            # Create config specifically for GPT-OSS-120B via GROQ
+            gpt_oss_config = AgentConfig(
+                agent_type=AgentType.FUNCTION_CALLING,
+                main_llm_provider=ModelProvider.GROQ,
+                main_llm_model_name="openai/gpt-oss-120b",
+                tool_llm_provider=ModelProvider.GROQ,
+                tool_llm_model_name="openai/gpt-oss-120b",
+            )
+
+            tools = [ToolsFactory().create_tool(mult)]
+            agent = Agent(
+                agent_config=gpt_oss_config,
+                tools=tools,
+                topic=STANDARD_TEST_TOPIC,
+                custom_instructions=STANDARD_TEST_INSTRUCTIONS,
+            )
+
+            # Test simple multiplication: 8 * 6 = 48
+            stream = await agent.astream_chat(
+                "What is 8 times 6? Only give the answer, nothing else"
+            )
+            # Consume the stream
+            async for chunk in stream.async_response_gen():
+                pass
+            response = await stream.aget_response()
+
+            # Verify the response contains the correct answer
+            self.assertIn("48", response.response)
 
 
 if __name__ == "__main__":
