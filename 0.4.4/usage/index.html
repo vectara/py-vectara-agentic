@@ -1,0 +1,1924 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://vectara.github.io/py-vectara-agentic/0.4.4/usage/">
+      
+      
+        <link rel="prev" href="../installation/">
+      
+      
+        <link rel="next" href="../tools/">
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.18">
+    
+    
+      
+        <title>Usage - Vectara Agentic Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.7e37652d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#usage" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Vectara Agentic Documentation" class="md-header__button md-logo" aria-label="Vectara Agentic Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Vectara Agentic Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Usage
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Vectara Agentic Documentation" class="md-nav__button md-logo" aria-label="Vectara Agentic Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Vectara Agentic Documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Install
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Usage
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Usage
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#import-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      Import Dependencies
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#create-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      Create Tools
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#initialize-the-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      Initialize The Agent
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#chat-with-your-assistant" class="md-nav__link">
+    <span class="md-ellipsis">
+      Chat with your Assistant
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#chat-interaction-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      Chat Interaction Methods
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Chat Interaction Methods">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#standard-chat-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      Standard Chat Methods
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#streaming-chat-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      Streaming Chat Methods
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tool-call-progress-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tool Call Progress Tracking
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agentstreamingresponse-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      AgentStreamingResponse Features
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-to-use-each-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      When to Use Each Method
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#combining-streaming-with-callbacks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Combining Streaming with Callbacks
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#practical-examples-callbacks-vs-streaming" class="md-nav__link">
+    <span class="md-ellipsis">
+      Practical Examples: Callbacks vs Streaming
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Practical Examples: Callbacks vs Streaming">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-1-simple-chat-application" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example 1: Simple Chat Application
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-2-web-application-with-real-time-updates" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example 2: Web Application with Real-time Updates
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-3-batch-processing-vs-interactive" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example 3: Batch Processing vs Interactive
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-decision-guidelines" class="md-nav__link">
+    <span class="md-ellipsis">
+      Key Decision Guidelines
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-workflows" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using Workflows
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Using Workflows">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#defining-a-custom-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Defining a Custom Workflow
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integrating-the-workflow-with-your-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      Integrating the Workflow with Your Agent
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running-the-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Running the Workflow
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#using-subquestionqueryworkflow-and-sequentialsubquestionsworkflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using SubQuestionQueryWorkflow and SequentialSubQuestionsWorkflow
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#additional-information" class="md-nav__link">
+    <span class="md-ellipsis">
+      Additional Information
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-a-private-llm" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using a Private LLM
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Tools
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../endpoint/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Endpoint
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    API Reference
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#import-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      Import Dependencies
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#create-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      Create Tools
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#initialize-the-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      Initialize The Agent
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#chat-with-your-assistant" class="md-nav__link">
+    <span class="md-ellipsis">
+      Chat with your Assistant
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#chat-interaction-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      Chat Interaction Methods
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Chat Interaction Methods">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#standard-chat-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      Standard Chat Methods
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#streaming-chat-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      Streaming Chat Methods
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tool-call-progress-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tool Call Progress Tracking
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agentstreamingresponse-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      AgentStreamingResponse Features
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-to-use-each-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      When to Use Each Method
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#combining-streaming-with-callbacks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Combining Streaming with Callbacks
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#practical-examples-callbacks-vs-streaming" class="md-nav__link">
+    <span class="md-ellipsis">
+      Practical Examples: Callbacks vs Streaming
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Practical Examples: Callbacks vs Streaming">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-1-simple-chat-application" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example 1: Simple Chat Application
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-2-web-application-with-real-time-updates" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example 2: Web Application with Real-time Updates
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-3-batch-processing-vs-interactive" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example 3: Batch Processing vs Interactive
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-decision-guidelines" class="md-nav__link">
+    <span class="md-ellipsis">
+      Key Decision Guidelines
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-workflows" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using Workflows
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Using Workflows">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#defining-a-custom-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Defining a Custom Workflow
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integrating-the-workflow-with-your-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      Integrating the Workflow with Your Agent
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running-the-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Running the Workflow
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#using-subquestionqueryworkflow-and-sequentialsubquestionsworkflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using SubQuestionQueryWorkflow and SequentialSubQuestionsWorkflow
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#additional-information" class="md-nav__link">
+    <span class="md-ellipsis">
+      Additional Information
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-a-private-llm" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using a Private LLM
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="usage">Usage</h1>
+<p>Let's walk through a complete example of creating an AI assistant using
+vectara-agentic. We will build a finance assistant that can answer
+questions about the annual financial reports for Apple Computer, Google,
+Amazon, Snowflake, Atlassian, Tesla, Nvidia, Microsoft, Advanced Micro
+Devices, Intel, and Netflix between the years 2020 and 2024.</p>
+<h2 id="import-dependencies">Import Dependencies</h2>
+<p>First, we must import some libraries and define some constants for our
+demo.</p>
+<pre><code class="language-python">import os
+from dotenv import load_dotenv
+import streamlit as st
+import pandas as pd
+import requests
+from pydantic import Field
+
+load_dotenv(override=True)
+</code></pre>
+<p>We then use the <code>load_dotenv</code> function to load our environment variables
+from a <code>.env</code> file.</p>
+<h2 id="create-tools">Create Tools</h2>
+<p>Next, we will create the tools for our agent.</p>
+<p>There are three categories of tools you can use with vectara-agentic:</p>
+<ol>
+<li>A query tool that connects to Vectara to ask a question about data
+    in a Vectara corpus.</li>
+<li>Pre-built tools that are available out of the box, or ready to use
+    tools from the LlamaIndex <a href="https://llamahub.ai/?tab=tools">Tools
+    Hub</a>.</li>
+<li>Any other tool that you want to make for your agent, based on custom
+    code in Python.</li>
+</ol>
+<p><strong>Vectara RAG Query Tool</strong>
+Let's see how to create a Vectara RAG tool. In order to use this
+tool, you need to create a corpus and API key with a <a href="https://console.vectara.com/signup/?utm_source=github&amp;utm_medium=code&amp;utm_term=DevRel&amp;utm_content=vectara-agentic&amp;utm_campaign=github-code-DevRel-vectara-agentic">Vectara
+account</a>.
+In this example, we will create the <code>ask_transcripts</code> tool, which can be
+used to perform RAG queries on analyst call transcripts. You can see
+this tool in use with our <a href="https://huggingface.co/spaces/vectara/finance-assistant">Finance Assistant
+demo</a>.</p>
+<pre><code class="language-python">from pydantic import BaseModel
+
+# define the arguments schema for the tool
+class QueryTranscriptsArgs(BaseModel):
+    year: int = Field(..., description=f&quot;The year. An integer between {min(years)} and {max(years)}.&quot;)
+    ticker: str = Field(..., description=f&quot;The company ticker. Must be a valid ticket symbol from the list {tickers.keys()}.&quot;)
+</code></pre>
+<p>Note that:</p>
+<ul>
+<li>The arguments for this tool are defined using Python's <code>pydantic</code> package with the <code>Field</code> class. By defining the tool in this
+  way, we provide a good description for each argument so that the agent LLM can easily understand the tool's functionality 
+  and how to use it properly. Each argument corresponds to a metadata attribute for documents in the Vectara corpus.
+  The agent will provide these arguments based on the user's query to filter the matching search results returned by the RAG tool.</li>
+<li>The <code>query</code> argument is added automatically to the RAG tool, so you don't need to specify it here.</li>
+</ul>
+<p>You can also define an argument to support optional conditional
+arguments, for example:</p>
+<pre><code class="language-python">from pydantic import BaseModel
+from typing import Optional
+
+# define the arguments schema for the tool
+class QueryTranscriptsArgs(BaseModel):
+    year: Optional[int | str] = Field(
+        description=f&quot;The year this query relates to. An integer between {min(years)} and {max(years)} or a string specifying a condition on the year&quot;,
+        examples=[2020, '&gt;2021', '&lt;2023', '&gt;=2021', '&lt;=2023', '[2021, 2023]', '[2021, 2023)']
+    )
+    ticker: str = Field(..., description=f&quot;The company ticker. Must be a valid ticket symbol from the list {tickers.keys()}.&quot;)
+</code></pre>
+<p>With this change for the <code>year</code> argument, we are telling the agent that
+both an int value (e.g. 2022) or a string value (e.g. '&gt;2022' or
+'&lt;2022') are valid inputs for this argument. You can also use range
+filters (e.g. '[2021, 2023]') to specify a range of years. If a
+string value is provided, <code>vectara-agentic</code> knows how to parse it
+properly in the backend and set a metadata filter with the right
+condition for Vectara.</p>
+<p>Now to create the actual tool, we use the <code>create_rag_tool()</code> method
+from the <code>VectaraToolFactory</code> class as follows:</p>
+<pre><code class="language-python">from vectara_agentic.tools import VectaraToolFactory
+
+vec_factory = VectaraToolFactory(vectara_api_key=vectara_api_key,
+                                 vectara_corpus_key=vectara_corpus_key)
+
+ask_transcripts = vec_factory.create_rag_tool(
+    tool_name = &quot;ask_transcripts&quot;,
+    tool_description = &quot;&quot;&quot;
+    Given a company name and year,
+    returns a response (str) to a user question about a company, based on analyst call transcripts about the company's financial reports for that year.
+    You can ask this tool any question about the company including risks, opportunities, financial performance, competitors and more.
+    Make sure to provide the a valid company ticker and year.
+    &quot;&quot;&quot;,
+    tool_args_schema = QueryTranscriptsArgs,
+    tool_args_type = {
+      &quot;year&quot;: &quot;doc&quot;,
+      &quot;ticker&quot;: &quot;doc&quot;
+    },
+    reranker = &quot;chain&quot;, rerank_k = 100,
+    rerank_chain = [
+      {
+        &quot;type&quot;: &quot;slingshot&quot;
+      },
+      {
+        &quot;type&quot;: &quot;userfn&quot;,
+        &quot;user_function&quot;: &quot;knee()&quot;
+      }
+      {
+        &quot;type&quot;: &quot;mmr&quot;,
+        &quot;diversity_bias&quot;: 0.1
+      }
+    ],
+    n_sentences_before = 2, n_sentences_after = 2, lambda_val = 0.005,
+    summary_num_results = 10,
+    vectara_summarizer = 'vectara-summary-ext-24-05-med-omni',
+    include_citations = False,
+    fcs_threshold = 0.2,
+    vhc_eligible = True
+)
+</code></pre>
+<p>In the code above, we did the following:</p>
+<ul>
+<li>First, we initialized the <code>VectaraToolFactory</code> with the Vectara
+    corpus key and API key. If you don't want to explicitly pass in
+    these arguments, you can specify them in your environment as
+    <code>VECTARA_CORPUS_KEY</code> and <code>VECTARA_API_KEY</code>. Additionally, you can
+    also create a single <code>VectaraToolFactory</code> that queries multiple
+    corpora. This may be helpful if you have related information across
+    multiple corpora in Vectara. To do this, create a query API key on
+    the
+    <a href="https://console.vectara.com/console/apiAccess/apiKeys">Authorization</a>
+    page and give it to access to all the corpora you want for this
+    query tool. When specifying your environment variables, set
+    <code>VECTARA_CORPUS_KEY</code> to a list of corpus keys separated by commas
+    (e.g. <code>corpus_key1,corpus_key2,corpus_key3</code>).</li>
+<li>Then we called <code>create_rag_tool()</code>, specifying the tool name,
+    description and schema for the tool, followed by various optional
+    parameters to control the Vectara RAG query tool. Notice that we
+    also specified the type of each additional argument in the schema with the <code>tool_args_type</code> parameter.
+    The type of each argument can be <code>"doc"</code> or <code>"part"</code>, corresponding
+    to whether the metadata argument is document metadata or part
+    metadata in the Vectara corpus. See this
+    <a href="https://docs.vectara.com/docs/learn/metadata-search-filtering/metadata-examples-and-use-cases">page</a>
+    on metadata for more information.</li>
+</ul>
+<p>One important parameter to point out is <code>fcs_threshold</code>. This allows you
+to specify a minimum factual consistency score (between 0 and 1) for the
+response to be considered a "good" response. If the generated response
+has an <code>FCS</code> below this threshold, the agent will not use the generated
+summary (considering it a hallucination). You can think of this as a
+hallucination guardrail. The higher you set <code>fcs_threshold</code>, the
+stricter your guardrail will be.</p>
+<p>If your agent continuously rejects all of the generated responses,
+consider lowering the threshold.</p>
+<p>Another important parameter is <code>reranker</code>. In this example, we are using
+a chain reranker, which chains together multiple reranking methods to
+achieve better control over the reranking and combines the strengths of
+various reranking methods. In the example above, we use the
+<a href="https://docs.vectara.com/docs/learn/vectara-multi-lingual-reranker">multilingual</a>
+(or slingshot) reranker followed by a user-defined function (the
+<a href="https://docs.vectara.com/docs/learn/knee-reranking">knee</a> reranker),
+and finally the <a href="https://docs.vectara.com/docs/learn/mmr-reranker">MMR</a>
+reranker with a diversity bias of 0.1. You can also supply other
+parameters to each reranker, such as a <code>cutoff</code> parameter, which removes
+documents that have scores below this threshold value after applying the
+given reranker. Lastly, you can add a <a href="https://docs.vectara.com/docs/learn/user-defined-function-reranker">user defined
+function</a>
+reranker as the last reranker in the chain to specify a customized
+expression to rerank results in a way that is relevant to your specific
+application. If you want to learn more about reranking tips and best
+practices, check out our blog posts on <a href="https://www.vectara.com/blog/rag-with-user-defined-functions-based-reranking">user defined
+functions</a>
+and <a href="https://www.vectara.com/blog/introducing-the-knee-reranking-smart-result-filtering-for-better-results">knee
+reranking</a>
+as well as this <a href="https://github.com/vectara/example-notebooks/blob/main/notebooks/udf-reranking-demo.ipynb">example
+notebook</a>
+on user defined functions for some guidance and inspiration.</p>
+<p>That's it: now the <code>ask_transcripts</code> tool is ready to be added to the
+agent.</p>
+<p>Notes:</p>
+<ul>
+<li>You can use the <code>VectaraToolFactory</code> to generate more than one RAG tool
+with different parameters, depending on your needs.</li>
+<li><code>create_rag_tool</code> and <code>create_search_tool</code> both support the <code>vectara_base_url</code> 
+  argument. If specified, it allows you to specify a different base URL for Vectara,
+  for example when you have an on-premise installation.</li>
+<li>If you want to specify a Certificate Authority for a local installation,
+  you can set <code>"export REQUESTS_CA_BUNDLE=/path/to/custom_ca_bundle.pem"</code>in your environment.</li>
+</ul>
+<p><strong>Vectara Search Tool</strong>
+In most cases, you will likely want to use the Vectara RAG query tool,
+which generates a summary to return to the agent along with the source
+text and documents used to generate that summary.</p>
+<p>In some applications, you may want the tool to only retrieve the actual
+text/documents that best match the query rather than summarizing all of
+the results. For example, you may ask your agent "How many documents
+mention information about tax laws and regulations?". The agent will be
+able to get a list of documents from your Vectara corpus and analyze the
+results to answer your question.</p>
+<p>You can also get a summary of each retrieved document by specifying
+<code>summarize_docs=True</code> when creating your search function.</p>
+<p><strong>Metadata Filtering</strong>
+In most cases, you will want to use the <code>tool_args_schema</code> to define the
+metadata fields used in your Vectara RAG or Search tool. Defining your
+parameters in this way allows the agent to interpret the user query and
+determine if any of these filters should be applied on that particular
+query.</p>
+<p>In some instances you may want to have a metadata filter that applies in
+every call to a Vectara RAG or search tool. For example, you may want to
+enforce that the oldest possible search results are from 2022. In this
+case, you can use the <code>fixed_filter</code> parameter to the
+<code>create_rag_tool()</code> or <code>create_search_tool()</code> functions.</p>
+<p>In our example where we want all results to be from 2022 and later, we
+would specify <code>fixed_filter = "doc.year &gt;= 2022"</code>.</p>
+<p>Make sure that these fields are defined as filter attributes in your
+Vectara corpus.
+See this <a href="https://docs.vectara.com/docs/learn/metadata-search-filtering/using-metadata-filters">page</a>
+for more information about metadata and filter attributes.</p>
+<p><strong>Additional Tools</strong>
+To generate non-RAG tools, you can use the <code>ToolsFactory</code> class, which
+provides some out-of-the-box tools that you might find helpful when
+building your agents, as well as an easy way to create custom tools.</p>
+<p>Currently, we have a few tool groups you may want to consider using:</p>
+<ul>
+<li><code>standard_tools()</code>: These are basic tools that can be helpful, and
+    include the <code>summarize_text</code> tool and <code>rephrase_text</code> tool.</li>
+<li><code>finance_tools()</code>: includes a set of financial query tools based on
+    Yahoo! finance.</li>
+<li><code>legal_tools()</code>: These tools are designed to help with legal
+    queries, and include <code>critique_as_judge</code> and <code>summarize_legal_text</code>.</li>
+<li><code>database_tools()</code>: tools to explore SQL databases and make queries
+    based on user prompts.</li>
+<li><code>guardrail_tools()</code>: These tools are designed to help the agent
+    avoid certain topics that may be inappropriate or controversial in its responses.</li>
+</ul>
+<p>For example, to get access to all the legal tools, you can use the
+following:</p>
+<pre><code class="language-python">from vectara_agentic.tools import ToolsFactory
+
+legal_tools = ToolsFactory().legal_tools()
+</code></pre>
+<p>For more details about these and other tools, see <a href="../tools/">Tools</a>.</p>
+<p><strong>Create your own tool</strong>
+You can also create your own tool directly by defining a Python
+function:</p>
+<pre><code class="language-python">import numpy as np
+
+def earnings_per_share(
+  net_income: float = Field(description=&quot;the net income for the company&quot;),
+  number_of_shares: float = Field(description=&quot;the number of oustanding shares&quot;),
+) -&gt; float:
+    &quot;&quot;&quot;
+    This tool returns the EPS (earnings per share).
+    &quot;&quot;&quot;
+    return np.round(net_income / number_of_shares,4)
+
+my_tool = tools_factory.create_tool(earnings_per_share)
+</code></pre>
+<p>A few important things to note:</p>
+<ol>
+<li>A tool may accept any type of argument (e.g. float, int) and return
+    any type of value (e.g. float). The <code>create_tool()</code> method will
+    handle the conversion of the arguments and response into strings
+    (which is type the agent expects).</li>
+<li>It is important to define a clear and concise docstring for your
+    tool. This will help the agent understand what the tool does and how
+    to use it.</li>
+</ol>
+<p>Here are some functions we will define for our finance assistant
+example:</p>
+<pre><code class="language-python">tickers = {
+  &quot;AAPL&quot;: &quot;Apple Computer&quot;, 
+  &quot;GOOG&quot;: &quot;Google&quot;, 
+  &quot;AMZN&quot;: &quot;Amazon&quot;,
+  &quot;SNOW&quot;: &quot;Snowflake&quot;,
+  &quot;TEAM&quot;: &quot;Atlassian&quot;,
+  &quot;TSLA&quot;: &quot;Tesla&quot;,
+  &quot;NVDA&quot;: &quot;Nvidia&quot;,
+  &quot;MSFT&quot;: &quot;Microsoft&quot;,
+  &quot;AMD&quot;: &quot;Advanced Micro Devices&quot;,
+  &quot;INTC&quot;: &quot;Intel&quot;,
+  &quot;NFLX&quot;: &quot;Netflix&quot;,
+}
+years = [2020, 2021, 2022, 2023, 2024]
+
+def get_company_info() -&gt; list[str]:
+&quot;&quot;&quot;
+Returns a dictionary of companies you can query about. Always check this before using any other tool.
+The output is a dictionary of valid ticker symbols mapped to company names.
+You can use this to identify the companies you can query about, and their ticker information.
+&quot;&quot;&quot;
+return tickers
+
+def get_valid_years() -&gt; list[str]:
+&quot;&quot;&quot;
+Returns a list of the years for which financial reports are available.
+Always check this before using any other tool.
+&quot;&quot;&quot;
+return years
+
+# Tool to get the income statement for a given company and year using the FMP API
+def get_income_statement(
+ticker=Field(description=&quot;the ticker symbol of the company.&quot;),
+year=Field(description=&quot;the year for which to get the income statement.&quot;),
+) -&gt; str:
+&quot;&quot;&quot;
+Get the income statement for a given company and year using the FMP (https://financialmodelingprep.com) API.
+Returns a dictionary with the income statement data. All data is in USD, but you can convert it to more compact form like K, M, B.
+&quot;&quot;&quot;
+fmp_api_key = os.environ.get(&quot;FMP_API_KEY&quot;, None)
+if fmp_api_key is None:
+   return &quot;FMP_API_KEY environment variable not set. This tool does not work.&quot;
+url = f&quot;https://financialmodelingprep.com/api/v3/income-statement/{ticker}?apikey={fmp_api_key}&quot;
+response = requests.get(url)
+if response.status_code == 200:
+   data = response.json()
+   income_statement = pd.DataFrame(data)
+   income_statement[&quot;date&quot;] = pd.to_datetime(income_statement[&quot;date&quot;])
+   income_statement_specific_year = income_statement[
+     income_statement[&quot;date&quot;].dt.year == int(year)
+   ]
+   values_dict = income_statement_specific_year.to_dict(orient=&quot;records&quot;)[0]
+   return f&quot;Financial results: {', '.join([f'{key}: {value}' for key, value in values_dict.items() if key not in ['date', 'cik', 'link', 'finalLink']])}&quot;
+else:
+   return &quot;FMP API returned error. This tool does not work.&quot;
+</code></pre>
+<p>The <code>get_income_statement()</code> tool utilizes the FMP API to get the income
+statement for a given company and year. Notice how the tool description
+is structured. We describe each of the expected arguments to the
+function using pydantic's <code>Field</code> class. The function description only
+describes to the agent what the function does and how the agent should
+use the tool. This function definition follows best practices for
+defining tools. You should make this description detailed enough so that
+your agent knows when to use each of your tools.</p>
+<p>You can define your tool as an individual Python function (as shown
+above) or as a method in a Python class. It may be helpful to define all
+of your tools (Vectara tools, other pre-built tools, and your custom
+tools) in a single AgentTools class. Please note that you <strong>cannot</strong>
+define a tool as a function within another tool. Each tool must be a
+separate Python function.</p>
+<p>Your tools should also handle any exceptions gracefully by returning an
+<code>Exception</code> or a string describing the failure. The agent can interpret
+that string and then decide how to deal with the failure (either calling
+another tool to accomplish the task or telling the user that their
+request was unable to be processed).</p>
+<p>Finally, notice that we have used snake_case for all of our function
+names. While this is not required, it's a best practice that we
+recommend for you to follow.</p>
+<p><strong>VHC Eligibility for Custom Tools</strong></p>
+<p>When creating custom tools, you should consider whether they should participate in VHC (Vectara Hallucination Correction) analysis.
+To learn more about this feature, reference the <a href="../tools/#vhc-eligibility">VHC Eligibility</a> section.</p>
+<p>For example, the <code>get_financial_data()</code> tool defined below should use VHC because it provides factual financial information about a stock.
+On the other hand, <code>format_financial_report()</code> should not use VHC because it is simply used to create a structured output from another tool.</p>
+<pre><code class="language-python">def get_financial_data(ticker: str) -&gt; dict:
+    &quot;&quot;&quot;Retrieve financial data for a company.&quot;&quot;&quot;
+    # API call to get real financial data
+    return {&quot;revenue&quot;: 1000000, &quot;profit&quot;: 50000}
+
+def format_financial_report(data: dict) -&gt; str:
+    &quot;&quot;&quot;Format financial data into a readable report.&quot;&quot;&quot;
+    return f&quot;Revenue: ${data['revenue']:,}, Profit: ${data['profit']:,}&quot;
+
+data_tool = tools_factory.create_tool(get_financial_data, vhc_eligible=True)
+format_tool = tools_factory.create_tool(format_financial_report, vhc_eligible=False)
+</code></pre>
+<p><strong>Computing Vectara Hallucination Correction (VHC)</strong></p>
+<p>After your agent generates a response, you can compute VHC to analyze and correct any detected hallucinations:</p>
+<pre><code class="language-python"># Chat with the agent first
+response = agent.chat(&quot;What was Apple's revenue in 2022?&quot;)
+print(response.response)
+
+# Compute VHC analysis
+vhc_result = agent.compute_vhc()
+
+# Access results
+if vhc_result[&quot;corrected_text&quot;]:
+    print(&quot;Original response:&quot;, response.response)
+    print(&quot;Corrected response:&quot;, vhc_result[&quot;corrected_text&quot;])
+    print(&quot;Detected corrections:&quot;, vhc_result[&quot;corrections&quot;])
+else:
+    print(&quot;No corrections needed or VHC not available&quot;)
+</code></pre>
+<p>For async applications, use the async version:</p>
+<pre><code class="language-python"># Async chat and VHC computation
+response = await agent.achat(&quot;What was Apple's revenue in 2022?&quot;)
+vhc_result = await agent.acompute_vhc()
+</code></pre>
+<p><strong>VHC Requirements:</strong>
+- Requires a valid <code>VECTARA_API_KEY</code> environment variable
+- Only VHC-eligible tools contribute factual content for the analysis
+- Results are cached to avoid redundant computation for the same query/response pair</p>
+<h2 id="initialize-the-agent">Initialize The Agent</h2>
+<p>Now that we have our tools, let's create the agent, using the following
+arguments:</p>
+<ol>
+<li><code>tools: list[FunctionTool]</code>: A list of tools that the agent will use
+    to interact with information and apply actions. For any tools you
+    create yourself, make sure to pass them to the <code>create_tool()</code>
+    method of your <code>ToolsFactory</code> object.</li>
+<li><code>topic: str = "general"</code>: This is simply a string (should be a noun)
+    that is used to identify the agent's area of expertise. For our
+    example we set this to <code>financial analyst</code>.</li>
+<li><code>custom_instructions: str = ""</code>: This is a set of instructions that
+    the agent will follow. These instructions should not tell the agent
+    what your tools do (that's what the tool descriptions are for) but
+    rather any particular behavior you want your LLM to have, such as
+    how to present the information it receives from the tools to the
+    user.</li>
+<li><code>agent_config: Optional[AgentConfig] = None</code>: the agent configuration
+    See below for more details. If unspecified, defaults are used.</li>
+<li><code>fallback_agent_config: Optional[AgentConfig] = None</code>: configuration
+    for a fallback_agent. If specified, this will get activated if the
+    main agent API is not responding (e.g. when inference enpoint is down).
+    If unspecified, no fallback agent is assumed.</li>
+<li><code>agent_progress_callback: Optional[Callable[[AgentStatusType, dict, str], None]] = None</code>:
+    This is an optional callback function that will be called on every
+    agent step (see below)</li>
+<li><code>query_logging_callback: Optional[Callable[[str, str], None]] = None</code>:
+    This is an optional callback function that will be called at the end
+    of response generation, with the query and response strings.</li>
+<li><code>validate_tools: bool = False</code>: whether to validate tool inconsistency 
+    with instructions.</li>
+</ol>
+<p>Every agent has its own default set of instructions that it follows to
+interpret users' messages and use the necessary tools to complete its
+task. However, we can (and often should) define custom instructions (via
+the <code>custom_instructions</code> argument) for our AI assistant. Here are some
+guidelines to follow when creating your instructions:</p>
+<ul>
+<li>Write precise and clear instructions without overcomplicating the
+    agent.</li>
+<li>Consider edge cases and unusual or atypical scenarios.</li>
+<li>Be cautious to not over-specify behavior based on your primary use
+    case as this may limit the agent's ability to behave properly in
+    other situations.</li>
+</ul>
+<p>Here are the instructions we are using for our financial AI assistant:</p>
+<pre><code class="language-python">financial_assistant_instructions = &quot;&quot;&quot;
+  - You are a helpful financial assistant, with expertise in financial reporting, in conversation with a user.
+  - Never discuss politics, and always respond politely.
+  - Respond in a compact format by using appropriate units of measure (e.g., K for thousands, M for millions, B for billions).
+  - Do not report the same number twice (e.g. $100K and 100,000 USD).
+  - Always check the get_company_info and get_valid_years tools to validate company and year are valid.
+  - When querying a tool for a numeric value or KPI, use a concise and non-ambiguous description of what you are looking for.
+  - If you calculate a metric, make sure you have all the necessary information to complete the calculation. Don't guess.
+&quot;&quot;&quot;
+</code></pre>
+<p>Notice how these instructions are different from the tool function
+descriptions. These instructions are general rules that the agent should
+follow. At times, these instructions may refer to specific tools, but in
+general, the agent should be able to decide for itself what tools it
+should call. This is what makes agents very powerful and makes our job
+as coders much simpler.</p>
+<p><strong>agent_progress_callback callback</strong>
+The <code>agent_progress_callback</code> is an optional <code>Callable</code> function that can serve a
+variety of purposes for your assistant. It is a callback function that
+is managed by the agent, and it will be called anytime the agent is
+updated, such as when calling a tool, or when receiving a response from
+a tool. This works with both regular chat methods (<code>chat()</code>, <code>achat()</code>) and 
+streaming methods (<code>stream_chat()</code>, <code>astream_chat()</code>).</p>
+<p>In our example, we will use it to log the actions of our agent so users
+can see the steps the agent is taking as it answers their questions.
+Since our assistant is using streamlit to display the results, we will
+append the log messages to the session state.</p>
+<pre><code class="language-python">from vectara_agentic.agent import AgentStatusType
+
+def agent_progress_callback(status_type: AgentStatusType, msg: dict, event_id: str):
+  output = f&quot;{status_type.value} - {msg}&quot;
+  st.session_state.log_messages.append(output)
+</code></pre>
+<p><strong>Note:</strong> version 0.3.0 introduces a breaking change in <code>agent_progress_callback</code>, 
+instead of the previous <code>msg</code> argument that was a string, it now returns a
+dictionary that provides more detailed and easier to handle information.</p>
+<p><strong>agent_config</strong>
+The <code>agent_config</code> argument is an optional object that you can use to
+explicitly specify the configuration of your agent, including the following:</p>
+<ul>
+<li><code>agent_type</code>: the agent type. Valid values are <code>FUNCTION_CALLING</code> or <code>REACT</code> (default: <code>FUNCTION_CALLING</code>).</li>
+<li><code>main_llm_provider</code> and <code>tool_llm_provider</code>: the LLM provider for main agent and for the tools. Valid values are <code>OPENAI</code>, <code>ANTHROPIC</code>, <code>TOGETHER</code>, <code>GROQ</code>, <code>COHERE</code>, <code>BEDROCK</code>, <code>GEMINI</code> (default: <code>OPENAI</code>).</li>
+</ul>
+<blockquote>
+<p><strong>Note:</strong> Fireworks AI support has been removed. If you were using Fireworks, please migrate to one of the supported providers listed above.
+- <code>main_llm_model_name</code> and <code>tool_llm_model_name</code>: agent model name for agent and tools (default depends on provider: OpenAI uses gpt-4.1-mini, Gemini uses gemini-2.5-flash-lite).
+- <code>observer</code>: the observer type; should be <code>ARIZE_PHOENIX</code> or if undefined no observation framework will be used.
+- <code>endpoint_api_key</code>: a secret key if using the API endpoint option (defaults to <code>dev-api-key</code>)</p>
+</blockquote>
+<p>By default, each of these parameters will be read from your environment, but you can also
+explicitly define them with the <code>AgentConfig</code> class.</p>
+<p>For example, here is how we can define an <code>AgentConfig</code> object to create
+a <code>ReAct</code> agent using <code>OPENAI</code> as the LLM for the agent and <code>Cohere</code> as the
+LLM for the agent's tools:</p>
+<pre><code class="language-python">from vectara_agentic.agent_config import AgentConfig
+
+config = AgentConfig(
+  agent_type=&quot;REACT&quot;,
+  main_llm_provider=&quot;OPENAI&quot;,
+  tool_llm_provider=&quot;COHERE&quot;
+)
+</code></pre>
+<p><strong>Creating the agent</strong>
+Here is how we will instantiate our finance assistant:</p>
+<pre><code class="language-python">from vectara_agentic import Agent
+
+agent = Agent(
+     tools=[
+         tools_factory.create_tool(get_company_info, vhc_eligible=False),
+         tools_factory.create_tool(get_valid_years, vhc_eligible=False),
+         tools_factory.create_tool(get_income_statement, vhc_eligible=True)
+     ] +
+     tools_factory.standard_tools() +
+     tools_factory.financial_tools() +
+     tools_factory.guardrail_tools() +
+     [ask_transcripts],
+     topic=&quot;10-K annual financial reports&quot;,
+     custom_instructions=financial_assistant_instructions,
+     agent_progress_callback=agent_progress_callback
+)
+</code></pre>
+<p>Notice that when we call the <code>create_tool()</code> method, we can specify:</p>
+<ul>
+<li><code>tool_type</code>: Either <code>"query"</code> (default) or <code>"action"</code></li>
+<li><code>vhc_eligible</code>: Whether the tool should participate in VHC analysis (default <code>True</code>)</li>
+</ul>
+<p>In our example, we explicitly set <code>vhc_eligible=False</code> for utility tools like <code>get_company_info</code> and <code>get_valid_years</code> since they provide metadata rather than factual content for responses. The <code>get_income_statement</code> tool is marked <code>vhc_eligible=True</code> since it provides actual financial data.</p>
+<h2 id="chat-with-your-assistant">Chat with your Assistant</h2>
+<p>Once you have created your agent, using it is quite simple. All you have
+to do is call its <code>chat()</code> method, which prompts your agent to answer
+the user's query using its available set of tools. It's that easy.</p>
+<pre><code class="language-python">query = &quot;Which 3 companies had the highest revenue in 2022, and how did they do in 2021?&quot;
+print(str(agent.chat(query)))
+</code></pre>
+<p>The agent returns the response:</p>
+<blockquote>
+<p>The three companies with the highest revenue in 2022 were:</p>
+<ol>
+<li><strong>Amazon (AMZN)</strong>: $513.98B</li>
+<li><strong>Apple (AAPL)</strong>: $394.33B</li>
+<li><strong>Google (GOOG)</strong>: $282.84B</li>
+</ol>
+<p>Their revenues in 2021 were:</p>
+<ol>
+<li><strong>Amazon (AMZN)</strong>: $469.82B</li>
+<li><strong>Apple (AAPL)</strong>: $365.82B</li>
+<li><strong>Google (GOOG)</strong>: $257.64B</li>
+</ol>
+</blockquote>
+<p>The <code>chat()</code> function returns an <code>AgentResponse</code> object, which includes
+the agent's generated response text and a list of <code>ToolOutput</code> objects.
+The agent's response text can easily be retrieved <code>response</code> member (or
+simply by using <code>str()</code>). The tool information can be extracted with the
+<code>sources</code> member of the <code>AgentResponse</code> class and will return a list of
+tool outputs, including the name of each tool that was called and the
+output from that tool that was given to the agent.</p>
+<p>To make a full Streamlit app, there is some extra code that is necessary
+to configure the demo layout. You can check out the <a href="https://huggingface.co/spaces/vectara/finance-assistant/tree/main">full
+code</a>
+and <a href="https://huggingface.co/spaces/vectara/finance-assistant">demo</a> for
+this app on Hugging Face.</p>
+<h2 id="chat-interaction-methods">Chat Interaction Methods</h2>
+<p><code>vectara-agentic</code> provides multiple ways to interact with your agent depending on your needs:</p>
+<h3 id="standard-chat-methods">Standard Chat Methods</h3>
+<p><strong>Synchronous Chat</strong></p>
+<pre><code class="language-python"># Simple chat that blocks until complete
+response = agent.chat(&quot;What was Apple's revenue in 2022?&quot;)
+print(response.response)
+</code></pre>
+<p><strong>Asynchronous Chat</strong></p>
+<pre><code class="language-python"># Non-blocking chat for async applications
+response = await agent.achat(&quot;What was Apple's revenue in 2022?&quot;)  
+print(response.response)
+</code></pre>
+<p>Both methods return an <code>AgentResponse</code> object with the complete response text and metadata.</p>
+<h3 id="streaming-chat-methods">Streaming Chat Methods</h3>
+<p>For better user experience with long responses, use streaming methods that provide real-time updates:</p>
+<p><strong>Synchronous Streaming</strong></p>
+<pre><code class="language-python">stream_response = agent.stream_chat(&quot;Compare Apple and Google's revenue growth over 5 years&quot;)
+async for chunk in stream_response.async_response_gen():
+    print(chunk, end=&quot;&quot;, flush=True)
+
+# Get final response with metadata after streaming
+final_response = stream_response.get_response()
+print(f&quot;\nSources used: {len(final_response.sources)}&quot;)
+</code></pre>
+<p><strong>Asynchronous Streaming</strong></p>
+<pre><code class="language-python">stream_response = await agent.astream_chat(&quot;Analyze market trends for tech companies&quot;)
+
+# Process chunks asynchronously
+async for chunk in stream_response.async_response_gen():
+    # Update async UI components
+    await update_ui_async(chunk)
+
+# Get final response asynchronously
+final_response = await stream_response.aget_response() 
+print(f&quot;Analysis complete: {final_response.response}&quot;)
+</code></pre>
+<h3 id="tool-call-progress-tracking">Tool Call Progress Tracking</h3>
+<p>When agents use tools (like RAG retrieval, calculations, or external APIs), you can track these operations in real-time using <code>agent_progress_callback</code> with both streaming and non-streaming methods:</p>
+<pre><code class="language-python">from vectara_agentic import AgentStatusType
+
+def tool_progress_tracker(status_type, msg, event_id):
+    &quot;&quot;&quot;Track tool calls and outputs during streaming&quot;&quot;&quot;
+    if status_type == AgentStatusType.TOOL_CALL:
+        print(f&quot;🔧 Calling tool: {msg['tool_name']}&quot;)
+        print(f&quot;   Arguments: {msg['arguments']}&quot;)
+    elif status_type == AgentStatusType.TOOL_OUTPUT:
+        print(f&quot;📊 Tool '{msg['tool_name']}' completed&quot;)
+        print(f&quot;   Result: {msg['content'][:100]}...&quot;)
+
+# Create agent with progress tracking
+agent = Agent(
+    tools=[vectara_tools, calculation_tools],
+    agent_progress_callback=tool_progress_tracker
+)
+
+# With streaming - see tool calls AND streaming response
+stream_response = await agent.astream_chat(
+    &quot;Analyze Apple's financial performance and calculate growth rates&quot;
+)
+
+# With regular chat - see tool calls, then get final response  
+response = await agent.achat(
+    &quot;Analyze Apple's financial performance and calculate growth rates&quot;
+)
+
+# You'll see tool calls as they happen in both cases:
+# 🔧 Calling tool: query_financial_data
+#    Arguments: {&quot;query&quot;: &quot;Apple financial performance&quot;}
+# 📊 Tool 'query_financial_data' completed
+#    Result: Apple Inc. reported revenue of $394.33 billion...
+# 🔧 Calling tool: calculate_growth_rate
+#    Arguments: {&quot;current&quot;: 394.33, &quot;previous&quot;: 365.82}
+
+async for chunk in stream_response.async_response_gen():
+    print(chunk, end=&quot;&quot;, flush=True)  # Response text streams here
+
+final_response = await stream_response.aget_response()
+</code></pre>
+<h3 id="agentstreamingresponse-features">AgentStreamingResponse Features</h3>
+<p>The <code>AgentStreamingResponse</code> object provides several useful capabilities:</p>
+<ol>
+<li><strong>Real-time streaming</strong>: Get response chunks as they're generated</li>
+<li><strong>Tool call visibility</strong>: Combined with progress callbacks, see tool usage in real-time</li>
+<li><strong>Final response access</strong>: Retrieve the complete response and metadata after streaming</li>
+<li><strong>Flexible consumption</strong>: Choose between automatic printing or manual processing</li>
+<li><strong>Async/sync compatibility</strong>: Works in both synchronous and asynchronous contexts</li>
+</ol>
+<h3 id="when-to-use-each-method">When to Use Each Method</h3>
+<ul>
+<li><strong>Use <code>chat()</code> or <code>achat()</code></strong> for:</li>
+<li>Simple, short queries</li>
+<li>Batch processing scenarios</li>
+<li>
+<p>When you only need the final result</p>
+</li>
+<li>
+<p><strong>Use <code>stream_chat()</code> or <code>astream_chat()</code></strong> for:</p>
+</li>
+<li>Long-running queries that generate substantial responses</li>
+<li>Interactive UIs where users want to see progress</li>
+<li>Web applications with real-time updates</li>
+<li>Better perceived performance and user engagement</li>
+</ul>
+<h3 id="combining-streaming-with-callbacks">Combining Streaming with Callbacks</h3>
+<p>You can use both streaming and progress callbacks together for comprehensive monitoring:</p>
+<pre><code class="language-python">def progress_callback(status_type, msg, event_id):
+    print(f&quot;[{status_type.value}] {msg}&quot;)
+
+agent = Agent(
+    tools=[...],
+    topic=&quot;financial reports&quot;, 
+    custom_instructions=&quot;...&quot;,
+    agent_progress_callback=progress_callback  # Track tool calls
+)
+
+# This will show both tool progress AND streaming response
+stream_response = agent.stream_chat(&quot;What were Apple's key financial metrics in 2022?&quot;)
+async for chunk in stream_response.async_response_gen():
+    print(chunk, end=&quot;&quot;, flush=True)
+</code></pre>
+<p>This approach gives you visibility into both the agent's internal tool usage and the streaming response generation.</p>
+<h3 id="practical-examples-callbacks-vs-streaming">Practical Examples: Callbacks vs Streaming</h3>
+<p>Here are real-world scenarios showing when to use callbacks, streaming, or both:</p>
+<h4 id="example-1-simple-chat-application">Example 1: Simple Chat Application</h4>
+<p><strong>Callback-Only Approach</strong> (good for debugging/logging):</p>
+<pre><code class="language-python">def simple_progress_callback(status_type, msg, event_id):
+    if status_type == AgentStatusType.TOOL_CALL:
+        print(f&quot;🔧 Using tool: {msg['tool_name']}&quot;)
+    elif status_type == AgentStatusType.TOOL_OUTPUT:
+        print(f&quot;📊 Tool result ready&quot;)
+
+agent = Agent(
+    tools=[ask_finance],
+    topic=&quot;financial reports&quot;,
+    agent_progress_callback=simple_progress_callback
+)
+
+# User sees tool usage but waits for complete response
+response = agent.chat(&quot;What was Apple's revenue growth in 2022?&quot;)
+print(f&quot;Final answer: {response.response}&quot;)
+</code></pre>
+<p><strong>Streaming-Only Approach</strong> (best for user experience):</p>
+<pre><code class="language-python">agent = Agent(tools=[ask_finance], topic=&quot;financial reports&quot;)
+
+# User sees response as it's generated
+stream_response = agent.stream_chat(&quot;What was Apple's revenue growth in 2022?&quot;)
+async for chunk in stream_response.async_response_gen():
+    print(chunk, end=&quot;&quot;, flush=True)
+</code></pre>
+<p><strong>Combined Approach</strong> (best of both worlds):</p>
+<pre><code class="language-python">def detailed_progress_callback(status_type, msg, event_id):
+    if status_type == AgentStatusType.TOOL_CALL:
+        print(f&quot;🔍 Searching for: {msg.get('arguments', '')}&quot;)
+
+agent = Agent(
+    tools=[ask_finance],
+    topic=&quot;financial reports&quot;, 
+    agent_progress_callback=detailed_progress_callback
+)
+
+# User sees both tool progress AND streaming response
+stream_response = agent.stream_chat(&quot;What was Apple's revenue growth in 2022?&quot;)
+async for chunk in stream_response.async_response_gen():
+    print(chunk, end=&quot;&quot;, flush=True)
+</code></pre>
+<h4 id="example-2-web-application-with-real-time-updates">Example 2: Web Application with Real-time Updates</h4>
+<p><strong>FastAPI with Server-Sent Events:</strong></p>
+<pre><code class="language-python">from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
+
+app = FastAPI()
+
+@app.get(&quot;/chat/stream&quot;)
+async def stream_chat_endpoint(query: str):
+    async def generate_response():
+        stream_response = await agent.astream_chat(query)
+
+        async for chunk in stream_response.async_response_gen():
+            # Send each chunk as SSE
+            yield f&quot;data: {json.dumps({'chunk': chunk})}\n\n&quot;
+
+        # Send final metadata when complete
+        final_response = await stream_response.aget_response()
+        yield f&quot;data: {json.dumps({'done': True, 'sources': len(final_response.sources)})}\n\n&quot;
+
+    return StreamingResponse(generate_response(), media_type=&quot;text/plain&quot;)
+</code></pre>
+<p><strong>Streamlit with Progress Updates:</strong></p>
+<pre><code class="language-python">import streamlit as st
+
+def streamlit_progress_callback(status_type, msg, event_id):
+    if status_type == AgentStatusType.TOOL_CALL:
+        st.info(f&quot;Using tool: {msg['tool_name']}&quot;)
+
+# Show progress in sidebar
+with st.sidebar:
+    st.header(&quot;Agent Activity&quot;)
+
+agent = Agent(
+    tools=[ask_finance],
+    topic=&quot;financial reports&quot;,
+    agent_progress_callback=streamlit_progress_callback
+)
+
+if user_query := st.chat_input(&quot;Ask about financial data&quot;):
+    with st.chat_message(&quot;assistant&quot;):
+        # Stream response directly to chat
+        stream_response = agent.stream_chat(user_query)
+        response_placeholder = st.empty()
+
+        full_response = &quot;&quot;
+        async for chunk in stream_response.async_response_gen():
+            full_response += chunk
+            response_placeholder.markdown(full_response + &quot;▌&quot;)
+
+        response_placeholder.markdown(full_response)
+</code></pre>
+<h4 id="example-3-batch-processing-vs-interactive">Example 3: Batch Processing vs Interactive</h4>
+<p><strong>Batch Processing</strong> (callbacks for monitoring):</p>
+<pre><code class="language-python">def batch_progress_callback(status_type, msg, event_id):
+    # Log to file for batch processing audit
+    logging.info(f&quot;{status_type.value}: {msg}&quot;)
+
+questions = [
+    &quot;What was Apple's 2022 revenue?&quot;,
+    &quot;How did Google perform in 2022?&quot;, 
+    &quot;Compare Amazon's growth to Microsoft's&quot;
+]
+
+agent = Agent(
+    tools=[ask_finance],
+    topic=&quot;financial reports&quot;,
+    agent_progress_callback=batch_progress_callback
+)
+
+results = []
+for question in questions:
+    response = agent.chat(question)  # No streaming needed
+    results.append({&quot;question&quot;: question, &quot;answer&quot;: response.response})
+</code></pre>
+<p><strong>Interactive Session</strong> (streaming for engagement):</p>
+<pre><code class="language-python">import time
+
+agent = Agent(tools=[ask_finance], topic=&quot;financial reports&quot;)
+
+print(&quot;Financial Assistant (type 'quit' to exit)&quot;)
+while True:
+    user_input = input(&quot;\n💬 Ask me about financial data: &quot;)
+    if user_input.lower() == 'quit':
+        break
+
+    print(&quot;\n🤖 Assistant:&quot;)
+    stream_response = agent.stream_chat(user_input)
+    async for chunk in stream_response.async_response_gen():
+    print(chunk, end=&quot;&quot;, flush=True)
+    print(&quot;\n&quot; + &quot;─&quot; * 50)
+</code></pre>
+<h4 id="key-decision-guidelines">Key Decision Guidelines</h4>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Callbacks</th>
+<th>Streaming</th>
+<th>Both</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Debug/Development</strong></td>
+<td>✅ Essential</td>
+<td>❌ Optional</td>
+<td>✅ Recommended</td>
+</tr>
+<tr>
+<td><strong>Batch Processing</strong></td>
+<td>✅ For logging</td>
+<td>❌ Unnecessary</td>
+<td>❓ Maybe</td>
+</tr>
+<tr>
+<td><strong>Interactive UI</strong></td>
+<td>❓ Background</td>
+<td>✅ Essential</td>
+<td>✅ Ideal</td>
+</tr>
+<tr>
+<td><strong>Web APIs</strong></td>
+<td>❓ For logging</td>
+<td>✅ For SSE</td>
+<td>✅ Best UX</td>
+</tr>
+<tr>
+<td><strong>Long Responses</strong></td>
+<td>❓ Background</td>
+<td>✅ Essential</td>
+<td>✅ Optimal</td>
+</tr>
+<tr>
+<td><strong>Short Responses</strong></td>
+<td>✅ Sufficient</td>
+<td>❓ Overkill</td>
+<td>❓ Optional</td>
+</tr>
+</tbody>
+</table>
+<h2 id="using-workflows">Using Workflows</h2>
+<p>vectara-agentic now supports custom workflows via the <code>run()</code> method, enabling you to define multi-step interactions with validated inputs and outputs.
+To learn more about workflows read <a href="https://docs.llamaindex.ai/en/stable/understanding/workflows/basic_flow/">the documentation</a> from LlamaIndex.</p>
+<h3 id="defining-a-custom-workflow">Defining a Custom Workflow</h3>
+<p>To create a workflow, subclass the Workflow class from <code>llama_index.core.workflow</code> and define two Pydantic models: <code>InputsModel</code> and <code>`OutputsModel</code>. 
+For example:</p>
+<pre><code class="language-python">from pydantic import BaseModel
+from llama_index.core.workflow import (
+    StartEvent,StopEvent, Workflow, step,
+)
+
+class MyWorkflow(Workflow):
+    class InputsModel(BaseModel):
+        query: str
+
+    class OutputsModel(BaseModel):
+        answer: str
+
+    @step
+    async def my_step(self, ev: StartEvent) -&gt; StopEvent:
+        # do something here
+        return StopEvent(result=&quot;Hello, world!&quot;)
+</code></pre>
+<p>When the <code>run()</code> method in vectara-agentic is invoked, it calls the workflow with the following variables in the <code>StartEvent</code>:</p>
+<ul>
+<li><code>agent</code>: the agent object used to call <code>run()</code> (self)</li>
+<li><code>tools</code>: the tools provided to the agent. Those can be used as needed in the flow.</li>
+<li><code>llm</code>: a pointer to a LlamaIndex LLM, so it can be used in the workflow. For example, one of the steps may call <code>llm.acomplete(prompt)</code></li>
+<li><code>verbose</code>: controls whether extra debug information is displayed</li>
+<li><code>inputs</code>: this is the actual inputs to the workflow provided by the call to <code>run()</code> and must be of type <code>InputsModel</code></li>
+</ul>
+<p>If you want to use <code>agent</code>, <code>tools</code>, <code>llm</code> or <code>verbose</code> in other events (that are not <code>StartEvent</code>), you can store them in
+the <code>Context</code> of the Workflow as follows:</p>
+<pre><code class="language-python">await ctx.set(&quot;agent&quot;, ev.agent)
+</code></pre>
+<p>and then in any other event you can pull that agent object with</p>
+<pre><code class="language-python">agent = await ctx.get(&quot;agent&quot;)
+</code></pre>
+<p>Similarly you can reuse the <code>llm</code>, <code>tools</code> or <code>verbose</code> arguments within other nodes in the workflow.</p>
+<h3 id="integrating-the-workflow-with-your-agent">Integrating the Workflow with Your Agent</h3>
+<p>When instantiating your agent, pass your workflow class to the <code>workflow_cls</code> parameter (and optionally set a workflow timeout):</p>
+<pre><code class="language-python">agent = Agent(
+    tools=[...],  # your list of tools
+    topic=&quot;10-K annual financial reports&quot;,
+    custom_instructions=financial_assistant_instructions,
+    agent_progress_callback=agent_progress_callback,
+    workflow_cls=FinanceWorkflow,   # Provide your workflow class here
+    workflow_timeout=120            # Optional timeout in seconds
+)
+</code></pre>
+<h3 id="running-the-workflow">Running the Workflow</h3>
+<p>To run the workflow, create an instance of your workflow's <code>InputsModel</code> with the required parameters and call the agent's <code>run()</code> method. For example:</p>
+<pre><code class="language-python"># Create input for the workflow
+workflow_inputs = FinanceWorkflow.InputsModel(query=&quot;What were the revenue trends for Apple?&quot;, analysis_depth=3)
+
+# Execute the workflow asynchronously (ensure you're in an async context or use asyncio.run)
+workflow_output = asyncio.run(agent.run(workflow_inputs))
+
+# Access the final answer from the output model
+print(workflow_output.answer)
+</code></pre>
+<p>The <code>run()</code> method executes your workflow’s logic, validates the output against the <code>OutputsModel</code>, and returns a structured result.</p>
+<h3 id="using-subquestionqueryworkflow-and-sequentialsubquestionsworkflow">Using SubQuestionQueryWorkflow and SequentialSubQuestionsWorkflow</h3>
+<p>vectara-agentic already includes two useful workflows you can use right away (they are also useful as advanced examples)
+These workflows are called <code>SubQuestionQueryWorkflow</code> and <code>SequentialSubQuestionsWorkflow</code>, and they work by breaking a complex query into sub-queries and then
+executing each sub-query with the agent until it reaches a good response.</p>
+<p>The difference is that <code>SubQuestionQueryWorkflow</code> will create a series of independent sub-queries and execute them in parallel
+while <code>SequentialSubQuestionsWorkflow</code> will create a sequence of dependent sub-queries and answer them sequentially,
+providing the answer from the previous question as context to the next question in the sequence.</p>
+<h2 id="additional-information">Additional Information</h2>
+<p><strong>Agent Information</strong>
+The <code>Agent</code> class defines a few helpful methods to help you understand
+the internals of your application.</p>
+<ol>
+<li>The <code>report()</code> method prints out the agent object's type (FUNCTION_CALLING or REACT), the tools, and the LLMs used for the main
+    agent and tool calling.</li>
+<li>The agent provides access to session information including conversation history
+    and tool usage patterns.</li>
+</ol>
+<p>If you have any other information that you would like to be accessible
+to users, feel free to make a suggestion on our community
+<a href="https://discord.com/channels/1022303169612611615/1100640116843761685">server</a>.</p>
+<p><strong>Observability</strong>
+You can also setup full observability for your vectara-agentic assistant
+or agent using <a href="https://phoenix.arize.com/">Arize Phoenix</a>. This allows
+you to view LLM prompt inputs and outputs, the latency of each task and
+subtask, and many of the individual function calls performed by the LLM,
+as well as VHC corrections for each response.</p>
+<p>To set up observability for your app, follow these steps:</p>
+<ol>
+<li>Set <code>os["VECTARA_AGENTIC_OBSERVER_TYPE"] = "ARIZE_PHOENIX"</code> or
+    specify <code>observer = "ARIZE_PHOENIX"</code> in your <code>AgentConfig</code>.</li>
+<li>Connect to a local phoenix server:<ol>
+<li>If you have a local phoenix server that you've run using e.g.
+    <code>python -m phoenix.server.main serve</code>, vectara-agentic will send
+    all traces to it automatically.</li>
+<li>If not, vectara-agentic will run a local instance during the
+    agent's lifecycle, and will close it when finished.</li>
+<li>In both cases, traces will be sent to the local instance, and
+    you can see the dashboard at <a href="http://localhost:6006">http://localhost:6006</a>.</li>
+</ol>
+</li>
+<li>Alternatively, you can connect to a Phoenix instance hosted on
+    Arize.<ol>
+<li>Go to <a href="https://app.phoenix.arize.com">https://app.phoenix.arize.com</a>, and set up an account if
+    you don't have one.</li>
+<li>Create an API key and put it in the <code>PHOENIX_API_KEY</code> variable.
+    This variable indicates you want to use the hosted version.</li>
+<li>To view the traces go to <a href="https://app.phoenix.arize.com">https://app.phoenix.arize.com</a>.</li>
+</ol>
+</li>
+</ol>
+<p>In addition to the raw traces, vectara-agentic also records <code>FCS</code> values
+into Arize for every Vectara RAG call (note: RAG tools still use FCS internally).
+You can see those results in the <code>Feedback</code> column of the arize UI.</p>
+<p><strong>Query Callback</strong>
+You can define a callback function to log query/response pairs in your
+agent. This function should be specified in the <code>query_logging_callback</code>
+argument when you create your agent and should take in two string
+arguments. The first argument passed to this function will be the user
+query and the second will be the agent's response.</p>
+<p>If defined, this function is called every time the agent receives a
+query and generates a response.</p>
+<h2 id="using-a-private-llm">Using a Private LLM</h2>
+<p>vectara-agentic offers a wide variety of LLM options from several
+providers to use for the main agent and for tool calling. However, in
+some instances, you may be interested in using your own LLM hosted
+locally at your company.</p>
+<p>If you would like the main agent LLM to be a custom LLM, specify
+<code>VECTARA_AGENTIC_MAIN_LLM_PROVIDER="PRIVATE"</code> in your environment or
+<code>main_llm_provider="PRIVATE"</code> in your <code>AgentConfig</code> object and
+<code>VECTARA_AGENTIC_MAIN_MODEL_NAME</code> (or <code>main_llm_model_name</code> in
+<code>AgentConfig</code>) as the model name of your LLM.</p>
+<p>If you would like the tool calling LLM to be a custom LLM, specify
+<code>VECTARA_AGENTIC_TOOL_LLM_PROVIDER="PRIVATE"</code> in your environment or
+<code>tool_llm_provider="PRIVATE"</code> in your <code>AgentConfig</code> object and
+<code>VECTARA_AGENTIC_TOOL_MODEL_NAME</code> (or <code>tool_llm_model_name</code> in
+<code>AgentConfig</code>) as the model name of your LLM.</p>
+<p>Additionally, you should specify <code>VECTARA_AGENTIC_PRIVATE_LLM_API_BASE</code>
+in your environment (or <code>private_llm_api_base</code> in the <code>AgentConfig</code>) as
+the API endpoint url for your private LLM and
+<code>VECTARA_AGENTIC_PRIVATE_API_KEY</code> (or <code>private_llm_api_key</code>) as the API
+key to your LLM.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.92b07e13.min.js"></script>
+      
+    
+  </body>
+</html>
