@@ -184,6 +184,7 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
         if model_name in [
             "deepseek-ai/DeepSeek-V3.1", "openai/gpt-oss-120b",
             "deepseek-ai/DeepSeek-R1", "Qwen/Qwen3-235B-A22B-Thinking-2507"
+            "openai/gpt-oss-120b", "openai/gpt-oss-20b",
         ]:
             additional_kwargs['reasoning_effort'] = "low"
         llm = TogetherLLM(
