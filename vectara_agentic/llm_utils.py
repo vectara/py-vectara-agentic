@@ -28,17 +28,19 @@ provider_to_default_model_name = {
 
 models_to_max_tokens = {
     "gpt-5": 128000,
+    "gpt-5-mini": 128000,
     "gpt-4.1": 32768,
     "gpt-4o": 16384,
     "gpt-4.1-mini": 32768,
-    "claude-sonnet-4": 65536,
+    "claude-sonnet-4-20250514": 64000,
+    "claude-sonnet-4-0": 64000,
     "deepseek-ai/deepseek-v3": 8192,
     "models/gemini-2.5-flash": 65536,
     "models/gemini-2.5-flash-lite": 65536,
     "models/gemini-2.5-pro": 65536,
     "openai/gpt-oss-20b": 65536,
     "openai/gpt-oss-120b": 65536,
-    "us.anthropic.claude-sonnet-4-20250514-v1:0": 65536,
+    "us.anthropic.claude-sonnet-4-20250514-v1:0": 64000,
     "command-a-03-2025": 8192,
 }
 
@@ -55,7 +57,7 @@ def get_max_tokens(model_name: str, model_provider: str) -> int:
         ModelProvider.COHERE,
     ]:
         # Try exact match first (case-insensitive)
-        max_tokens = models_to_max_tokens.get(model_name, 16384)
+        max_tokens = models_to_max_tokens.get(model_name.lower(), 16384)
     else:
         max_tokens = 8192
     return max_tokens
