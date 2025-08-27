@@ -180,7 +180,7 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             ) from e
         additional_kwargs = {"seed": 42}
         if model_name in [
-            "deepseek-ai/DeepSeek-V3.1", "openai/gpt-oss-120b", 
+            "deepseek-ai/DeepSeek-V3.1", "openai/gpt-oss-120b",
             "deepseek-ai/DeepSeek-R1", "Qwen/Qwen3-235B-A22B-Thinking-2507"
         ]:
             additional_kwargs['reasoning_effort'] = "low"
