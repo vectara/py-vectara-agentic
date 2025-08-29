@@ -9,9 +9,11 @@ import inspect
 from typing import Any, List
 from inspect import Signature, Parameter, ismethod
 from collections import Counter
+import logging
 
 from pydantic import Field, create_model
 from llama_index.core.tools import FunctionTool
+
 from ...llm_utils import get_llm
 from ...types import LLMRole
 
@@ -37,17 +39,23 @@ def sanitize_tools_for_gemini(tools: List[FunctionTool]) -> List[FunctionTool]:
         for func in (tool.fn, tool.async_fn):
             if not func:
                 continue
-            orig_sig = inspect.signature(func)
-            new_params = [
-                p.replace(default=Parameter.empty) for p in orig_sig.parameters.values()
-            ]
-            new_sig = Signature(
-                new_params, return_annotation=orig_sig.return_annotation
-            )
-            if ismethod(func):
-                func.__func__.__signature__ = new_sig
-            else:
-                func.__signature__ = new_sig
+            try:
+                orig_sig = inspect.signature(func)
+                new_params = [
+                    p.replace(default=Parameter.empty) for p in orig_sig.parameters.values()
+                ]
+                new_sig = Signature(
+                    new_params, return_annotation=orig_sig.return_annotation
+                )
+                if ismethod(func):
+                    func.__func__.__signature__ = new_sig
+                else:
+                    func.__signature__ = new_sig
+            except Exception as e:
+                logging.warning(
+                    f"Could not modify signature for tool '{tool.metadata.name}': {e}. "
+                    "Proceeding with Pydantic schema modification."
+                )
 
         # 2) Rebuild the Pydantic schema so that *every* field is required
         schema_cls = getattr(tool.metadata, "fn_schema", None)
