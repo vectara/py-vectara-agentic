@@ -673,7 +673,8 @@ class ToolsFactory:
             VectaraTool: A VectaraTool object.
         """
         return VectaraTool.from_defaults(
-            tool_type=tool_type, fn=function, vhc_eligible=vhc_eligible
+            tool_type=tool_type, fn=function, vhc_eligible=vhc_eligible,
+            description=function.__doc__,
         )
 
     def get_llama_index_tools(
