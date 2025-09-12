@@ -85,8 +85,8 @@ def normalize_url(url):
         # Re-encode consistently using standard safe characters
         normalized = urllib.parse.quote(decoded, safe=':/?#[]@!$&\'()*+,;=')
         return normalized
-    except Exception:
-        # If normalization fails, return original URL
+    except Exception as e:
+        logging.warning(f"Error normalizing URL '{url}': {e}")
         return url
 
 
@@ -108,7 +108,7 @@ def citation_appears_in_text(citation_text, citation_url, response_text):
 
     # If no citation info available, return False
     # Empty strings should be treated as None
-    if (not citation_text or citation_text == "") and (not citation_url or citation_url == ""):
+    if not citation_text and not citation_url:
         return False
 
     # Generate possible citation formats based on available data
