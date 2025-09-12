@@ -8,6 +8,7 @@ import os
 import asyncio
 import urllib.parse
 from typing import Callable, List, Dict, Any, Optional, Union
+import logging
 
 from retrying import retry
 from pydantic import BaseModel, Field
