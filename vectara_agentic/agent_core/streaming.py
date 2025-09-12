@@ -302,6 +302,7 @@ class FunctionCallingStreamHandler:
                     hasattr(ev, "tool_calls")
                     and not ev.tool_calls
                     and hasattr(ev, "delta")
+                    and transitioned_to_prose
                 ):
                     yield ev.delta
 
@@ -311,16 +312,16 @@ class FunctionCallingStreamHandler:
         except Exception as e:
             error_str = str(e).lower()
             if "rate limit" in error_str or "429" in error_str:
-                logging.error(f"🔍 [RATE_LIMIT_ERROR] Rate limit exceeded: {e}")
+                logging.error(f"[RATE_LIMIT_ERROR] Rate limit exceeded: {e}")
                 self.final_response_container["resp"] = AgentResponse(
                     response="Rate limit exceeded. Please try again later.",
                     source_nodes=[],
                     metadata={"error_type": "rate_limit", "original_error": str(e)},
                 )
             else:
-                logging.error(f"🔍 [STREAM_ERROR] Error processing stream events: {e}")
+                logging.error(f"[STREAM_ERROR] Error processing stream events: {e}")
                 logging.error(
-                    f"🔍 [STREAM_ERROR] Full traceback: {traceback.format_exc()}"
+                    f"[STREAM_ERROR] Full traceback: {traceback.format_exc()}"
                 )
                 self.final_response_container["resp"] = AgentResponse(
                     response="Response completion Error",
@@ -590,10 +591,10 @@ class ReActStreamHandler:
             self.final_response_container["resp"] = await self.handler
         except Exception as e:
             logging.error(
-                f"🔍 [REACT_STREAM_ERROR] Error processing ReAct stream events: {e}"
+                f"[REACT_STREAM_ERROR] Error processing ReAct stream events: {e}"
             )
             logging.error(
-                f"🔍 [REACT_STREAM_ERROR] Full traceback: {traceback.format_exc()}"
+                f"[REACT_STREAM_ERROR] Full traceback: {traceback.format_exc()}"
             )
             self.final_response_container["resp"] = AgentResponse(
                 response="ReAct Response completion Error", source_nodes=[], metadata={}
