@@ -6,7 +6,9 @@ import inspect
 import importlib
 import os
 import asyncio
+import urllib.parse
 from typing import Callable, List, Dict, Any, Optional, Union
+import logging
 
 from retrying import retry
 from pydantic import BaseModel, Field
@@ -63,6 +65,105 @@ LI_packages = {
         }
     },
 }
+
+
+def normalize_url(url):
+    """
+    Normalize URL for consistent comparison by handling percent-encoding.
+
+    Args:
+        url (str): The URL to normalize
+
+    Returns:
+        str: Normalized URL with consistent percent-encoding
+    """
+    if not url:
+        return url
+
+    try:
+        # Decode percent-encoded characters
+        decoded = urllib.parse.unquote(url)
+        # Re-encode consistently using standard safe characters
+        normalized = urllib.parse.quote(decoded, safe=':/?#[]@!$&\'()*+,;=')
+        return normalized
+    except Exception as e:
+        logging.warning(f"Error normalizing URL '{url}': {e}")
+        return url
+
+
+def citation_appears_in_text(citation_text, citation_url, response_text):
+    """
+    Check if citation appears in response text using multiple matching strategies.
+    Handles citation formatting internally based on available text and URL.
+
+    Args:
+        citation_text (str): The text part of the citation (can be None)
+        citation_url (str): The URL part of the citation (can be None)
+        response_text (str): The response text to search in
+
+    Returns:
+        bool: True if citation appears in response text
+    """
+    if not response_text:
+        return False
+
+    # If no citation info available, return False
+    # Empty strings should be treated as None
+    if not citation_text and not citation_url:
+        return False
+
+    # Generate possible citation formats based on available data
+    citation_formats = []
+
+    # Normalize empty strings to None for cleaner logic
+    if citation_text == "":
+        citation_text = None
+    if citation_url == "":
+        citation_url = None
+
+    if citation_text and citation_url:
+        citation_formats.append(f"[{citation_text}]({citation_url})")
+        # Also try with normalized URL
+        normalized_url = normalize_url(citation_url)
+        if normalized_url != citation_url:
+            citation_formats.append(f"[{citation_text}]({normalized_url})")
+        # Also try with decoded URL (for cases where input is encoded but response has spaces)
+        decoded_url = urllib.parse.unquote(citation_url)
+        if decoded_url != citation_url:
+            citation_formats.append(f"[{citation_text}]({decoded_url})")
+        # Also try with aggressive encoding (encode more characters)
+        aggressive_encoded = urllib.parse.quote(decoded_url, safe=':/?#')
+        if aggressive_encoded not in (citation_url, normalized_url):
+            citation_formats.append(f"[{citation_text}]({aggressive_encoded})")
+    elif citation_url:
+        # Handle case where only URL is available (original logic: "[({url})]")
+        citation_formats.append(f"[({citation_url})]")
+        normalized_url = normalize_url(citation_url)
+        if normalized_url != citation_url:
+            citation_formats.append(f"[({normalized_url})]")
+        decoded_url = urllib.parse.unquote(citation_url)
+        if decoded_url != citation_url:
+            citation_formats.append(f"[({decoded_url})]")
+
+    # Strategy 1: Exact citation format matches
+    for citation_format in citation_formats:
+        if citation_format in response_text:
+            return True
+
+    # Strategy 2: URL appears anywhere in response (more lenient)
+    # Only apply this strategy if we have both citation_text and citation_url
+    # URL-only matching happens in Strategy 1 through citation formats
+    if citation_text and citation_url:
+        normalized_url = normalize_url(citation_url)
+        # Try both encoded and decoded versions
+        decoded_url = urllib.parse.unquote(citation_url)
+
+        if (citation_url in response_text or
+            normalized_url in response_text or
+            decoded_url in response_text):
+            return True
+
+    return False
 
 
 @retry(stop_max_attempt_number=3, wait_exponential_multiplier=1000, wait_exponential_max=10000)
@@ -595,11 +696,16 @@ class VectaraToolFactory:
                         part_data = {k: v for k, v in node_metadata.items() if k != 'document'}
                         template_data['part'] = to_obj(part_data)
 
-                        formatted_citation_text = computed_citations_text_pattern.format(**template_data)
-                        formatted_citation_url = computed_citations_url_pattern.format(**template_data)
-                        expected_citation = f"[{formatted_citation_text}]({formatted_citation_url})"
+                        try:
+                            formatted_citation_text = computed_citations_text_pattern.format(**template_data)
+                        except Exception:
+                            formatted_citation_text = None
+                        try:
+                            formatted_citation_url = computed_citations_url_pattern.format(**template_data)
+                        except Exception:
+                            formatted_citation_url = None
 
-                        if expected_citation in response_text:
+                        if citation_appears_in_text(formatted_citation_text, formatted_citation_url, response_text):
                             citation_metadata.append({
                                 'doc_id': node_id,
                                 'text': node_text,
