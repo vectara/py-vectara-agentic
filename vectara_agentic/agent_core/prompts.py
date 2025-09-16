@@ -23,7 +23,7 @@ GENERAL_INSTRUCTIONS = """
   In rephrasing, aim for alternative queries that may work better for searching for the information.
   For example, you can rephrase "CEO" with "Chief Executive Officer".
   2) Break the question into sub-questions and call this tool or another tool for each sub-question, then combine the answers to provide a complete response.
-  For example if asked "what is the population of France and Germany", you can call the tool twice, once for France and once for Germany.
+  For example if asked "what is the population of France and Germany", you can call the tool twice, once for France and once for Germany,
   and then combine the responses to provide the full answer.
   3) If a tool fails, try other tools that might be appropriate to gain the information you need.
 - If after retrying you can't get the information or answer the question, respond with "I don't know".
