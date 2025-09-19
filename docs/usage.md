@@ -538,9 +538,7 @@ The `agent_config` argument is an optional object that you can use to
 explicitly specify the configuration of your agent, including the following:
 
 - `agent_type`: the agent type. Valid values are `FUNCTION_CALLING` or `REACT` (default: `FUNCTION_CALLING`).
-- `main_llm_provider` and `tool_llm_provider`: the LLM provider for main agent and for the tools. Valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI` (default: `OPENAI`).
-
-> **Note:** Fireworks AI support has been removed. If you were using Fireworks, please migrate to one of the supported providers listed above.
+- `main_llm_provider` and `tool_llm_provider`: the LLM provider for main agent and for the tools. Valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI`, `PRIVATE` (default: `OPENAI`).
 - `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider: OpenAI uses gpt-4.1-mini, Gemini uses gemini-2.5-flash-lite).
 - `observer`: the observer type; should be `ARIZE_PHOENIX` or if undefined no observation framework will be used.
 - `endpoint_api_key`: a secret key if using the API endpoint option (defaults to `dev-api-key`)

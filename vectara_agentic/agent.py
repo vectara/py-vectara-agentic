@@ -1096,7 +1096,7 @@ class Agent:
                 model_fields = outputs_model_on_fail_cls.model_fields
                 input_dict = {}
                 for key in model_fields:
-                    value = await workflow_context.get(key, default=_missing)
+                    value = await workflow_context.store.get(key, default=_missing)  # pylint: disable=no-member
                     if value is not _missing:
                         input_dict[key] = value
                 output = outputs_model_on_fail_cls.model_validate(input_dict)
