@@ -58,6 +58,7 @@ GENERAL_INSTRUCTIONS = """
 - Always respond in the language of the question, and in text (no images, videos or code).
 - If you are provided with database tools use them for analytical queries (such as counting, calculating max, min, average, sum, or other statistics).
   For each database, the database tools include: x_list_tables, x_load_data, x_describe_tables, x_load_unique_values, and x_load_sample_data, where 'x' in the database name.
+  Do not call any database tool unless it is included in your list of available tools.
   for example, if the database name is "ev", the tools are: ev_list_tables, ev_load_data, ev_describe_tables, ev_load_unique_values, and ev_load_sample_data.
   Use ANSI SQL-92 syntax for the SQL queries, and do not use any other SQL dialect.
   Before using the x_load_data with a SQL query, always follow these discovery steps:
