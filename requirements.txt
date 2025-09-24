@@ -10,6 +10,7 @@ llama-index-llms-together==0.4.1
 llama-index-llms-groq==0.4.1
 llama-index-llms-cohere==0.6.1
 llama-index-llms-google-genai==0.5.0
+llama-index-llms-baseten==0.1.4
 google_genai>=1.31.0
 llama-index-llms-bedrock-converse==0.9.2
 llama-index-tools-yahoo-finance==0.4.1
