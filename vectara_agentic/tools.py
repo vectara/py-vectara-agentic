@@ -66,7 +66,6 @@ LI_packages = {
     },
 }
 
-
 def normalize_url(url):
     """
     Normalize URL for consistent comparison by handling percent-encoding.
@@ -89,7 +88,6 @@ def normalize_url(url):
     except Exception as e:
         logging.warning(f"Error normalizing URL '{url}': {e}")
         return url
-
 
 def citation_appears_in_text(citation_text, citation_url, response_text):
     """

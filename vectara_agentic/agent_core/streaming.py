@@ -42,6 +42,35 @@ def get_event_id(event) -> str:
 
     return str(uuid.uuid4())
 
+
+def is_tool_related_event(event) -> bool:
+    """
+    Determine if an event is actually tool-related and should be tracked.
+
+    This should only return True for events that represent actual tool calls or tool outputs,
+    not for streaming text deltas or other LLM response events.
+
+    Args:
+        event: The stream event to check
+
+    Returns:
+        bool: True if this event should be tracked for tool purposes
+    """
+    # Track explicit tool events from LlamaIndex workflow
+    if isinstance(event, (ToolCall, ToolCallResult)):
+        return True
+
+    has_tool_id = getattr(event, "tool_id", None)
+    has_tool_name = getattr(event, "tool_name", None)
+    has_delta = getattr(event, "delta", None)
+
+    # Some providers don't emit ToolCall/ToolCallResult; avoid treating deltas as tool events
+    if (has_tool_id or has_tool_name) and not has_delta:
+        return True
+
+    return False
+
+
 class StreamingResponseAdapter:
     """
     Adapter class that provides a LlamaIndex-compatible streaming response interface.
@@ -89,25 +118,6 @@ class StreamingResponseAdapter:
         Required by the _StreamProto protocol for AgentStreamingResponse compatibility.
         """
         return AgentResponse(response=self.response, metadata=self.metadata)
-
-    def wait_for_completion(self) -> None:
-        """
-        Wait for post-processing to complete and update metadata.
-        This should be called after streaming finishes but before accessing metadata.
-        """
-        if self.post_process_task and not self.post_process_task.done():
-            return
-        if self.post_process_task and self.post_process_task.done():
-            try:
-                final_response = self.post_process_task.result()
-                if hasattr(final_response, "metadata") and final_response.metadata:
-                    # Update our metadata from the completed task
-                    self.metadata.update(final_response.metadata)
-            except Exception as e:
-                logging.error(
-                    f"Error during post-processing: {e}. "
-                    "Ensure the post-processing task is correctly implemented."
-                )
 
 
 def extract_response_text_from_chat_message(response_text: Any) -> str:
@@ -234,9 +244,8 @@ def create_stream_post_processing_task(
     async def _safe_post_process():
         try:
             return await _post_process()
-        except Exception:
-            traceback.print_exc()
-            # Return empty response on error
+        except Exception as e:
+            logging.error(f"Error {e} occurred during post-processing: {traceback.format_exc()}")
             return AgentResponse(response="", metadata={})
 
     return asyncio.create_task(_safe_post_process())
@@ -244,205 +253,208 @@ def create_stream_post_processing_task(
 
 class FunctionCallingStreamHandler:
     """
-    Handles streaming for function calling agents with proper event processing.
+    Streaming handler for function-calling agents with strict "no leaks" gating.
+
+    Core ideas:
+    - Buffer tokens PER LLM STEP.
+    - Commit the buffer ONLY if that step ends with AgentOutput.tool_calls == [].
+    - Drop the buffer if the step triggers tool calls (planning/tool-selection).
+    - Track pending tool results; handle multi-round (tool -> read -> tool -> ...) loops.
+    - Support return_direct tools (tool output is the final answer, no synthesis step).
+    - Optional optimistic streaming with rollback token for nicer UX.
     """
 
-    def __init__(self, agent_instance, handler, prompt: str):
+    def __init__(
+        self,
+        agent_instance,
+        handler,
+        prompt: str,
+        *,
+        stream_policy: str = "final_only",            # "final_only" | "optimistic_live"
+        rollback_token: str = "[[__rollback_current_step__]]",  # UI control signal (optional)
+    ):
         self.agent_instance = agent_instance
-        self.handler = handler
+        self.handler = handler  # awaitable; also has .stream_events()
         self.prompt = prompt
+
+        self.stream_policy = stream_policy
+        self.rollback_token = rollback_token
+
+        # Plumbing for your existing adapter/post-processing
         self.final_response_container = {"resp": None}
         self.stream_complete_event = asyncio.Event()
 
     async def process_stream_events(self) -> AsyncIterator[str]:
         """
-        Process streaming events and yield text tokens.
+        Process streaming events and yield only valid, final tokens.
 
-        Yields:
-            str: Text tokens from the streaming response
+        Contract:
+        - Never surface "planning" tokens (tool arguments, scratchpads, etc).
+        - Only surface tokens produced in the last, post-tool LLM step,
+          or a return_direct tool's output.
         """
-        had_tool_calls = False
-        transitioned_to_prose = False
+        # Step-scoped state
+        step_buffer: list[str] = []
+        step_has_tool_calls = False
+
+        # Run-scoped state
+        pending_tools = 0
+        committed_any_text = False
+
+        def _reset_step():
+            nonlocal step_has_tool_calls
+            step_buffer.clear()
+            step_has_tool_calls = False
 
         async for ev in self.handler.stream_events():
-            # Store tool outputs for VHC regardless of progress callback
+            # ---- 1) Capture tool outputs for downstream logging/telemetry ----
             if isinstance(ev, ToolCallResult):
                 if hasattr(self.agent_instance, "_add_tool_output"):
                     # pylint: disable=W0212
-                    self.agent_instance._add_tool_output(
-                        ev.tool_name, str(ev.tool_output)
-                    )
+                    self.agent_instance._add_tool_output(ev.tool_name, str(ev.tool_output))
 
-            # Handle progress callbacks if available
+                pending_tools = max(0, pending_tools - 1)
+
+                # Return-direct short-circuit: surface tool output as the final answer
+                if getattr(ev, "return_direct", False):
+                    yield str(ev.tool_output)
+                    committed_any_text = True
+                    # Do not early-break; keep draining events safely.
+
+            # ---- 2) Progress callback plumbing (safe and optional) ----
             if self.agent_instance.agent_progress_callback:
-                # Only track events that are actual tool-related events
-                if self._is_tool_related_event(ev):
+                if is_tool_related_event(ev):
                     try:
                         event_id = get_event_id(ev)
                         await self._handle_progress_callback(ev, event_id)
-                    except ValueError as e:
-                        logging.warning(f"Skipping event due to missing ID: {e}")
-                        continue
+                    except Exception as e:
+                        logging.warning(f"[progress-callback] skipping event: {e}")
 
-            # Process streaming text events
+            # ---- 3) Step boundaries & gating logic ----
+            # New step starts: clear per-step state
+            if isinstance(ev, AgentInput):
+                _reset_step()
+                continue
+
+            # Streaming deltas (provisional)
             if hasattr(ev, "__class__") and "AgentStream" in str(ev.__class__):
-                if hasattr(ev, "tool_calls") and ev.tool_calls:
-                    had_tool_calls = True
-                elif (
-                    hasattr(ev, "tool_calls")
-                    and not ev.tool_calls
-                    and had_tool_calls
-                    and not transitioned_to_prose
-                ):
-                    yield "\n\n"
-                    transitioned_to_prose = True
-                    if hasattr(ev, "delta"):
-                        yield ev.delta
-                elif (
-                    hasattr(ev, "tool_calls")
-                    and not ev.tool_calls
-                    and hasattr(ev, "delta")
-                    and transitioned_to_prose
-                ):
-                    yield ev.delta
+                # If the model is constructing a function call, LlamaIndex will attach tool_calls here
+                if getattr(ev, "tool_calls", None):
+                    step_has_tool_calls = True
 
-        # When stream is done, await the handler to get the final response
+                delta = getattr(ev, "delta", None)
+                if not delta:
+                    continue
+
+                # Always buffer first
+                step_buffer.append(delta)
+
+                # Optional "optimistic" UX: show live typing but be ready to roll it back
+                if self.stream_policy == "optimistic_live" and pending_tools == 0 and not step_has_tool_calls:
+                    yield delta
+
+                continue
+
+            # Step end: decide to commit or drop
+            if isinstance(ev, AgentOutput):
+                n_calls = len(getattr(ev, "tool_calls", []) or [])
+
+                if n_calls == 0:
+                    # Final text step -> commit
+                    if self.stream_policy == "final_only":
+                        # We held everything; now stream it out in order.
+                        for chunk in step_buffer:
+                            yield chunk
+                    # In optimistic mode, UI already saw these chunks live.
+
+                    committed_any_text = committed_any_text or bool(step_buffer)
+                    _reset_step()
+
+                else:
+                    # Planning/tool step -> drop buffer
+                    if self.stream_policy == "optimistic_live" and step_buffer:
+                        # Tell the UI to roll back the ephemeral message
+                        # (only if your frontend supports it)
+                        yield self.rollback_token
+
+                    _reset_step()
+                    pending_tools += n_calls
+
+                continue
+
+        # ---- 4) Finish: await the underlying handler for the final result ----
         try:
             self.final_response_container["resp"] = await self.handler
         except Exception as e:
             error_str = str(e).lower()
             if "rate limit" in error_str or "429" in error_str:
-                logging.error(f"[RATE_LIMIT_ERROR] Rate limit exceeded: {e}")
+                logging.error(f"[RATE_LIMIT_ERROR] {e}")
                 self.final_response_container["resp"] = AgentResponse(
                     response="Rate limit exceeded. Please try again later.",
                     source_nodes=[],
                     metadata={"error_type": "rate_limit", "original_error": str(e)},
                 )
             else:
-                logging.error(f"[STREAM_ERROR] Error processing stream events: {e}")
-                logging.error(
-                    f"[STREAM_ERROR] Full traceback: {traceback.format_exc()}"
-                )
+                logging.error(f"[STREAM_ERROR] {e}")
                 self.final_response_container["resp"] = AgentResponse(
                     response="Response completion Error",
                     source_nodes=[],
                     metadata={"error_type": "general", "original_error": str(e)},
                 )
         finally:
-            # Signal that stream processing is complete
+            # If nothing was ever committed and we ended right after a tool,
+            # assume that tool's output is the "final answer" (common with return_direct).
             self.stream_complete_event.set()
 
-    def _is_tool_related_event(self, event) -> bool:
-        """
-        Determine if an event is actually tool-related and should be tracked.
-
-        This should only return True for events that represent actual tool calls or tool outputs,
-        not for streaming text deltas or other LLM response events.
-
-        Args:
-            event: The stream event to check
-
-        Returns:
-            bool: True if this event should be tracked for tool purposes
-        """
-        # Track explicit tool events from LlamaIndex workflow
-        if isinstance(event, (ToolCall, ToolCallResult)):
-            return True
-
-        has_tool_id = hasattr(event, "tool_id") and event.tool_id
-        has_delta = hasattr(event, "delta") and event.delta
-        has_tool_name = hasattr(event, "tool_name") and event.tool_name
-
-        # We're not seeing ToolCall/ToolCallResult events in the stream, so let's be more liberal
-        # but still avoid streaming deltas
-        if (has_tool_id or has_tool_name) and not has_delta:
-            return True
-
-        # Everything else (streaming deltas, agent outputs, workflow events, etc.)
-        # should NOT be tracked as tool events
-        return False
-
     async def _handle_progress_callback(self, event, event_id: str):
-        """Handle progress callback events for different event types with proper context propagation."""
+        """
+        Fan out progress events to the user's callback (sync or async). Mirrors your existing logic.
+        """
+        cb = self.agent_instance.agent_progress_callback
+        is_async = asyncio.iscoroutinefunction(cb)
+
         try:
             if isinstance(event, ToolCall):
-                # Check if callback is async or sync
-                if asyncio.iscoroutinefunction(
-                    self.agent_instance.agent_progress_callback
-                ):
-                    await self.agent_instance.agent_progress_callback(
-                        status_type=AgentStatusType.TOOL_CALL,
-                        msg={
-                            "tool_name": event.tool_name,
-                            "arguments": json.dumps(event.tool_kwargs),
-                        },
-                        event_id=event_id,
-                    )
+                payload = {
+                    "tool_name": event.tool_name,
+                    "arguments": json.dumps(getattr(event, "tool_kwargs", {})),
+                }
+                if is_async:
+                    await cb(status_type=AgentStatusType.TOOL_CALL, msg=payload, event_id=event_id)
                 else:
-                    # For sync callbacks, ensure we call them properly
-                    self.agent_instance.agent_progress_callback(
-                        status_type=AgentStatusType.TOOL_CALL,
-                        msg={
-                            "tool_name": event.tool_name,
-                            "arguments": json.dumps(event.tool_kwargs),
-                        },
-                        event_id=event_id,
-                    )
+                    cb(status_type=AgentStatusType.TOOL_CALL, msg=payload, event_id=event_id)
 
             elif isinstance(event, ToolCallResult):
-                # Check if callback is async or sync
-                if asyncio.iscoroutinefunction(
-                    self.agent_instance.agent_progress_callback
-                ):
-                    await self.agent_instance.agent_progress_callback(
-                        status_type=AgentStatusType.TOOL_OUTPUT,
-                        msg={
-                            "tool_name": event.tool_name,
-                            "content": str(event.tool_output),
-                        },
-                        event_id=event_id,
-                    )
+                payload = {
+                    "tool_name": event.tool_name,
+                    "content": str(event.tool_output),
+                }
+                if is_async:
+                    await cb(status_type=AgentStatusType.TOOL_OUTPUT, msg=payload, event_id=event_id)
                 else:
-                    self.agent_instance.agent_progress_callback(
-                        status_type=AgentStatusType.TOOL_OUTPUT,
-                        msg={
-                            "tool_name": event.tool_name,
-                            "content": str(event.tool_output),
-                        },
-                        event_id=event_id,
-                    )
+                    cb(status_type=AgentStatusType.TOOL_OUTPUT, msg=payload, event_id=event_id)
 
             elif isinstance(event, AgentInput):
-                self.agent_instance.agent_progress_callback(
-                    status_type=AgentStatusType.AGENT_UPDATE,
-                    msg={"content": f"Agent input: {event.input}"},
-                    event_id=event_id,
-                )
+                payload = {"content": f"Agent input: {getattr(event, 'input', '')}"}
+                if is_async:
+                    await cb(status_type=AgentStatusType.AGENT_UPDATE, msg=payload, event_id=event_id)
+                else:
+                    cb(status_type=AgentStatusType.AGENT_UPDATE, msg=payload, event_id=event_id)
 
             elif isinstance(event, AgentOutput):
-                self.agent_instance.agent_progress_callback(
-                    status_type=AgentStatusType.AGENT_UPDATE,
-                    msg={"content": f"Agent output: {event.response}"},
-                    event_id=event_id,
-                )
+                payload = {"content": f"Agent output: {getattr(event, 'response', '')}"}
+                if is_async:
+                    await cb(status_type=AgentStatusType.AGENT_UPDATE, msg=payload, event_id=event_id)
+                else:
+                    cb(status_type=AgentStatusType.AGENT_UPDATE, msg=payload, event_id=event_id)
 
         except Exception as e:
+            logging.error(f"[progress-callback] Exception: {e}")
+            logging.error(traceback.format_exc())
 
-            logging.error(f"Exception in progress callback: {e}")
-            logging.error(f"Traceback: {traceback.format_exc()}")
-            # Continue execution despite callback errors
-
-    def create_streaming_response(
-        self, user_metadata: Dict[str, Any]
-    ) -> "StreamingResponseAdapter":
+    def create_streaming_response(self, user_metadata: Dict[str, Any]) -> "StreamingResponseAdapter":
         """
-        Create a StreamingResponseAdapter with proper post-processing.
-
-        Args:
-            user_metadata: User metadata dictionary to update
-
-        Returns:
-            StreamingResponseAdapter: Configured streaming adapter
+        Build the adapter with post-processing wired in.
         """
         post_process_task = create_stream_post_processing_task(
             self.stream_complete_event,
@@ -454,8 +466,8 @@ class FunctionCallingStreamHandler:
 
         return StreamingResponseAdapter(
             async_response_gen=self.process_stream_events,
-            response="",  # will be filled post-stream
-            metadata={},
+            response="",      # will be set by post-processing
+            metadata={},      # will be set by post-processing
             post_process_task=post_process_task,
         )
 
@@ -493,7 +505,7 @@ class ReActStreamHandler:
             # Handle progress callbacks if available - this is the key missing piece!
             if self.agent_instance.agent_progress_callback:
                 # Only track events that are actual tool-related events
-                if self._is_tool_related_event(event):
+                if is_tool_related_event(event):
                     try:
                         # Get event ID from LlamaIndex event
                         event_id = get_event_id(event)
@@ -602,36 +614,6 @@ class ReActStreamHandler:
         finally:
             # Signal that stream processing is complete
             self.stream_complete_event.set()
-
-    def _is_tool_related_event(self, event) -> bool:
-        """
-        Determine if an event is actually tool-related and should be tracked.
-
-        This should only return True for events that represent actual tool calls or tool outputs,
-        not for streaming text deltas or other LLM response events.
-
-        Args:
-            event: The stream event to check
-
-        Returns:
-            bool: True if this event should be tracked for tool purposes
-        """
-        # Track explicit tool events from LlamaIndex workflow
-        if isinstance(event, (ToolCall, ToolCallResult)):
-            return True
-
-        has_tool_id = hasattr(event, "tool_id") and event.tool_id
-        has_delta = hasattr(event, "delta") and event.delta
-        has_tool_name = hasattr(event, "tool_name") and event.tool_name
-
-        # We're not seeing ToolCall/ToolCallResult events in the stream, so let's be more liberal
-        # but still avoid streaming deltas
-        if (has_tool_id or has_tool_name) and not has_delta:
-            return True
-
-        # Everything else (streaming deltas, agent outputs, workflow events, etc.)
-        # should NOT be tracked as tool events
-        return False
 
     def create_streaming_response(
         self, user_metadata: Dict[str, Any]

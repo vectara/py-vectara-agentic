@@ -72,7 +72,7 @@ class SubQuestionQueryWorkflow(Workflow):
             raise ValueError(f"Expected inputs to be of type {self.InputsModel}")
 
         query = ev.inputs.query
-        await ctx.set("original_query", query)
+        await ctx.store.set("original_query", query)
 
         required_attrs = ["agent", "llm", "tools"]
         for attr in required_attrs:
@@ -81,15 +81,15 @@ class SubQuestionQueryWorkflow(Workflow):
                     f"{attr.capitalize()} not provided to workflow Start Event."
                 )
 
-        await ctx.set("agent", ev.agent)
-        await ctx.set("llm", ev.llm)
-        await ctx.set("tools", ev.tools)
-        await ctx.set("verbose", getattr(ev, "verbose", False))
+        await ctx.store.set("agent", ev.agent)
+        await ctx.store.set("llm", ev.llm)
+        await ctx.store.set("tools", ev.tools)
+        await ctx.store.set("verbose", getattr(ev, "verbose", False))
 
         chat_history = [str(msg) for msg in ev.agent.memory.get()]
 
-        llm = await ctx.get("llm")
-        original_query = await ctx.get("original_query")
+        llm = await ctx.store.get("llm")
+        original_query = await ctx.store.get("original_query")
         response = llm.complete(
             f"""
             Given a user question, and a list of tools, output a list of
@@ -140,7 +140,7 @@ class SubQuestionQueryWorkflow(Workflow):
             # We use the original query as a single question fallback
             sub_questions = [original_query]
 
-        await ctx.set("sub_question_count", len(sub_questions))
+        await ctx.store.set("sub_question_count", len(sub_questions))
         for question in sub_questions:
             ctx.send_event(self.QueryEvent(question=question))
 
@@ -151,13 +151,13 @@ class SubQuestionQueryWorkflow(Workflow):
         """
         Given a sub-question, return the answer to the sub-question, using the agent.
         """
-        if await ctx.get("verbose"):
+        if await ctx.store.get("verbose"):
             logging.info(f"Sub-question is {ev.question}")
-        agent = await ctx.get("agent")
+        agent = await ctx.store.get("agent")
         question = ev.question
         response = await agent.achat(question)
         answer = str(response)
-        await ctx.set("qna", await ctx.get("qna", []) + [(question, answer)])
+        await ctx.store.set("qna", await ctx.store.get("qna", []) + [(question, answer)])
         return self.AnswerEvent(question=question, answer=answer)
 
     @step
@@ -166,7 +166,7 @@ class SubQuestionQueryWorkflow(Workflow):
         Given a list of answers to sub-questions, combine them into a single answer.
         """
         ready = ctx.collect_events(
-            ev, [self.AnswerEvent] * await ctx.get("sub_question_count")
+            ev, [self.AnswerEvent] * await ctx.store.get("sub_question_count")
         )
         if ready is None:
             return None
@@ -180,18 +180,18 @@ class SubQuestionQueryWorkflow(Workflow):
             each of which has been answered. Combine the answers to all the sub-questions
             into a single answer to the original question.
 
-            Original question: {await ctx.get('original_query')}
+            Original question: {await ctx.store.get('original_query')}
 
             Sub-questions and answers:
             {answers}
         """
-        if await ctx.get("verbose"):
+        if await ctx.store.get("verbose"):
             logging.info(f"Final prompt is {prompt}")
 
-        llm = await ctx.get("llm")
+        llm = await ctx.store.get("llm")
         response = llm.complete(prompt)
 
-        if await ctx.get("verbose"):
+        if await ctx.store.get("verbose"):
             logging.info(f"Final response is {response}")
         return StopEvent(result=self.OutputsModel(response=str(response)))
 
@@ -246,33 +246,33 @@ class SequentialSubQuestionsWorkflow(Workflow):
             raise ValueError(f"Expected inputs to be of type {self.InputsModel}")
         if hasattr(ev, "inputs"):
             query = ev.inputs.query
-            await ctx.set("original_query", query)
+            await ctx.store.set("original_query", query)
 
         if hasattr(ev, "agent"):
-            await ctx.set("agent", ev.agent)
+            await ctx.store.set("agent", ev.agent)
         else:
             raise ValueError("Agent not provided to workflow Start Event.")
         chat_history = [str(msg) for msg in ev.agent.memory.get()]
 
         if hasattr(ev, "llm"):
-            await ctx.set("llm", ev.llm)
+            await ctx.store.set("llm", ev.llm)
         else:
             raise ValueError("LLM not provided to workflow Start Event.")
 
         if hasattr(ev, "tools"):
-            await ctx.set("tools", ev.tools)
+            await ctx.store.set("tools", ev.tools)
         else:
             raise ValueError("Tools not provided to workflow Start Event.")
 
         if hasattr(ev, "verbose"):
-            await ctx.set("verbose", ev.verbose)
+            await ctx.store.set("verbose", ev.verbose)
         else:
-            await ctx.set("verbose", False)
+            await ctx.store.set("verbose", False)
 
-        original_query = await ctx.get("original_query")
+        original_query = await ctx.store.get("original_query")
         if ev.verbose:
             logging.info(f"Query is {original_query}")
-        llm = await ctx.get("llm")
+        llm = await ctx.store.get("llm")
         response = llm.complete(
             f"""
             Given a user question, and a list of tools, output a list of
@@ -320,8 +320,8 @@ class SequentialSubQuestionsWorkflow(Workflow):
 
         sub_questions = response_obj.get("sub_questions")
 
-        await ctx.set("sub_questions", sub_questions)
-        if await ctx.get("verbose"):
+        await ctx.store.set("sub_questions", sub_questions)
+        if await ctx.store.get("verbose"):
             logging.info(f"Sub-questions are {sub_questions}")
 
         return self.QueryEvent(question=sub_questions[0], prev_answer="", num=0)
@@ -333,10 +333,10 @@ class SequentialSubQuestionsWorkflow(Workflow):
         """
         Given a sub-question, return the answer to the sub-question, using the agent.
         """
-        if await ctx.get("verbose"):
+        if await ctx.store.get("verbose"):
             logging.info(f"Sub-question is {ev.question}")
-        agent = await ctx.get("agent")
-        sub_questions = await ctx.get("sub_questions")
+        agent = await ctx.store.get("agent")
+        sub_questions = await ctx.store.get("sub_questions")
         question = ev.question
         if ev.prev_answer:
             prev_question = sub_questions[ev.num - 1]
@@ -348,11 +348,11 @@ class SequentialSubQuestionsWorkflow(Workflow):
         else:
             response = await agent.achat(question)
         answer = response.response
-        if await ctx.get("verbose"):
+        if await ctx.store.get("verbose"):
             logging.info(f"Answer is {answer}")
 
         if ev.num + 1 < len(sub_questions):
-            await ctx.set("qna", await ctx.get("qna", []) + [(question, answer)])
+            await ctx.store.set("qna", await ctx.store.get("qna", []) + [(question, answer)])
             return self.QueryEvent(
                 question=sub_questions[ev.num + 1],
                 prev_answer=answer,
