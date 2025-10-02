@@ -43,7 +43,7 @@ from .types import (
     AgentConfigType,
 )
 from .llm_utils import get_llm
-from .agent_core.prompts import GENERAL_INSTRUCTIONS
+from .agent_core.prompts import get_general_instructions
 from ._callback import AgentCallbackHandler
 from ._observability import setup_observer
 from .tools import ToolsFactory
@@ -85,7 +85,7 @@ class Agent:
         tools: List["FunctionTool"],
         topic: str = "general",
         custom_instructions: str = "",
-        general_instructions: str = GENERAL_INSTRUCTIONS,
+        general_instructions: Optional[str] = None,
         verbose: bool = False,
         agent_progress_callback: Optional[
             Callable[[AgentStatusType, dict, str], None]
@@ -137,7 +137,10 @@ class Agent:
         self.agent_type = self.agent_config.agent_type
         self._llm = None  # Lazy loading
         self._custom_instructions = custom_instructions
-        self._general_instructions = general_instructions
+        self._general_instructions = (
+            general_instructions if general_instructions is not None
+            else get_general_instructions(tools)
+        )
         self._topic = topic
         self.agent_progress_callback = agent_progress_callback
 
@@ -380,7 +383,7 @@ class Agent:
         tool_name: str,
         data_description: str,
         assistant_specialty: str,
-        general_instructions: str = GENERAL_INSTRUCTIONS,
+        general_instructions: Optional[str] = None,
         vectara_corpus_key: str = str(os.environ.get("VECTARA_CORPUS_KEY", "")),
         vectara_api_key: str = str(os.environ.get("VECTARA_API_KEY", "")),
         agent_progress_callback: Optional[
