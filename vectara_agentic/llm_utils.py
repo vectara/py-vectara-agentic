@@ -18,7 +18,7 @@ from .agent_config import AgentConfig
 
 provider_to_default_model_name = {
     ModelProvider.OPENAI: "gpt-4.1-mini",
-    ModelProvider.ANTHROPIC: "claude-sonnet-4-0",
+    ModelProvider.ANTHROPIC: "claude-sonnet-4-5",
     ModelProvider.TOGETHER: "deepseek-ai/DeepSeek-V3",
     ModelProvider.GROQ: "openai/gpt-oss-20b",
     ModelProvider.BEDROCK: "us.anthropic.claude-sonnet-4-20250514-v1:0",
@@ -34,6 +34,7 @@ models_to_max_tokens = {
     "gpt-4.1-mini": 32768,
     "claude-sonnet-4-20250514": 64000,
     "claude-sonnet-4-0": 64000,
+    "claude-sonnet-4-5": 64000,
     "deepseek-ai/deepseek-v3": 8192,
     "models/gemini-2.5-flash": 65536,
     "models/gemini-2.5-flash-lite": 65536,

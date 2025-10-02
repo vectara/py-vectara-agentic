@@ -106,9 +106,9 @@ class TestGROQ(unittest.IsolatedAsyncioTestCase):
                 "then rephrase that summary as a 10-year-old would explain it."
             )
 
-            print("\n🔍 Starting GPT-OSS-120B multi-tool chain test (GROQ)")
-            print(f"📝 Query: {complex_query}")
-            print("🌊 Streaming response:\n" + "="*50)
+            print("\nStarting GPT-OSS-120B multi-tool chain test (GROQ)")
+            print(f"Query: {complex_query}")
+            print("Streaming response:\n" + "="*50)
 
             stream = await agent.astream_chat(complex_query)
 
@@ -128,27 +128,27 @@ class TestGROQ(unittest.IsolatedAsyncioTestCase):
                     if "mult" in chunk.lower():
                         if "mult" not in [call["tool"] for call in tool_calls_made]:
                             tool_calls_made.append({"tool": "mult", "order": len(tool_calls_made) + 1})
-                            print(f"🔧 Tool call detected: mult (#{len(tool_calls_made)})")
+                            print(f"Tool call detected: mult (#{len(tool_calls_made)})")
                     if "add" in chunk.lower():
                         if "add" not in [call["tool"] for call in tool_calls_made]:
                             tool_calls_made.append({"tool": "add", "order": len(tool_calls_made) + 1})
-                            print(f"🔧 Tool call detected: add (#{len(tool_calls_made)})")
+                            print(f"Tool call detected: add (#{len(tool_calls_made)})")
                     if "summarize" in chunk.lower():
                         if "summarize_text" not in [call["tool"] for call in tool_calls_made]:
                             tool_calls_made.append({"tool": "summarize_text", "order": len(tool_calls_made) + 1})
-                            print(f"🔧 Tool call detected: summarize_text (#{len(tool_calls_made)})")
+                            print(f"Tool call detected: summarize_text (#{len(tool_calls_made)})")
                     if "rephrase" in chunk.lower():
                         if "rephrase_text" not in [call["tool"] for call in tool_calls_made]:
                             tool_calls_made.append({"tool": "rephrase_text", "order": len(tool_calls_made) + 1})
-                            print(f"🔧 Tool call detected: rephrase_text (#{len(tool_calls_made)})")
+                            print(f"Tool call detected: rephrase_text (#{len(tool_calls_made)})")
 
             response = await stream.aget_response()
 
             print("="*50)
-            print(f"✅ Streaming completed. Total deltas: {len(streaming_deltas)}")
-            print(f"🔧 Tool calls made: {[call['tool'] for call in tool_calls_made]}")
+            print(f"Streaming completed. Total deltas: {len(streaming_deltas)}")
+            print(f"Tool calls made: {[call['tool'] for call in tool_calls_made]}")
             print(f"📄 Final response length: {len(response.response)} chars")
-            print(f"🎯 Final response: {response.response}")
+            print(f"Final response: {response.response}")
 
             # Validate tool usage sequence
             tools_used = [call["tool"] for call in tool_calls_made]
@@ -164,7 +164,7 @@ class TestGROQ(unittest.IsolatedAsyncioTestCase):
                                      if result in all_text)
 
             print(f"🔢 Mathematical results found: {math_results_found}/3 expected")
-            print(f"🔍 Full text searched: {all_text[:200]}...")
+            print(f"Full text searched: {all_text[:200]}...")
 
             # More lenient assertion - just check that some mathematical progress was made
             self.assertGreaterEqual(math_results_found, 1,
@@ -213,9 +213,9 @@ class TestGROQ(unittest.IsolatedAsyncioTestCase):
                 "then rephrase that summary as a 10-year-old would explain it."
             )
 
-            print("\n🔍 Starting GPT-OSS-20B multi-tool chain test (GROQ)")
-            print(f"📝 Query: {complex_query}")
-            print("🌊 Streaming response:\n" + "="*50)
+            print("\nStarting GPT-OSS-20B multi-tool chain test (GROQ)")
+            print(f"Query: {complex_query}")
+            print("Streaming response:\n" + "="*50)
 
             stream = await agent.astream_chat(complex_query)
 
@@ -235,27 +235,27 @@ class TestGROQ(unittest.IsolatedAsyncioTestCase):
                     if "mult" in chunk.lower():
                         if "mult" not in [call["tool"] for call in tool_calls_made]:
                             tool_calls_made.append({"tool": "mult", "order": len(tool_calls_made) + 1})
-                            print(f"🔧 Tool call detected: mult (#{len(tool_calls_made)})")
+                            print(f"Tool call detected: mult (#{len(tool_calls_made)})")
                     if "add" in chunk.lower():
                         if "add" not in [call["tool"] for call in tool_calls_made]:
                             tool_calls_made.append({"tool": "add", "order": len(tool_calls_made) + 1})
-                            print(f"🔧 Tool call detected: add (#{len(tool_calls_made)})")
+                            print(f"Tool call detected: add (#{len(tool_calls_made)})")
                     if "summarize" in chunk.lower():
                         if "summarize_text" not in [call["tool"] for call in tool_calls_made]:
                             tool_calls_made.append({"tool": "summarize_text", "order": len(tool_calls_made) + 1})
-                            print(f"🔧 Tool call detected: summarize_text (#{len(tool_calls_made)})")
+                            print(f"Tool call detected: summarize_text (#{len(tool_calls_made)})")
                     if "rephrase" in chunk.lower():
                         if "rephrase_text" not in [call["tool"] for call in tool_calls_made]:
                             tool_calls_made.append({"tool": "rephrase_text", "order": len(tool_calls_made) + 1})
-                            print(f"🔧 Tool call detected: rephrase_text (#{len(tool_calls_made)})")
+                            print(f"Tool call detected: rephrase_text (#{len(tool_calls_made)})")
 
             response = await stream.aget_response()
 
             print("="*50)
-            print(f"✅ Streaming completed. Total deltas: {len(streaming_deltas)}")
-            print(f"🔧 Tool calls made: {[call['tool'] for call in tool_calls_made]}")
+            print(f"Streaming completed. Total deltas: {len(streaming_deltas)}")
+            print(f"Tool calls made: {[call['tool'] for call in tool_calls_made]}")
             print(f"📄 Final response length: {len(response.response)} chars")
-            print(f"🎯 Final response: {response.response}")
+            print(f"Final response: {response.response}")
 
             # Validate tool usage sequence
             tools_used = [call["tool"] for call in tool_calls_made]
@@ -272,7 +272,7 @@ class TestGROQ(unittest.IsolatedAsyncioTestCase):
                                      if result in all_text)
 
             print(f"🔢 Mathematical results found: {math_results_found}/3 expected")
-            print(f"🔍 Full text searched: {all_text[:200]}...")
+            print(f"Full text searched: {all_text[:200]}...")
 
             # More lenient assertion - just check that some mathematical progress was made
             self.assertGreaterEqual(math_results_found, 1,

@@ -82,13 +82,13 @@ class TestGEMINI(unittest.TestCase):
             "then rephrase that summary as a 10-year-old would explain it."
         )
 
-        print("\n🔍 Starting Gemini 2.5 Flash multi-tool chain test")
-        print(f"📝 Query: {complex_query}")
+        print("\nStarting Gemini 2.5 Flash multi-tool chain test")
+        print(f"Query: {complex_query}")
 
         # Note: Gemini tests use synchronous chat, not async streaming
         response = agent.chat(complex_query)
 
-        print(f"🎯 Final response: {response.response}")
+        print(f"Final response: {response.response}")
         print(f"📄 Final response length: {len(response.response)} chars")
 
         # Check for mathematical results in the response
@@ -98,8 +98,8 @@ class TestGEMINI(unittest.TestCase):
         math_results_found = sum(1 for result in expected_intermediate_results
                                  if result in response_text)
 
-        print(f"🔢 Mathematical results found: {math_results_found}/3 expected")
-        print(f"🔍 Response text searched: {response_text[:200]}...")
+        print(f"Mathematical results found: {math_results_found}/3 expected")
+        print(f"Response text searched: {response_text[:200]}...")
 
         # More lenient assertion - just check that some mathematical progress was made
         self.assertGreaterEqual(math_results_found, 1,

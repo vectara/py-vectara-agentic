@@ -83,7 +83,7 @@ class TestAgentPackage(unittest.TestCase):
             config = AgentConfig(
                 agent_type=AgentType.REACT,
                 main_llm_provider=ModelProvider.ANTHROPIC,
-                main_llm_model_name="claude-sonnet-4-20250514",
+                main_llm_model_name="claude-sonnet-4-5",
                 tool_llm_provider=ModelProvider.TOGETHER,
                 tool_llm_model_name="moonshotai/Kimi-K2-Instruct",
                 observer=ObserverType.ARIZE_PHOENIX,

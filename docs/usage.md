@@ -539,7 +539,7 @@ explicitly specify the configuration of your agent, including the following:
 
 - `agent_type`: the agent type. Valid values are `FUNCTION_CALLING` or `REACT` (default: `FUNCTION_CALLING`).
 - `main_llm_provider` and `tool_llm_provider`: the LLM provider for main agent and for the tools. Valid values are `OPENAI`, `ANTHROPIC`, `TOGETHER`, `GROQ`, `COHERE`, `BEDROCK`, `GEMINI`, `PRIVATE` (default: `OPENAI`).
-- `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider: OpenAI uses gpt-4.1-mini, Anthropic uses claude-sonnet-4-0, Gemini uses models/gemini-2.5-flash, Together.AI uses deepseek-ai/DeepSeek-V3, GROQ uses openai/gpt-oss-20b, Bedrock uses us.anthropic.claude-sonnet-4-20250514-v1:0, Cohere uses command-a-03-2025).
+- `main_llm_model_name` and `tool_llm_model_name`: agent model name for agent and tools (default depends on provider: OpenAI uses gpt-4.1-mini, Anthropic uses claude-sonnet-4-5, Gemini uses models/gemini-2.5-flash, Together.AI uses deepseek-ai/DeepSeek-V3, GROQ uses openai/gpt-oss-20b, Bedrock uses us.anthropic.claude-sonnet-4-20250514-v1:0, Cohere uses command-a-03-2025).
 - `observer`: the observer type; should be `ARIZE_PHOENIX` or if undefined no observation framework will be used.
 - `endpoint_api_key`: a secret key if using the API endpoint option (defaults to `dev-api-key`)
 
