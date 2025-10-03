@@ -118,6 +118,38 @@ def _get_llm_params_for_role(
     return model_provider, model_name
 
 
+def _cleanup_gemini_clients() -> None:
+    """Helper function to cleanup Gemini client sessions."""
+    for llm in _llm_cache.values():
+        try:
+            # Check if this is a GoogleGenAI instance with internal client structure
+            if not hasattr(llm, '_client'):
+                continue
+
+            client = getattr(llm, '_client', None)
+            if not client:
+                continue
+
+            api_client = getattr(client, '_api_client', None)
+            if not api_client:
+                continue
+
+            async_session = getattr(api_client, '_async_session', None)
+            if not async_session:
+                continue
+
+            # Close the aiohttp session if it exists
+            try:
+                import asyncio
+                loop = asyncio.get_event_loop()
+                if not loop.is_closed():
+                    loop.run_until_complete(async_session.close())
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+
 def clear_llm_cache(provider: Optional[ModelProvider] = None) -> None:
     """
     Clear the LLM cache, optionally for a specific provider only.
@@ -126,25 +158,8 @@ def clear_llm_cache(provider: Optional[ModelProvider] = None) -> None:
         provider: If specified, only clear cache entries for this provider.
                  If None, clear the entire cache.
     """
-    global _llm_cache
-
     # Before clearing, try to cleanup any Gemini clients
-    for llm in _llm_cache.values():
-        try:
-            # Check if this is a GoogleGenAI instance
-            if hasattr(llm, '_client') and hasattr(llm._client, '_api_client'):
-                api_client = llm._client._api_client
-                # Close the aiohttp session if it exists
-                if hasattr(api_client, '_async_session') and api_client._async_session:
-                    try:
-                        import asyncio
-                        loop = asyncio.get_event_loop()
-                        if not loop.is_closed():
-                            loop.run_until_complete(api_client._async_session.close())
-                    except Exception:
-                        pass
-        except Exception:
-            pass
+    _cleanup_gemini_clients()
 
     if provider is None:
         # Clear entire cache

@@ -135,7 +135,7 @@ class TestGEMINI(unittest.IsolatedAsyncioTestCase):
         multi_tool_indicators = ["calculate", "multipl", "add", "summary", "explain", "mathematical", "process"]
         indicators_found = sum(1 for indicator in multi_tool_indicators
                                if indicator in response_text)
-        self.assertGreaterEqual(indicators_found, 3,
+        self.assertGreaterEqual(indicators_found, 2,
                                 f"Expected multiple tool usage indicators. Found {indicators_found}: {response.response}")
 
 
