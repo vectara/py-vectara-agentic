@@ -17,16 +17,41 @@ def is_float(value: str) -> bool:
         return False
 
 
-def remove_self_from_signature(func):
-    """Decorator to remove 'self' from a method's signature for introspection."""
-    sig = signature(func)
-    params = list(sig.parameters.values())
-    # Remove the first parameter if it is named 'self'
-    if params and params[0].name == "self":
-        params = params[1:]
-    new_sig = sig.replace(parameters=params)
-    func.__signature__ = new_sig
-    return func
+class remove_self_from_signature:  # pylint: disable=invalid-name
+    """Descriptor that hides 'self' on the class attribute, but leaves bound methods alone.
+
+    This solves the issue where modifying __signature__ on methods causes problems
+    with Python's bound method creation. Instead, we use a descriptor that:
+    - Returns a wrapper with 'self' removed when accessed on the class (for tool creation)
+    - Returns a normal bound method when accessed on instances (for normal method calls)
+    """
+    def __init__(self, func):
+        import functools
+        functools.update_wrapper(self, func)
+        self.func = func
+        sig = signature(func)
+        params = list(sig.parameters.values())
+        # Remove the first parameter if it is named 'self'
+        if params and params[0].name == "self":
+            params = params[1:]
+        self._unbound_sig = sig.replace(parameters=params)
+
+    def __get__(self, obj, objtype=None):
+        import functools
+        import types
+        if obj is None:
+            # Accessed on the class: provide a function-like object with 'self' removed.
+            @functools.wraps(self.func)
+            def wrapper(*args, **kwargs):
+                return self.func(*args, **kwargs)
+            wrapper.__signature__ = self._unbound_sig
+            return wrapper
+        # Accessed on an instance: return the original bound method so inspect removes 'self' exactly once.
+        return types.MethodType(self.func, obj)
+
+    # Allow direct calls via the descriptor if someone invokes it off the class attribute.
+    def __call__(self, *args, **kwargs):
+        return self.func(*args, **kwargs)
 
 
 async def summarize_vectara_document(

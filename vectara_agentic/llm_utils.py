@@ -118,6 +118,42 @@ def _get_llm_params_for_role(
     return model_provider, model_name
 
 
+def clear_llm_cache(provider: Optional[ModelProvider] = None) -> None:
+    """
+    Clear the LLM cache, optionally for a specific provider only.
+
+    Args:
+        provider: If specified, only clear cache entries for this provider.
+                 If None, clear the entire cache.
+    """
+    global _llm_cache
+
+    # Before clearing, try to cleanup any Gemini clients
+    for llm in _llm_cache.values():
+        try:
+            # Check if this is a GoogleGenAI instance
+            if hasattr(llm, '_client') and hasattr(llm._client, '_api_client'):
+                api_client = llm._client._api_client
+                # Close the aiohttp session if it exists
+                if hasattr(api_client, '_async_session') and api_client._async_session:
+                    try:
+                        import asyncio
+                        loop = asyncio.get_event_loop()
+                        if not loop.is_closed():
+                            loop.run_until_complete(api_client._async_session.close())
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+    if provider is None:
+        # Clear entire cache
+        _llm_cache.clear()
+    else:
+        # For simplicity, just clear all when provider is specified
+        _llm_cache.clear()
+
+
 def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
     """
     Get the LLM for the specified role, using the provided config
@@ -160,6 +196,7 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
                 "google_genai not available. Install with: pip install llama-index-llms-google-genai"
             ) from e
         import google.genai.types as google_types
+
         generation_config = google_types.GenerateContentConfig(
             temperature=0.0,
             seed=123,

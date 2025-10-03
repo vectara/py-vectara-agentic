@@ -4,15 +4,18 @@ import warnings
 warnings.simplefilter("ignore", DeprecationWarning)
 
 import unittest
+import asyncio
+import gc
 
 from vectara_agentic.agent import Agent
 from vectara_agentic.tools import ToolsFactory
+from vectara_agentic.llm_utils import clear_llm_cache
 
 import nest_asyncio
 
 nest_asyncio.apply()
 
-from conftest import (
+from tests.conftest import (
     AgentTestMixin,
     react_config_openai,
     react_config_anthropic,
@@ -28,9 +31,20 @@ class TestReActStreaming(unittest.IsolatedAsyncioTestCase, AgentTestMixin):
     """Test streaming functionality for ReAct agents across all providers."""
 
     def setUp(self):
+        super().setUp()
         self.tools = [ToolsFactory().create_tool(mult)]
         self.topic = STANDARD_TEST_TOPIC
         self.instructions = STANDARD_TEST_INSTRUCTIONS
+        # Clear any cached LLM instances before each test
+        clear_llm_cache()
+        gc.collect()
+
+    def tearDown(self):
+        """Clean up after each test."""
+        super().tearDown()
+        # Clear cached LLM instances after each test
+        clear_llm_cache()
+        gc.collect()
 
     async def _test_react_streaming_workflow(self, config, provider_name):
         """Common workflow for testing ReAct streaming with any provider."""
@@ -92,7 +106,17 @@ class TestReActStreaming(unittest.IsolatedAsyncioTestCase, AgentTestMixin):
 
     async def test_gemini_react_streaming(self):
         """Test ReAct agent streaming with Gemini."""
-        await self._test_react_streaming_workflow(react_config_gemini, "Gemini")
+        # Extra cleanup for Gemini before starting
+        clear_llm_cache()
+        gc.collect()
+        await asyncio.sleep(0.1)  # Give a moment for cleanup
+
+        try:
+            await self._test_react_streaming_workflow(react_config_gemini, "Gemini")
+        finally:
+            # Extra cleanup for Gemini after test
+            clear_llm_cache()
+            gc.collect()
 
     async def test_together_react_streaming(self):
         """Test ReAct agent streaming with Together.AI."""

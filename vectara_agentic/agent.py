@@ -831,8 +831,9 @@ class Agent:
                         user_msg=prompt, memory=self.memory, ctx=ctx
                     )
 
-                    # Use the dedicated FunctionCallingStreamHandler
-                    stream_handler = FunctionCallingStreamHandler(self, handler, prompt)
+                    stream_handler = FunctionCallingStreamHandler(
+                        self, handler, prompt, stream_policy="optimistic_live"
+                    )
                     streaming_adapter = stream_handler.create_streaming_response(
                         user_meta
                     )
