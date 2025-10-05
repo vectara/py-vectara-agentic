@@ -857,9 +857,9 @@ class ModelBenchmark:
                         provider, model_name, test_name, test_config
                     )
                 except Exception as e:
-                    print(f"Error in{model_name} - {test_name}: {e}")
+                    print(f"Error in {model_name} - {test_name}: {e}")
 
-            print(f"Completed:{provider.value} - {model_name}")
+            print(f"Completed: {provider.value} - {model_name}")
 
     async def _run_scenario_benchmark(
         self,
