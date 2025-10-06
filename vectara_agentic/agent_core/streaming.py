@@ -272,7 +272,7 @@ class FunctionCallingStreamHandler:
         handler,
         prompt: str,
         *,
-        stream_policy: str = "final_only",            # "final_only" | "optimistic_live"
+        stream_policy: str = "optimistic_live",            # "final_only" | "optimistic_live"
     ):
         self.agent_instance = agent_instance
         self.handler = handler  # awaitable; also has .stream_events()
