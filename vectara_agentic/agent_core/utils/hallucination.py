@@ -1,10 +1,39 @@
 """Vectara Hallucination Detection and Correction client."""
 
 import logging
+import re
 from typing import List, Optional, Tuple
 import requests
 
 from llama_index.core.llms import MessageRole
+
+
+# Compiled regex patterns for better performance
+_MARKDOWN_LINK_PATTERN = re.compile(r'\[([^\]]*)\]\([^)]*\)')
+_WHITESPACE_CLEANUP_PATTERN = re.compile(r'\s+')
+
+
+def clean_urls_from_text(text: str) -> str:
+    """
+    Remove markdown URLs [text](URL) from text, preserving the link text.
+    This prevents interference with hallucination detection while keeping useful text content.
+
+    Args:
+        text (str): The input text potentially containing markdown URLs
+
+    Returns:
+        str: Text with markdown URLs replaced by their text content
+    """
+    if not text:
+        return text
+
+    # Replace markdown links [text](url) with just the text part
+    cleaned_text = _MARKDOWN_LINK_PATTERN.sub(r'\1', text)
+
+    # Clean up any extra whitespace that might result from the replacement
+    cleaned_text = _WHITESPACE_CLEANUP_PATTERN.sub(' ', cleaned_text).strip()
+
+    return cleaned_text
 
 
 class Hallucination:
@@ -143,9 +172,12 @@ def analyze_hallucinations(
         return None, []
 
     try:
+        # Clean URLs from agent response to prevent interference with hallucination detection
+        cleaned_agent_response = clean_urls_from_text(agent_response)
+
         h = Hallucination(vectara_api_key)
         corrected_text, corrections = h.compute(
-            query=query, context=context, hypothesis=agent_response
+            query=query, context=context, hypothesis=cleaned_agent_response
         )
         return corrected_text, corrections
 

@@ -141,7 +141,7 @@ def deserialize_tools(tool_data_list: List[Dict[str, Any]]) -> List[FunctionTool
                 fn = pickle.loads(tool_data["fn"].encode("latin-1"))
         except Exception as e:
             logging.warning(
-                f"⚠️ [TOOL_DESERIALIZE] Failed to deserialize fn for tool '{tool_data['name']}': {e}"
+                f"[TOOL_DESERIALIZE] Failed to deserialize fn for tool '{tool_data['name']}': {e}"
             )
 
         try:
@@ -149,7 +149,7 @@ def deserialize_tools(tool_data_list: List[Dict[str, Any]]) -> List[FunctionTool
                 async_fn = pickle.loads(tool_data["async_fn"].encode("latin-1"))
         except Exception as e:
             logging.warning(
-                f"⚠️ [TOOL_DESERIALIZE] Failed to deserialize async_fn for tool '{tool_data['name']}': {e}"
+                f"[TOOL_DESERIALIZE] Failed to deserialize async_fn for tool '{tool_data['name']}': {e}"
             )
 
         # Create tool instance with enhanced error handling
@@ -312,7 +312,7 @@ def deserialize_agent_from_dict(
     try:
         tools = deserialize_tools(data["tools"])
     except Exception as e:
-        raise ValueError(f"❌ [AGENT_DESERIALIZE] Tool deserialization failed: {e}") from e
+        raise ValueError(f"[AGENT_DESERIALIZE] Tool deserialization failed: {e}") from e
 
     # Create agent instance
     agent = agent_cls(

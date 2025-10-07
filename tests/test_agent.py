@@ -13,7 +13,6 @@ from vectara_agentic.agent_config import AgentConfig
 from vectara_agentic.types import ModelProvider, ObserverType
 from vectara_agentic.tools import ToolsFactory
 
-from vectara_agentic.agent_core.prompts import GENERAL_INSTRUCTIONS
 from conftest import mult, STANDARD_TEST_TOPIC, STANDARD_TEST_INSTRUCTIONS
 
 
@@ -54,9 +53,11 @@ class TestAgentPackage(unittest.TestCase):
             + date.today().strftime("%A, %B %d, %Y")
             + " with Always do as your mother tells you!"
         )
+        # Test format_prompt with dummy instructions since we're only testing template substitution
+        dummy_instructions = "Test instructions"
         self.assertEqual(
             format_prompt(
-                prompt_template, GENERAL_INSTRUCTIONS, topic, custom_instructions
+                prompt_template, dummy_instructions, topic, custom_instructions
             ),
             expected_output,
         )
@@ -83,7 +84,7 @@ class TestAgentPackage(unittest.TestCase):
             config = AgentConfig(
                 agent_type=AgentType.REACT,
                 main_llm_provider=ModelProvider.ANTHROPIC,
-                main_llm_model_name="claude-sonnet-4-20250514",
+                main_llm_model_name="claude-sonnet-4-5",
                 tool_llm_provider=ModelProvider.TOGETHER,
                 tool_llm_model_name="moonshotai/Kimi-K2-Instruct",
                 observer=ObserverType.ARIZE_PHOENIX,

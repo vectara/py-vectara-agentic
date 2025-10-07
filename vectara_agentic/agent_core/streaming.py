@@ -133,15 +133,15 @@ def extract_response_text_from_chat_message(response_text: Any) -> str:
         str: Extracted text content
     """
     # Handle case where response is a ChatMessage object
-    if hasattr(response_text, "content"):
-        return response_text.content
-    elif hasattr(response_text, "blocks"):
+    if hasattr(response_text, "blocks"):
         # Extract text from ChatMessage blocks
         text_parts = []
         for block in response_text.blocks:
             if hasattr(block, "text"):
                 text_parts.append(block.text)
         return "".join(text_parts)
+    elif hasattr(response_text, "content"):
+        return response_text.content
     elif not isinstance(response_text, str):
         return str(response_text)
 
@@ -261,7 +261,9 @@ class FunctionCallingStreamHandler:
     - Drop the buffer if the step triggers tool calls (planning/tool-selection).
     - Track pending tool results; handle multi-round (tool -> read -> tool -> ...) loops.
     - Support return_direct tools (tool output is the final answer, no synthesis step).
-    - Optional optimistic streaming with rollback token for nicer UX.
+    - Two streaming modes:
+      - final_only: Buffer all tokens and commit only after step completes with no tool calls
+      - optimistic_live: Stream tokens live after all tool calls are complete
     """
 
     def __init__(
@@ -270,15 +272,13 @@ class FunctionCallingStreamHandler:
         handler,
         prompt: str,
         *,
-        stream_policy: str = "final_only",            # "final_only" | "optimistic_live"
-        rollback_token: str = "[[__rollback_current_step__]]",  # UI control signal (optional)
+        stream_policy: str = "optimistic_live",            # "final_only" | "optimistic_live"
     ):
         self.agent_instance = agent_instance
         self.handler = handler  # awaitable; also has .stream_events()
         self.prompt = prompt
 
         self.stream_policy = stream_policy
-        self.rollback_token = rollback_token
 
         # Plumbing for your existing adapter/post-processing
         self.final_response_container = {"resp": None}
@@ -349,8 +349,8 @@ class FunctionCallingStreamHandler:
                 # Always buffer first
                 step_buffer.append(delta)
 
-                # Optional "optimistic" UX: show live typing but be ready to roll it back
-                if self.stream_policy == "optimistic_live" and pending_tools == 0 and not step_has_tool_calls:
+                # Stream live only after all tools are complete
+                if self.stream_policy == "optimistic_live" and pending_tools == 0:
                     yield delta
 
                 continue
@@ -365,18 +365,13 @@ class FunctionCallingStreamHandler:
                         # We held everything; now stream it out in order.
                         for chunk in step_buffer:
                             yield chunk
-                    # In optimistic mode, UI already saw these chunks live.
+                    # In optimistic mode, tokens were streamed live after tools completed.
 
                     committed_any_text = committed_any_text or bool(step_buffer)
                     _reset_step()
 
                 else:
                     # Planning/tool step -> drop buffer
-                    if self.stream_policy == "optimistic_live" and step_buffer:
-                        # Tell the UI to roll back the ephemeral message
-                        # (only if your frontend supports it)
-                        yield self.rollback_token
-
                     _reset_step()
                     pending_tools += n_calls
 

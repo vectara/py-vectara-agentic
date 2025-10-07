@@ -43,7 +43,7 @@ from .types import (
     AgentConfigType,
 )
 from .llm_utils import get_llm
-from .agent_core.prompts import GENERAL_INSTRUCTIONS
+from .agent_core.prompts import get_general_instructions
 from ._callback import AgentCallbackHandler
 from ._observability import setup_observer
 from .tools import ToolsFactory
@@ -85,7 +85,7 @@ class Agent:
         tools: List["FunctionTool"],
         topic: str = "general",
         custom_instructions: str = "",
-        general_instructions: str = GENERAL_INSTRUCTIONS,
+        general_instructions: Optional[str] = None,
         verbose: bool = False,
         agent_progress_callback: Optional[
             Callable[[AgentStatusType, dict, str], None]
@@ -137,7 +137,10 @@ class Agent:
         self.agent_type = self.agent_config.agent_type
         self._llm = None  # Lazy loading
         self._custom_instructions = custom_instructions
-        self._general_instructions = general_instructions
+        self._general_instructions = (
+            general_instructions if general_instructions is not None
+            else get_general_instructions(tools)
+        )
         self._topic = topic
         self.agent_progress_callback = agent_progress_callback
 
@@ -380,7 +383,7 @@ class Agent:
         tool_name: str,
         data_description: str,
         assistant_specialty: str,
-        general_instructions: str = GENERAL_INSTRUCTIONS,
+        general_instructions: Optional[str] = None,
         vectara_corpus_key: str = str(os.environ.get("VECTARA_CORPUS_KEY", "")),
         vectara_api_key: str = str(os.environ.get("VECTARA_API_KEY", "")),
         agent_progress_callback: Optional[
@@ -828,8 +831,9 @@ class Agent:
                         user_msg=prompt, memory=self.memory, ctx=ctx
                     )
 
-                    # Use the dedicated FunctionCallingStreamHandler
-                    stream_handler = FunctionCallingStreamHandler(self, handler, prompt)
+                    stream_handler = FunctionCallingStreamHandler(
+                        self, handler, prompt, stream_policy="optimistic_live"
+                    )
                     streaming_adapter = stream_handler.create_streaming_response(
                         user_meta
                     )
@@ -893,7 +897,6 @@ class Agent:
     def _clear_tool_outputs(self):
         """Clear stored tool outputs at the start of a new query."""
         self._current_tool_outputs.clear()
-        logging.info("🔧 [TOOL_STORAGE] Cleared stored tool outputs for new query")
 
     def _add_tool_output(self, tool_name: str, content: str):
         """Add a tool output to the current collection for VHC."""
@@ -903,15 +906,9 @@ class Agent:
             "tool_name": tool_name,
         }
         self._current_tool_outputs.append(tool_output)
-        logging.info(
-            f"🔧 [TOOL_STORAGE] Added tool output from '{tool_name}': {len(content)} chars"
-        )
 
     def _get_stored_tool_outputs(self) -> List[dict]:
         """Get the stored tool outputs from the current query."""
-        logging.info(
-            f"🔧 [TOOL_STORAGE] Retrieved {len(self._current_tool_outputs)} stored tool outputs"
-        )
         return self._current_tool_outputs.copy()
 
     async def acompute_vhc(self) -> Dict[str, Any]:
@@ -923,27 +920,19 @@ class Agent:
         Returns:
             Dict[str, Any]: Dictionary containing 'corrected_text' and 'corrections'
         """
-        logging.info(
-            f"🔍🔍🔍 [VHC_AGENT_ENTRY] UNIQUE_DEBUG_MESSAGE acompute_vhc method called - "
-            f"stored_tool_outputs_count={len(self._current_tool_outputs)}"
-        )
-        logging.info(
-            f"🔍🔍🔍 [VHC_AGENT_ENTRY] _last_query: {'set' if self._last_query else 'None'}"
-        )
-
         if not self._last_query:
-            logging.info("🔍 [VHC_AGENT] Returning early - no _last_query")
+            logging.info("[VHC_AGENT] Returning early - no _last_query")
             return {"corrected_text": None, "corrections": []}
 
         # For VHC to work, we need the response text from memory
         # Get the latest assistant response from memory
         messages = self.memory.get()
         logging.info(
-            f"🔍 [VHC_AGENT] memory.get() returned {len(messages) if messages else 0} messages"
+            f"[VHC_AGENT] memory.get() returned {len(messages) if messages else 0} messages"
         )
 
         if not messages:
-            logging.info("🔍 [VHC_AGENT] Returning early - no messages in memory")
+            logging.info("[VHC_AGENT] Returning early - no messages in memory")
             return {"corrected_text": None, "corrections": []}
 
         # Find the last assistant message
@@ -954,12 +943,12 @@ class Agent:
                 break
 
         logging.info(
-            f"🔍 [VHC_AGENT] Found last_response: {'set' if last_response else 'None'}"
+            f"[VHC_AGENT] Found last_response: {'set' if last_response else 'None'}"
         )
 
         if not last_response:
             logging.info(
-                "🔍 [VHC_AGENT] Returning early - no last assistant response found"
+                "[VHC_AGENT] Returning early - no last assistant response found"
             )
             return {"corrected_text": None, "corrections": []}
 
@@ -975,11 +964,11 @@ class Agent:
 
         # Check if we have VHC API key
         logging.info(
-            f"🔍 [VHC_AGENT] acompute_vhc called with vectara_api_key={'set' if self.vectara_api_key else 'None'}"
+            f"[VHC_AGENT] acompute_vhc called with vectara_api_key={'set' if self.vectara_api_key else 'None'}"
         )
         if not self.vectara_api_key:
             logging.info(
-                "🔍 [VHC_AGENT] No vectara_api_key - returning early with None"
+                "[VHC_AGENT] No vectara_api_key - returning early with None"
             )
             return {"corrected_text": None, "corrections": []}
 
@@ -990,7 +979,7 @@ class Agent:
             # Use stored tool outputs from current query
             stored_tool_outputs = self._get_stored_tool_outputs()
             logging.info(
-                f"🔧 [VHC_AGENT] Using {len(stored_tool_outputs)} stored tool outputs for VHC"
+                f"[VHC_AGENT] Using {len(stored_tool_outputs)} stored tool outputs for VHC"
             )
 
             corrected_text, corrections = analyze_hallucinations(

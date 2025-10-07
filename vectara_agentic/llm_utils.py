@@ -18,7 +18,7 @@ from .agent_config import AgentConfig
 
 provider_to_default_model_name = {
     ModelProvider.OPENAI: "gpt-4.1-mini",
-    ModelProvider.ANTHROPIC: "claude-sonnet-4-0",
+    ModelProvider.ANTHROPIC: "claude-sonnet-4-5",
     ModelProvider.TOGETHER: "deepseek-ai/DeepSeek-V3",
     ModelProvider.GROQ: "openai/gpt-oss-20b",
     ModelProvider.BEDROCK: "us.anthropic.claude-sonnet-4-20250514-v1:0",
@@ -34,6 +34,7 @@ models_to_max_tokens = {
     "gpt-4.1-mini": 32768,
     "claude-sonnet-4-20250514": 64000,
     "claude-sonnet-4-0": 64000,
+    "claude-sonnet-4-5": 64000,
     "deepseek-ai/deepseek-v3": 8192,
     "models/gemini-2.5-flash": 65536,
     "models/gemini-2.5-flash-lite": 65536,
@@ -117,6 +118,57 @@ def _get_llm_params_for_role(
     return model_provider, model_name
 
 
+def _cleanup_gemini_clients() -> None:
+    """Helper function to cleanup Gemini client sessions."""
+    for llm in _llm_cache.values():
+        try:
+            # Check if this is a GoogleGenAI instance with internal client structure
+            if not hasattr(llm, '_client'):
+                continue
+
+            client = getattr(llm, '_client', None)
+            if not client:
+                continue
+
+            api_client = getattr(client, '_api_client', None)
+            if not api_client:
+                continue
+
+            async_session = getattr(api_client, '_async_session', None)
+            if not async_session:
+                continue
+
+            # Close the aiohttp session if it exists
+            try:
+                import asyncio
+                loop = asyncio.get_event_loop()
+                if not loop.is_closed():
+                    loop.run_until_complete(async_session.close())
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+
+def clear_llm_cache(provider: Optional[ModelProvider] = None) -> None:
+    """
+    Clear the LLM cache, optionally for a specific provider only.
+
+    Args:
+        provider: If specified, only clear cache entries for this provider.
+                 If None, clear the entire cache.
+    """
+    # Before clearing, try to cleanup any Gemini clients
+    _cleanup_gemini_clients()
+
+    if provider is None:
+        # Clear entire cache
+        _llm_cache.clear()
+    else:
+        # For simplicity, just clear all when provider is specified
+        _llm_cache.clear()
+
+
 def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
     """
     Get the LLM for the specified role, using the provided config
@@ -159,6 +211,7 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
                 "google_genai not available. Install with: pip install llama-index-llms-google-genai"
             ) from e
         import google.genai.types as google_types
+
         generation_config = google_types.GenerateContentConfig(
             temperature=0.0,
             seed=123,

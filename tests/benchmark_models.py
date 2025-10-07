@@ -68,7 +68,7 @@ def validate_api_keys(models_to_test: List[Dict]) -> None:
             missing_keys.append(key)
 
     if missing_keys:
-        print("❌ ERROR: Missing required API keys for benchmark execution:")
+        print("ERROR: Missing required API keys for benchmark execution:")
         print()
         for key in sorted(missing_keys):
             print(f"  • {key}")
@@ -83,7 +83,7 @@ def validate_api_keys(models_to_test: List[Dict]) -> None:
 
         sys.exit(1)
 
-    print("✅ All required API keys are present")
+    print("All required API keys are present")
     print(f"Found API keys for {len(required_keys)} required environment variables")
 
 
@@ -135,7 +135,7 @@ class ModelBenchmark:
             {"provider": ModelProvider.OPENAI, "model": "gpt-5-mini"},
             {"provider": ModelProvider.OPENAI, "model": "gpt-4o-mini"},
             {"provider": ModelProvider.OPENAI, "model": "gpt-4.1-mini"},
-            {"provider": ModelProvider.ANTHROPIC, "model": "claude-sonnet-4-20250514"},
+            {"provider": ModelProvider.ANTHROPIC, "model": "claude-sonnet-4-5"},
             {"provider": ModelProvider.TOGETHER, "model": "deepseek-ai/DeepSeek-V3"},
             {"provider": ModelProvider.GROQ, "model": "openai/gpt-oss-20b"},
             {"provider": ModelProvider.GEMINI, "model": "models/gemini-2.5-flash-lite"},
@@ -817,11 +817,11 @@ class ModelBenchmark:
             observability_setup = setup_observer(dummy_config, verbose=True)
             if observability_setup:
                 print(
-                    "✅ Arize Phoenix observability enabled - LLM calls will be traced\n"
+                    "Arize Phoenix observability enabled - LLM calls will be traced\n"
                 )
                 _observability_initialized = True
             else:
-                print("⚠️  Arize Phoenix observability setup failed\n")
+                print("Arize Phoenix observability setup failed\n")
 
         # Create semaphore to limit concurrent model testing
         model_semaphore = asyncio.Semaphore(self.max_concurrent_models)
@@ -835,7 +835,7 @@ class ModelBenchmark:
             tasks.append(task)
 
         # Execute all model benchmarks in parallel
-        print("🚀 Starting parallel benchmark execution...\n")
+        print("Starting parallel benchmark execution...\n")
         await asyncio.gather(*tasks, return_exceptions=True)
 
     async def _run_model_benchmark(
@@ -857,9 +857,9 @@ class ModelBenchmark:
                         provider, model_name, test_name, test_config
                     )
                 except Exception as e:
-                    print(f"❌ Error in {model_name} - {test_name}: {e}")
+                    print(f"Error in {model_name} - {test_name}: {e}")
 
-            print(f"✅ Completed: {provider.value} - {model_name}")
+            print(f"Completed: {provider.value} - {model_name}")
 
     async def _run_scenario_benchmark(
         self,
@@ -892,18 +892,18 @@ class ModelBenchmark:
 
                 if result.error:
                     print(
-                        f"    ❌ {model_name}/{test_name} Iteration {iteration_num}: {result.error}"
+                        f"{model_name}/{test_name} Iteration {iteration_num}: {result.error}"
                     )
                 else:
                     print(
-                        f"    ✅ {model_name}/{test_name} Iteration {iteration_num}: "
+                        f"{model_name}/{test_name} Iteration {iteration_num}: "
                         f"{result.total_response_time:.2f}s, "
                         f"first token: {result.first_token_latency:.2f}s, "
                         f"{result.tokens_per_second:.1f} chars/sec"
                     )
 
             except Exception as e:
-                print(f"    ❌ {model_name}/{test_name} Iteration {iteration_num}: {e}")
+                print(f"{model_name}/{test_name} Iteration {iteration_num}: {e}")
                 # Create error result
                 error_result = BenchmarkResult(
                     model_name=model_name,
@@ -929,7 +929,7 @@ class ModelBenchmark:
         successful = len([r for r in iteration_results if r.error is None])
         success_rate = (successful / len(iteration_results)) * 100
         print(
-            f"    📊 {model_name}/{test_name} complete: {successful}/{len(iteration_results)} successful ({success_rate:.1f}%)"
+            f"{model_name}/{test_name} complete: {successful}/{len(iteration_results)} successful ({success_rate:.1f}%)"
         )
 
         return iteration_results

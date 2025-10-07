@@ -305,3 +305,7 @@ def patch_sync(func_async: AsyncCallable) -> Callable:
         return loop.run_until_complete(func_async(*args, **kwargs))
 
     return patched_sync
+
+
+# Tool name suffixes for pattern matching (with underscore prefix)
+DB_TOOL_SUFFIXES = {f"_{func}" for func in DatabaseTools.spec_functions}

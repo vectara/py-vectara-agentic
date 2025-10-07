@@ -23,7 +23,7 @@ from ..types import AgentType
 from .prompts import (
     REACT_PROMPT_TEMPLATE,
     GENERAL_PROMPT_TEMPLATE,
-    GENERAL_INSTRUCTIONS,
+    get_general_instructions,
 )
 from ..tools import VectaraToolFactory
 from .utils.schemas import PY_TYPES
@@ -229,7 +229,7 @@ def create_agent_from_corpus(
     tool_name: str,
     data_description: str,
     assistant_specialty: str,
-    general_instructions: str = GENERAL_INSTRUCTIONS,
+    general_instructions: Optional[str] = None,
     vectara_corpus_key: str = str(os.environ.get("VECTARA_CORPUS_KEY", "")),
     vectara_api_key: str = str(os.environ.get("VECTARA_API_KEY", "")),
     agent_config: AgentConfig = AgentConfig(),
@@ -370,12 +370,19 @@ def create_agent_from_corpus(
     - Never discuss politics, and always respond politely.
     """
 
+    # Determine general instructions based on available tools
+    tools = [vectara_tool]
+    effective_general_instructions = (
+        general_instructions if general_instructions is not None
+        else get_general_instructions(tools)
+    )
+
     return {
-        "tools": [vectara_tool],
+        "tools": tools,
         "agent_config": agent_config,
         "topic": assistant_specialty,
         "custom_instructions": assistant_instructions,
-        "general_instructions": general_instructions,
+        "general_instructions": effective_general_instructions,
         "verbose": verbose,
         "fallback_agent_config": fallback_agent_config,
         "vectara_api_key": vectara_api_key,
