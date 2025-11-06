@@ -212,12 +212,18 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             ) from e
         import google.genai.types as google_types
 
-        generation_config = google_types.GenerateContentConfig(
-            temperature=0.0,
-            seed=123,
-            max_output_tokens=max_tokens,
-            thinking_config=google_types.ThinkingConfig(thinking_budget=0, include_thoughts=False),
-        )
+        # Only include thinking_config for models that support it (Gemini 2.0+, not Gemma models)
+        config_kwargs = {
+            "temperature": 0.0,
+            "seed": 123,
+            "max_output_tokens": max_tokens,
+        }
+        # Gemini models support thinking, Gemma models do not
+        if "gemini" in model_name.lower() and "gemma" not in model_name.lower():
+            config_kwargs["thinking_config"] = google_types.ThinkingConfig(
+                thinking_budget=0, include_thoughts=False
+            )
+        generation_config = google_types.GenerateContentConfig(**config_kwargs)
         llm = GoogleGenAI(
             model=model_name,
             temperature=0,
