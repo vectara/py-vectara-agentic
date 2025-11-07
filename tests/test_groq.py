@@ -124,8 +124,6 @@ class TestGROQ(unittest.IsolatedAsyncioTestCase):
                 if chunk and chunk.strip():
                     streaming_deltas.append(chunk)
                     full_response += chunk
-                    # Display each streaming delta
-                    print(f"📡 Delta: {repr(chunk)}")
 
                     # Track tool calls in the stream
                     if "mult" in chunk.lower():

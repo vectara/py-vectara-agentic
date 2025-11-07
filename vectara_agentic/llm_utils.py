@@ -212,7 +212,7 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             ) from e
         import google.genai.types as google_types
 
-        # Only include thinking_config for models that support it (Gemini 2.0+, not Gemma models)
+        # Only include thinking_config for models that support it (Gemini 2.5+, not Gemma models)
         config_kwargs = {
             "temperature": 0.0,
             "seed": 123,
