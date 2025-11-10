@@ -131,6 +131,38 @@ class TestTogether(unittest.IsolatedAsyncioTestCase):
             # Verify the response contains the correct answer
             self.assertIn("48", response.response)
 
+    async def test_gpt_oss_120b(self):
+        """Test OpenAI GPT-OSS-120B model with Together AI provider."""
+        with ARIZE_LOCK:
+            # Create config specifically for GPT-OSS-120B
+            gpt_oss_120b_config = AgentConfig(
+                agent_type=AgentType.FUNCTION_CALLING,
+                main_llm_provider=ModelProvider.TOGETHER,
+                main_llm_model_name="openai/gpt-oss-120b",
+                tool_llm_provider=ModelProvider.TOGETHER,
+                tool_llm_model_name="openai/gpt-oss-120b",
+            )
+
+            tools = [ToolsFactory().create_tool(mult)]
+            agent = Agent(
+                agent_config=gpt_oss_120b_config,
+                tools=tools,
+                topic=STANDARD_TEST_TOPIC,
+                custom_instructions=STANDARD_TEST_INSTRUCTIONS,
+            )
+
+            # Test simple multiplication: 9 * 11 = 99
+            stream = await agent.astream_chat(
+                "What is 9 times 11? Only give the answer, nothing else"
+            )
+            # Consume the stream
+            async for chunk in stream.async_response_gen():
+                pass
+            response = await stream.aget_response()
+
+            # Verify the response contains the correct answer
+            self.assertIn("99", response.response)
+
 
 if __name__ == "__main__":
     unittest.main()

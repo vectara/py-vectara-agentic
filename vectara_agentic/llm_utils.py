@@ -35,6 +35,7 @@ models_to_max_tokens = {
     "claude-sonnet-4-20250514": 64000,
     "claude-sonnet-4-0": 64000,
     "claude-sonnet-4-5": 64000,
+    "claude-haiku-4-5": 32000,
     "deepseek-ai/deepseek-v3": 8192,
     "models/gemini-2.5-flash": 65536,
     "models/gemini-2.5-flash-lite": 65536,
@@ -84,6 +85,7 @@ def _create_llm_cache_key(role: LLMRole, config: Optional[AgentConfig] = None) -
         "tool_llm_model_name": config.tool_llm_model_name,
         "private_llm_api_base": config.private_llm_api_base,
         "private_llm_api_key": config.private_llm_api_key,
+        "private_llm_max_tokens": config.private_llm_max_tokens,
     }
 
     # Create a stable hash from the cache data
@@ -212,12 +214,18 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             ) from e
         import google.genai.types as google_types
 
-        generation_config = google_types.GenerateContentConfig(
-            temperature=0.0,
-            seed=123,
-            max_output_tokens=max_tokens,
-            thinking_config=google_types.ThinkingConfig(thinking_budget=0, include_thoughts=False),
-        )
+        # Only include thinking_config for models that support it (Gemini 2.5+)
+        config_kwargs = {
+            "temperature": 0.0,
+            "seed": 123,
+            "max_output_tokens": max_tokens,
+        }
+        # Gemini models support thinking
+        if "gemini" in model_name.lower():
+            config_kwargs["thinking_config"] = google_types.ThinkingConfig(
+                thinking_budget=0, include_thoughts=False
+            )
+        generation_config = google_types.GenerateContentConfig(**config_kwargs)
         llm = GoogleGenAI(
             model=model_name,
             temperature=0,
@@ -236,8 +244,10 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
         additional_kwargs = {"seed": 42}
         if model_name in [
             "deepseek-ai/DeepSeek-V3.1",
-            "deepseek-ai/DeepSeek-R1", "Qwen/Qwen3-235B-A22B-Thinking-2507"
-            "openai/gpt-oss-120b", "openai/gpt-oss-20b",
+            "deepseek-ai/DeepSeek-R1",
+            "Qwen/Qwen3-235B-A22B-Thinking-2507",
+            "openai/gpt-oss-120b",
+            "openai/gpt-oss-20b",
         ]:
             additional_kwargs['reasoning_effort'] = "low"
         llm = TogetherLLM(
@@ -259,6 +269,8 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             temperature=0,
             is_function_calling_model=True,
             max_tokens=max_tokens,
+            reasoning_format="hidden",
+            reasoning_effort="low",
         )
     elif model_provider == ModelProvider.BEDROCK:
         try:
@@ -300,6 +312,8 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             raise ValueError(
                 "Private LLM requires both private_llm_api_base and private_llm_api_key to be set in AgentConfig."
             )
+        # Use private_llm_max_tokens if specified (non-zero), otherwise fall back to default
+        private_max_tokens = config.private_llm_max_tokens if config.private_llm_max_tokens > 0 else max_tokens
         llm = OpenAILike(
             model=model_name,
             temperature=0,
@@ -307,7 +321,7 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             is_chat_model=True,
             api_base=config.private_llm_api_base,
             api_key=config.private_llm_api_key,
-            max_tokens=max_tokens,
+            max_tokens=private_max_tokens,
         )
 
     else:

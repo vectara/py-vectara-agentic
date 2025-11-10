@@ -793,7 +793,7 @@ from vectara_agentic import AgentConfig, AgentType, ModelProvider
 agent_config = AgentConfig(
     agent_type = AgentType.REACT,
     main_llm_provider = ModelProvider.ANTHROPIC,
-    main_llm_model_name = 'claude-3-5-sonnet-20241022',
+    main_llm_model_name = 'claude-4-5-sonnet',
     tool_llm_provider = ModelProvider.TOGETHER,
     tool_llm_model_name = 'deepseek-ai/DeepSeek-V3'
 )
@@ -838,6 +838,7 @@ config = AgentConfig(
     main_llm_model_name="meta-llama/Meta-Llama-3.1-8B-Instruct",
     private_llm_api_base="http://vllm-server.company.com/v1",
     private_llm_api_key="TEST_API_KEY",
+    private_llm_max_tokens=8192,  # Optional: set max output tokens for your private LLM
 )
 
 agent = Agent(
