@@ -52,7 +52,8 @@ class TestPrivateLLM(unittest.TestCase):
         cls.flask_process.send_signal(signal.SIGINT)
         cls.flask_process.wait()
 
-    def test_endpoint(self):
+    def test_endpoint_openai(self):
+        """Test private LLM endpoint with OpenAI model."""
         def mult(x: float, y: float) -> float:
             return x * y
 
@@ -84,6 +85,76 @@ class TestPrivateLLM(unittest.TestCase):
         if isinstance(res, (int, float)):
             res = str(int(res))
         self.assertEqual(res, "50")
+
+    def test_endpoint_gpt_oss_120b(self):
+        """Test private LLM endpoint with GPT-OSS-120B via Together.AI."""
+        def mult(x: float, y: float) -> float:
+            return x * y
+
+        tools = [ToolsFactory().create_tool(mult)]
+        topic = "calculator"
+        custom_instructions = "you are an agent specializing in math, assisting a user."
+        config = AgentConfig(
+            agent_type=AgentType.FUNCTION_CALLING,
+            main_llm_provider=ModelProvider.PRIVATE,
+            main_llm_model_name="openai/gpt-oss-120b",
+            private_llm_api_base=f"http://127.0.0.1:{FLASK_PORT}/v1",
+            private_llm_api_key="TEST_API_KEY",
+        )
+        agent = Agent(
+            agent_config=config,
+            tools=tools,
+            topic=topic,
+            custom_instructions=custom_instructions,
+            verbose=False,
+        )
+
+        # To run this test, you must have TOGETHER_API_KEY in your environment
+        res = agent.chat(
+            "What is 7 times 8. Only give the answer, nothing else."
+        ).response
+        if res is None:
+            self.fail("Agent returned None response")
+        # Convert to string for comparison if it's a number
+        if isinstance(res, (int, float)):
+            res = str(int(res))
+        # Check if "56" is contained in the response (model may add prefixes like "final")
+        self.assertIn("56", res)
+
+    def test_endpoint_deepseek_v3(self):
+        """Test private LLM endpoint with DeepSeek-V3 via Together.AI."""
+        def mult(x: float, y: float) -> float:
+            return x * y
+
+        tools = [ToolsFactory().create_tool(mult)]
+        topic = "calculator"
+        custom_instructions = "you are an agent specializing in math, assisting a user."
+        config = AgentConfig(
+            agent_type=AgentType.FUNCTION_CALLING,
+            main_llm_provider=ModelProvider.PRIVATE,
+            main_llm_model_name="deepseek-ai/DeepSeek-V3",
+            private_llm_api_base=f"http://127.0.0.1:{FLASK_PORT}/v1",
+            private_llm_api_key="TEST_API_KEY",
+        )
+        agent = Agent(
+            agent_config=config,
+            tools=tools,
+            topic=topic,
+            custom_instructions=custom_instructions,
+            verbose=False,
+        )
+
+        # To run this test, you must have TOGETHER_API_KEY in your environment
+        res = agent.chat(
+            "What is 9 times 6. Only give the answer, nothing else."
+        ).response
+        if res is None:
+            self.fail("Agent returned None response")
+        # Convert to string for comparison if it's a number
+        if isinstance(res, (int, float)):
+            res = str(int(res))
+        # Check if "54" is contained in the response (model may add prefixes)
+        self.assertIn("54", res)
 
 
 if __name__ == "__main__":
