@@ -35,10 +35,12 @@ models_to_max_tokens = {
     "claude-sonnet-4-20250514": 64000,
     "claude-sonnet-4-0": 64000,
     "claude-sonnet-4-5": 64000,
+    "claude-haiku-4-5": 32000,
     "deepseek-ai/deepseek-v3": 8192,
     "models/gemini-2.5-flash": 65536,
     "models/gemini-2.5-flash-lite": 65536,
     "models/gemini-2.5-pro": 65536,
+    "gemma-3-27b-it": 128000,
     "openai/gpt-oss-20b": 65536,
     "openai/gpt-oss-120b": 65536,
     "us.anthropic.claude-sonnet-4-20250514-v1:0": 64000,
@@ -84,6 +86,7 @@ def _create_llm_cache_key(role: LLMRole, config: Optional[AgentConfig] = None) -
         "tool_llm_model_name": config.tool_llm_model_name,
         "private_llm_api_base": config.private_llm_api_base,
         "private_llm_api_key": config.private_llm_api_key,
+        "private_llm_max_tokens": config.private_llm_max_tokens,
     }
 
     # Create a stable hash from the cache data
@@ -242,8 +245,10 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
         additional_kwargs = {"seed": 42}
         if model_name in [
             "deepseek-ai/DeepSeek-V3.1",
-            "deepseek-ai/DeepSeek-R1", "Qwen/Qwen3-235B-A22B-Thinking-2507"
-            "openai/gpt-oss-120b", "openai/gpt-oss-20b",
+            "deepseek-ai/DeepSeek-R1",
+            "Qwen/Qwen3-235B-A22B-Thinking-2507",
+            "openai/gpt-oss-120b",
+            "openai/gpt-oss-20b",
         ]:
             additional_kwargs['reasoning_effort'] = "low"
         llm = TogetherLLM(
@@ -306,6 +311,8 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             raise ValueError(
                 "Private LLM requires both private_llm_api_base and private_llm_api_key to be set in AgentConfig."
             )
+        # Use private_llm_max_tokens if specified (non-zero), otherwise fall back to default
+        private_max_tokens = config.private_llm_max_tokens if config.private_llm_max_tokens > 0 else max_tokens
         llm = OpenAILike(
             model=model_name,
             temperature=0,
@@ -313,7 +320,7 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             is_chat_model=True,
             api_base=config.private_llm_api_base,
             api_key=config.private_llm_api_key,
-            max_tokens=max_tokens,
+            max_tokens=private_max_tokens,
         )
 
     else:

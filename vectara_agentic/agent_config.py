@@ -57,6 +57,11 @@ class AgentConfig:
             "VECTARA_AGENTIC_PRIVATE_LLM_API_KEY", "<private-api-key>"
         )
     )
+    private_llm_max_tokens: int = field(
+        default_factory=lambda: int(
+            os.getenv("VECTARA_AGENTIC_PRIVATE_LLM_MAX_TOKENS", "0")
+        )
+    )
 
     # Observer
     observer: ObserverType = field(

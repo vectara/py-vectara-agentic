@@ -1110,3 +1110,9 @@ in your environment (or `private_llm_api_base` in the `AgentConfig`) as
 the API endpoint url for your private LLM and
 `VECTARA_AGENTIC_PRIVATE_API_KEY` (or `private_llm_api_key`) as the API
 key to your LLM.
+
+Optionally, you can specify `VECTARA_AGENTIC_PRIVATE_LLM_MAX_TOKENS` in
+your environment (or `private_llm_max_tokens` in the `AgentConfig`) to
+set the maximum output tokens for your private LLM. If not specified (or
+set to 0), the system will use a default value based on the model name if
+available, or 8192 otherwise.
