@@ -249,7 +249,7 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             "openai/gpt-oss-120b",
             "openai/gpt-oss-20b",
         ]:
-            additional_kwargs['reasoning_effort'] = "low"
+            additional_kwargs["reasoning_effort"] = "low"
         llm = TogetherLLM(
             model=model_name,
             temperature=0,
