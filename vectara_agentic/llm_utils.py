@@ -269,6 +269,8 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             temperature=0,
             is_function_calling_model=True,
             max_tokens=max_tokens,
+            reasoning_format="hidden",
+            reasoning_effort="low",
         )
     elif model_provider == ModelProvider.BEDROCK:
         try:
