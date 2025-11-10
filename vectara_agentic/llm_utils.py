@@ -40,7 +40,6 @@ models_to_max_tokens = {
     "models/gemini-2.5-flash": 65536,
     "models/gemini-2.5-flash-lite": 65536,
     "models/gemini-2.5-pro": 65536,
-    "gemma-3-27b-it": 128000,
     "openai/gpt-oss-20b": 65536,
     "openai/gpt-oss-120b": 65536,
     "us.anthropic.claude-sonnet-4-20250514-v1:0": 64000,
@@ -215,14 +214,14 @@ def get_llm(role: LLMRole, config: Optional[AgentConfig] = None) -> LLM:
             ) from e
         import google.genai.types as google_types
 
-        # Only include thinking_config for models that support it (Gemini 2.5+, not Gemma models)
+        # Only include thinking_config for models that support it (Gemini 2.5+)
         config_kwargs = {
             "temperature": 0.0,
             "seed": 123,
             "max_output_tokens": max_tokens,
         }
-        # Gemini models support thinking, Gemma models do not
-        if "gemini" in model_name.lower() and "gemma" not in model_name.lower():
+        # Gemini models support thinking
+        if "gemini" in model_name.lower():
             config_kwargs["thinking_config"] = google_types.ThinkingConfig(
                 thinking_budget=0, include_thoughts=False
             )
